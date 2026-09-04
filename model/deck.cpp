@@ -1,11 +1,11 @@
 #include "deck.h"
 #include <iostream>
 
-Deck::Deck()
+// Fills `cards` with all 52 cards. Shared by both constructors.
+void Deck::populate()
 {
-	rng.seed(static_cast<unsigned int>(std::time(nullptr)));
-
-	// popularte deck with 52 cards
+	cards.clear();
+	cards.reserve(52);
 	for (int s = 0; s < 4; ++s)
 	{
 		for (int r = 2; r <= 14; ++r)
@@ -15,7 +15,19 @@ Deck::Deck()
 				static_cast<Rank>(r));
 		}
 	}
+}
 
+Deck::Deck()
+	: rng(std::random_device{}())
+{
+	populate();
+	shuffle();
+}
+
+Deck::Deck(std::uint_fast32_t seed)
+	: rng(seed)
+{
+	populate();
 	shuffle();
 }
 

@@ -1,5 +1,6 @@
 #include "bot_thinking_config.h"
 #include <iostream>
+#include <string>
 #include <cstdlib>
 #include <unistd.h>
 
@@ -32,9 +33,14 @@ void BotThinkingConfig::initialize(bool separateTerminal)
             std::cout << "Or press Enter to auto-open a viewer terminal...\n";
             std::cout << "(Press 's' to skip): ";
             
-            char choice;
-            std::cin.get(choice);
-            if (choice != 's' && choice != 'S') {
+            // Read the whole line. std::cin.get(char) consumed a single
+            // character, so typing "skip" - which this prompt invites - left
+            // "kip" in the buffer for the next prompt to misread.
+            std::string choice;
+            std::getline(std::cin, choice);
+
+            bool skip = !choice.empty() && (choice[0] == 's' || choice[0] == 'S');
+            if (!skip) {
                 openViewerTerminal();
             }
             std::cout << "\n";

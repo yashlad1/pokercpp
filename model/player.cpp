@@ -23,15 +23,19 @@ void Player::clearHand()
 	hand.clear();
 }
 
-// deducts chips from player's stack
-void Player::bet(int amount)
+// deducts chips from player's stack, returning what was actually wagered
+int Player::bet(int amount)
 {
-	if (amount > chips)
+	if (amount <= 0)
 	{
-		std::cerr << name << " does not have enough chips to bet $$$";
-		return;
+		return 0;
 	}
-	chips -= amount;
+
+	// Clamp to the available stack rather than refusing the bet outright.
+	// The old version returned without deducting anything, but callers had no
+	// way to notice and carried on as though the chips had been staked.
+	int wagered = (amount > chips) ? chips : amount;
+	chips -= wagered;
 	
 	// Color code based on player name
 	const char* color = (name == "You") ? "\033[32m" : "\033[36m"; // Green for You, Cyan for Bot
@@ -39,7 +43,14 @@ void Player::bet(int amount)
 	const char* bold = "\033[1m";
 	const char* yellow = "\033[33m";
 	
-	std::cout << bold << color << name << reset << " bets " << yellow << bold << amount << " chips" << reset << ". 💵\n";
+	std::cout << bold << color << name << reset << " bets " << yellow << bold << wagered << " chips" << reset << ". 💵";
+	if (wagered < amount)
+	{
+		std::cout << " " << bold << yellow << "(all-in)" << reset;
+	}
+	std::cout << "\n";
+
+	return wagered;
 }
 
 // adds chips to player's stack (for winnings)

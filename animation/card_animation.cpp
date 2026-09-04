@@ -65,8 +65,10 @@ void CardAnimation::dealCommunityCards(const std::vector<Card> &cards, const std
     std::cout << "\n" << BOLD << stageColor << "╔════════════════════════════════════════════════════╗" << RESET << "\n";
     std::cout << BOLD << stageColor << "║" << RESET << "                  " << BOLD << stageColor << "🎴 " << stage << " 🎴" << RESET;
     
-    // Add spacing to center the text
-    int padding = 52 - 23 - stage.length();
+    // Add spacing to center the text. stage.length() is unsigned, so the
+    // subtraction has to be done in a signed type - otherwise a long stage
+    // name wraps to a huge positive count instead of going negative.
+    int padding = 52 - 23 - static_cast<int>(stage.length());
     for (int i = 0; i < padding; i++) std::cout << " ";
     std::cout << BOLD << stageColor << "║" << RESET << "\n";
     std::cout << BOLD << stageColor << "╚════════════════════════════════════════════════════╝" << RESET << "\n";

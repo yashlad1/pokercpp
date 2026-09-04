@@ -34,10 +34,17 @@ namespace PokerMath {
  *          f* = (2*0.6 - 0.4) / 2 = 0.4 (bet 40% of bankroll)
  */
 inline double kellyFraction(double winProbability, double potOdds) {
-    if (winProbability <= 0.0 || winProbability >= 1.0) {
+    if (winProbability <= 0.0) {
+        return 0.0;  // never wins - stake nothing
+    }
+    if (winProbability >= 1.0) {
+        return 1.0;  // cannot lose - maximum edge
+    }
+    // Undefined without odds to win: (bp - q)/b divides by b.
+    if (potOdds <= 0.0) {
         return 0.0;
     }
-    
+
     double p = winProbability;
     double q = 1.0 - p;
     double b = potOdds;

@@ -27,7 +27,10 @@ public:
 	void recieveCard(const Card &card); // Add a card to the hand
 	void clearHand();					// Reset hand (for new round)
 
-	void bet(int amount); // deduct chips
+	// Deducts chips and returns the amount actually wagered. The return value
+	// is clamped to the player's stack (an all-in), so callers can add exactly
+	// what was staked to the pot and keep chip totals conserved.
+	int bet(int amount);
 	void addChips(int amount); // add chips (for winnings)
 	void fold();		  // set folded=true
 	void resetStatus();	  // unfold for next round

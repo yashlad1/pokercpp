@@ -6,6 +6,8 @@
 #include <map>
 #include <iostream>
 #include <iomanip>
+#include <climits>   // LLONG_MAX, used by Metric below
+#include <algorithm> // std::min / std::max
 
 /**
  * Performance Monitoring and Benchmarking
@@ -61,7 +63,10 @@ public:
     static double getAverageMs(const std::string& operationName) {
         auto it = metrics.find(operationName);
         if (it == metrics.end() || it->second.count == 0) return 0.0;
-        return (it->second.totalMicroseconds / it->second.count) / 1000.0;
+        // Convert before dividing. Both operands are integral, so the old form
+        // truncated to whole microseconds before scaling to milliseconds and
+        // disagreed with the figure printReport showed.
+        return static_cast<double>(it->second.totalMicroseconds) / it->second.count / 1000.0;
     }
     
     // Get total count
@@ -108,9 +113,9 @@ public:
         for (const auto& [name, metric] : metrics) {
             if (metric.count == 0) continue;
             
-            double avgMs = metric.totalMicroseconds / metric.count / 1000.0;
-            double minMs = metric.minMicroseconds / 1000.0;
-            double maxMs = metric.maxMicroseconds / 1000.0;
+            double avgMs = static_cast<double>(metric.totalMicroseconds) / metric.count / 1000.0;
+            double minMs = static_cast<double>(metric.minMicroseconds) / 1000.0;
+            double maxMs = static_cast<double>(metric.maxMicroseconds) / 1000.0;
             double opsPerSec = 1000000.0 / (static_cast<double>(metric.totalMicroseconds) / metric.count);
             
             std::cout << std::left << std::setw(25) << name
