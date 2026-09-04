@@ -58,6 +58,91 @@ You can choose bot difficulty at the start:
 
 ## 🧠 Architecture Overview
 
+```mermaid
+classDiagram
+    direction LR
+
+    class PokerController {
+        +runGame()
+        +playRound()
+        +bettingRound(stage)
+    }
+    class CLIView {
+        +renderTable()
+        +promptAction()
+    }
+    class Player {
+        +string name
+        +int chips
+        +vector~Card~ hole
+        +act()
+    }
+    class BotPlayer {
+        +BotDifficulty level
+        +decide()
+    }
+    class Deck {
+        +shuffle()
+        +deal()
+    }
+    class Card {
+        +Rank rank
+        +Suit suit
+    }
+    class HandEvaluator {
+        +evaluate(cards) HandRank
+    }
+    class AdvancedHandEvaluator
+    class MonteCarloSimulator {
+        +winProbability(hole, board, opponents)
+    }
+    class BotThinkingVisualizer
+    class PerformanceMonitor
+    class GameLogger
+
+    PokerController --> CLIView : renders through
+    PokerController --> Deck
+    PokerController --> Player
+    PokerController --> HandEvaluator : resolves showdown
+    Player <|-- BotPlayer
+    Deck o-- Card
+    HandEvaluator <|-- AdvancedHandEvaluator
+    BotPlayer --> MonteCarloSimulator : estimates equity
+    BotPlayer --> BotThinkingVisualizer : shows its reasoning
+    MonteCarloSimulator --> HandEvaluator : evaluates rollouts
+    PokerController --> GameLogger
+    MonteCarloSimulator --> PerformanceMonitor
+```
+
+**Strict MVC.** `model/` knows nothing about how the game is displayed, `view/` knows nothing
+about the rules, and `controller/` is the only thing that talks to both. That separation is
+what makes the hand evaluator unit-testable in isolation, which matters because a poker game
+where the evaluator is subtly wrong is not a game.
+
+### How the bot actually decides
+
+```mermaid
+flowchart LR
+    state["hole cards + board<br/>+ opponent count"] --> mc["Monte Carlo rollouts<br/><i>deal out the unknowns,<br/>evaluate, repeat</i>"]
+    mc --> eq["win probability"]
+    eq --> d{"BotDifficulty"}
+    d -->|easy| a1["loose thresholds"]
+    d -->|medium| a2["pot-odds aware"]
+    d -->|hard| a3["tight, equity vs pot odds"]
+    a1 --> act["fold · call · raise"]
+    a2 --> act
+    a3 --> act
+
+    style mc fill:#0d1117,stroke:#58a6ff,color:#c9d1d9
+```
+
+The bot does not use a lookup table or hand-tuned heuristics for hand strength. It deals out
+the unknown cards many times, evaluates each complete board with the same evaluator the real
+game uses, and counts how often it wins. Difficulty changes what it does with that number,
+not how the number is produced. Rollouts are the reason the simulator is multithreaded: the
+work is embarrassingly parallel and the game has to stay responsive.
+
+
 ### 🔹 `Card` & `Deck`
 - Card = suit + rank
 - Deck = 52-card generation + shuffling
