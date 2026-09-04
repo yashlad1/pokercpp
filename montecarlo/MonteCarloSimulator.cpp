@@ -254,7 +254,7 @@ double MonteCarloSimulator::getFlushDrawOdds() const
     }
 
     // Calculate how many flush cards are left in the deck
-    int totalCards = playerHand.size() + communityCards.size();
+    int totalCards = static_cast<int>(playerHand.size() + communityCards.size());
     int cardsRemaining = 13 - suitCount[flushSuit]; // 13 cards per suit
     int deckSize = 52 - totalCards;
 
@@ -331,11 +331,11 @@ double MonteCarloSimulator::getStraightDrawOdds() const
         return 0.0;
     }
 
-    int totalCards = playerHand.size() + communityCards.size();
+    int totalCards = static_cast<int>(playerHand.size() + communityCards.size());
     int deckSize = 52 - totalCards;
 
     // Each rank has 4 cards (one per suit)
-    int totalOuts = neededCards.size() * 4;
+    int totalOuts = static_cast<int>(neededCards.size()) * 4;
 
     // Subtract cards we already know
     for (const Card &c : playerHand)

@@ -219,7 +219,7 @@ HandValue AdvancedHandEvaluator::evaluate(const std::vector<Card> &cards)
     if (pairs.size() == 1)
     {
         std::vector<int> kickers = {pairs[0]};
-        for (int i = 0; i < 3 && i < (int)singles.size(); ++i)
+        for (size_t i = 0; i < 3 && i < singles.size(); ++i)
             kickers.push_back(singles[i]);
         return HandValue{HandRank::OnePair, kickers};
     }

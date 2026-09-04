@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show compiler version
+        run: clang++ --version
+
+      - name: Build the game
+        run: make CXX=clang++
+
+      - name: Run the test suite
+        run: make test CXX=clang++
+
+  strict:
+    name: Strict warnings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Compiles with -Wshadow -Wconversion -Wsign-conversion and friends.
+      # These are kept out of the default build so everyday compiles stay
+      # quiet, but a regression here should still fail the pipeline.
+      - name: Compile with the strict warning set
+        run: make strict CXX=clang++
+
+  sanitizers:
+    name: ASan + UBSan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Several real defects in this codebase were out-of-bounds reads caused
+      # by unsigned loop bounds underflowing. They compiled and ran without
+      # complaint; only a sanitizer caught them.
+      - name: Run the tests under AddressSanitizer and UBSan
+        run: make test-asan CXX=clang++
+        env:
+          ASAN_OPTIONS: detect_leaks=0
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1

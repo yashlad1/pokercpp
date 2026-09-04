@@ -52,7 +52,7 @@ Where `z` is the z-score for the desired confidence level:
 - 95% confidence: z = 1.96
 - 99% confidence: z = 2.576
 
-**Example**: With 200 simulations and a 70% win rate:
+**Example**: With 2000 simulations and a 70% win rate:
 - σ = √(0.7 × 0.3 / 200) = 0.032
 - 95% CI = 0.70 ± (1.96 × 0.032) = [0.637, 0.763]
 
@@ -216,4 +216,44 @@ See `tests/test_monte_carlo.cpp` for empirical validation of:
 
 ---
 
-**Key Insight**: With 200 simulations, we achieve ~±7% margin of error at 95% confidence, which is sufficient for real-time poker decisions while maintaining statistical rigor.
+**Key Insight**: With 2000 simulations the 95% interval is about ±1.4%. Note that sampling error is not the dominant error: the simulator assumes a uniformly random opponent holding, which overstates equity by roughly 13 percentage points against a tight range. See "Known limitations" below.
+
+---
+
+## Known limitations
+
+### The opponent is modelled as a uniformly random hand
+
+`MonteCarloSimulator` deals the opponent two cards at random from the unseen
+deck. Every one of the 1326 starting combinations is equally likely. A real
+opponent folds weak hands, so a player still betting on the river holds a
+much stronger distribution than that.
+
+Measured over 3000 random river spots, with all opponent holdings enumerated
+exactly and restricted by **preflop** hand strength:
+
+| Opponent range | Mean equity | vs uniform | Decision flips @33% pot odds |
+|---|---|---|---|
+| All hands (what the simulator assumes) | 0.508 | — | — |
+| Top 40% | 0.412 | −0.096 | 13.0% |
+| Top 25% | 0.380 | −0.128 | 16.9% |
+| Top 15% | 0.348 | −0.160 | 22.2% |
+
+The bias is systematic and one-directional: the bot overestimates its equity
+and therefore calls too often. Against a top-25% range it is about **13
+percentage points optimistic**, which flips the call/fold decision in roughly
+**one spot in six**.
+
+For comparison, sampling error at 2000 trials is ±1.4 points. The modelling
+assumption costs about nine times more than the sampling noise, so increasing
+the trial count — or parallelising it — chases the smaller of the two errors.
+
+Fixing this requires range modelling: weighting opponent holdings by how
+likely that opponent was to have played them, and updating those weights as
+betting actions are observed. That is a feature, not a tuning change.
+
+### Heads-up only
+
+`dealRandomOpponentAndBoard` deals exactly one opponent. This matches the
+game, which is one human against one bot, but the equity figures do not
+generalise to multiway pots.

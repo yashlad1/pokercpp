@@ -1,6 +1,6 @@
 # 🃏 CLI Texas Hold'em Poker Game in C++
 
-This project is a **command-line Texas Hold'em poker game** built in modern **C++17**, featuring a multithreaded bot, clean MVC design, and strategic hand evaluation logic.
+This project is a **command-line Texas Hold'em poker game** built in modern **C++17**, featuring Monte Carlo bot opponents, an MVC layering with no view dependencies in the model, and a tested hand evaluator.
 
 ---
 
@@ -8,12 +8,30 @@ This project is a **command-line Texas Hold'em poker game** built in modern **C+
 
 - ✅ Card & Deck generation (with emojis for suits ♠️♦️♥️♣️)
 - ✅ Full game loop with betting and showdown
-- ✅ **Bot opponent with Easy/Medium/Hard difficulty**
-- ✅ **Multithreaded spinner animation** while bot thinks
-- ✅ Hand evaluator (frequency maps, sorting)
+- ✅ **Bot opponents: Easy / Medium / Hard / HardPlus**, the last driven by Monte Carlo equity and pot odds
+- ✅ **Threaded spinner animation** while the bot thinks
+- ✅ Best-five-of-seven hand evaluator with full kicker resolution
 - ✅ Clear CLI interface (check, bet, fold actions)
 - ✅ SOLID design with `BotPlayer` subclass
-- ✅ MVC Pattern: clean separation of model, controller, view
+- ✅ MVC layering: the model performs no console I/O. `BotPlayer` reports its
+  reasoning through a `BotObserver` interface and the view supplies the
+  adapter, so game logic can run headless.
+- ✅ Injectable input (`PlayerInput`) and a configurable thinking delay, so a
+  full hand can be played in tests without a terminal
+- ✅ **64 unit tests** covering hand ranking, chip conservation, bot decisions
+  and the statistical machinery; `make test-asan` runs them under
+  AddressSanitizer and UBSan
+
+---
+
+## ⚠️ Known limitations
+
+- **No blinds or antes**, so folding preflop costs nothing.
+- **No preflop betting round**; action starts on the flop.
+- **No raises** and a fixed 100-chip bet size.
+- The bot's equity model assumes a **uniformly random opponent hand**, which
+  overstates its equity by roughly 13 percentage points against a tight range.
+  See `docs/MONTE_CARLO_ANALYSIS.md`.
 
 ---
 

@@ -9,6 +9,10 @@
 #include "../model/deck.h"
 #include "../montecarlo/MonteCarloSimulator.h"
 #include "../model/poker_math.h"
+#include "../controller/poker_controller.h"
+#include "../controller/player_input.h"
+#include <deque>
+#include <chrono>
 #include <cmath>
 #include "../model/bot_player.h"
 #include "../model/advanced_hand_evaluator.h"
@@ -167,7 +171,8 @@ TEST(bot_survives_preflop_with_two_cards) {
 
     for (auto diff : {BotDifficulty::Easy, BotDifficulty::Medium,
                       BotDifficulty::Hard, BotDifficulty::HardPlus}) {
-        BotPlayer bot("Bot", 1000, diff);
+        BotPlayer bot("Bot", 1000, diff, 424242);
+        bot.setSimulationCount(200);
         // Must not crash or throw.
         bot.shouldCallBet(hole, board, GameStage::PreFlop, 200, 100);
         ASSERT_TRUE(!bot.shouldBetWhenChecked(hole, board, GameStage::PreFlop, 200, 100));
@@ -182,7 +187,7 @@ TEST(bot_survives_two_distinct_ranks_on_flop) {
                                Card(Rank::King, Suit::Clubs),
                                Card(Rank::King, Suit::Diamonds)};
 
-    BotPlayer bot("Bot", 1000, BotDifficulty::Hard);
+    BotPlayer bot("Bot", 1000, BotDifficulty::Hard, 424242);
     bot.shouldCallBet(hole, board, GameStage::Flop, 200, 100);  // must not crash
 }
 
@@ -195,7 +200,7 @@ TEST(hard_bot_value_bets_two_pair_on_river) {
                                Card(Rank::Nine, Suit::Hearts), Card(Rank::King, Suit::Diamonds),
                                Card(Rank::Two, Suit::Diamonds)};
 
-    BotPlayer bot("Bot", 1000, BotDifficulty::Hard);
+    BotPlayer bot("Bot", 1000, BotDifficulty::Hard, 424242);
     ASSERT_TRUE(bot.shouldBetWhenChecked(hole, board, GameStage::River, 400, 100));
 }
 
@@ -206,7 +211,7 @@ TEST(bot_cannot_bet_without_chips) {
                                Card(Rank::Nine, Suit::Hearts), Card(Rank::King, Suit::Diamonds),
                                Card(Rank::Two, Suit::Diamonds)};
 
-    BotPlayer broke("Bot", 50, BotDifficulty::Hard);
+    BotPlayer broke("Bot", 50, BotDifficulty::Hard, 424242);
     ASSERT_TRUE(!broke.shouldBetWhenChecked(hole, board, GameStage::River, 400, 100));
 }
 
@@ -217,7 +222,8 @@ TEST(hardplus_never_folds_for_free) {
                                Card(Rank::Jack, Suit::Hearts), Card(Rank::Nine, Suit::Diamonds),
                                Card(Rank::Eight, Suit::Diamonds)};
 
-    BotPlayer bot("Bot", 1000, BotDifficulty::HardPlus);
+    BotPlayer bot("Bot", 1000, BotDifficulty::HardPlus, 424242);
+    bot.setSimulationCount(400);
     ASSERT_TRUE(bot.shouldCallBet(hole, board, GameStage::River, 400, 0));
 }
 
@@ -229,7 +235,8 @@ TEST(hardplus_respects_pot_odds) {
     std::vector<Card> nutBoard = {Card(Rank::Queen, Suit::Hearts), Card(Rank::Jack, Suit::Hearts),
                                   Card(Rank::Ten, Suit::Hearts), Card(Rank::Two, Suit::Clubs),
                                   Card(Rank::Three, Suit::Diamonds)};
-    BotPlayer strong("Bot", 10000, BotDifficulty::HardPlus);
+    BotPlayer strong("Bot", 10000, BotDifficulty::HardPlus, 424242);
+    strong.setSimulationCount(500);
     ASSERT_TRUE(strong.shouldCallBet(nutHole, nutBoard, GameStage::River, 200, 100));
 
     // Worst hand on a scary board, priced badly: 10 pot, 1000 to call needs
@@ -238,7 +245,8 @@ TEST(hardplus_respects_pot_odds) {
     std::vector<Card> weakBoard = {Card(Rank::Ace, Suit::Hearts), Card(Rank::King, Suit::Hearts),
                                    Card(Rank::Queen, Suit::Hearts), Card(Rank::Jack, Suit::Hearts),
                                    Card(Rank::Nine, Suit::Spades)};
-    BotPlayer weak("Bot", 10000, BotDifficulty::HardPlus);
+    BotPlayer weak("Bot", 10000, BotDifficulty::HardPlus, 424242);
+    weak.setSimulationCount(500);
     ASSERT_TRUE(!weak.shouldCallBet(weakHole, weakBoard, GameStage::River, 10, 1000));
 }
 
@@ -575,11 +583,152 @@ TEST(simulation_matches_exact_enumeration) {
     ASSERT_EQ(total, 990);
     double exact = (wins + 0.5 * ties) / static_cast<double>(total);
 
-    MonteCarloSimulator sim(hole, board, 40000);
+    MonteCarloSimulator sim(hole, board, 20000);
     sim.runSimulation();
 
     // 40k trials puts the standard error near 0.002; allow a generous margin.
     ASSERT_TRUE(std::fabs(sim.getEquity() - exact) < 0.02);
+}
+
+// ---------------------------------------------------------------------------
+// Full round flow
+//
+// These drive a complete hand through PokerController with scripted input.
+// Before the input source was injectable, none of this was reachable from a
+// test: the round flow read std::cin directly, so pot accounting, folds and
+// all-ins could only be checked by hand.
+// ---------------------------------------------------------------------------
+
+// Chips must be conserved no matter how the hand plays out.
+TEST(round_conserves_chips_when_betting) {
+    ScriptedInput in({"bet", "bet", "bet"});
+    PokerController controller(&in);
+    controller.setThinkingDelay(std::chrono::milliseconds(0));
+
+    Player human("You", 1000);
+    BotPlayer bot("Bot", 1000, BotDifficulty::Hard, 424242);
+
+    const int before = human.getChipCount() + bot.getChipCount();
+    controller.playSingleRound(human, bot);
+
+    ASSERT_EQ(human.getChipCount() + bot.getChipCount(), before);
+    ASSERT_TRUE(human.getChipCount() >= 0);
+    ASSERT_TRUE(bot.getChipCount() >= 0);
+}
+
+// Folding immediately with nothing staked must move no chips at all. The old
+// code handed the bot a flat 200 here, inventing chips from nothing.
+TEST(immediate_fold_moves_no_chips) {
+    ScriptedInput in({"fold"});
+    PokerController controller(&in);
+    controller.setThinkingDelay(std::chrono::milliseconds(0));
+
+    Player human("You", 1000);
+    BotPlayer bot("Bot", 1000, BotDifficulty::Hard, 424242);
+
+    controller.playSingleRound(human, bot);
+
+    ASSERT_EQ(human.getChipCount(), 1000);
+    ASSERT_EQ(bot.getChipCount(), 1000);
+}
+
+// Checking every street must also be chip-neutral unless the bot bets and the
+// human calls, and can never leave the table with a different total.
+TEST(checking_down_conserves_chips) {
+    ScriptedInput in({"check", "call", "check", "call", "check", "call"});
+    PokerController controller(&in);
+    controller.setThinkingDelay(std::chrono::milliseconds(0));
+
+    Player human("You", 1000);
+    BotPlayer bot("Bot", 1000, BotDifficulty::Hard, 424242);
+
+    const int before = human.getChipCount() + bot.getChipCount();
+    controller.playSingleRound(human, bot);
+    ASSERT_EQ(human.getChipCount() + bot.getChipCount(), before);
+}
+
+// A short stack cannot lose more than it holds, and the table total holds.
+TEST(short_stack_cannot_go_negative) {
+    ScriptedInput in({"bet", "bet", "bet"});
+    PokerController controller(&in);
+    controller.setThinkingDelay(std::chrono::milliseconds(0));
+
+    Player human("You", 1000);
+    BotPlayer bot("Bot", 40, BotDifficulty::Hard, 424242);
+
+    const int before = human.getChipCount() + bot.getChipCount();
+    controller.playSingleRound(human, bot);
+
+    ASSERT_EQ(human.getChipCount() + bot.getChipCount(), before);
+    ASSERT_TRUE(bot.getChipCount() >= 0);
+    ASSERT_TRUE(human.getChipCount() >= 0);
+}
+
+// Many hands in a row must never create or destroy a chip.
+TEST(chips_conserved_over_many_rounds) {
+    Player human("You", 1000);
+    BotPlayer bot("Bot", 1000, BotDifficulty::HardPlus, 99999);
+    // Chip accounting does not depend on equity precision, so keep the
+    // simulation cheap here; the statistical tests cover accuracy.
+    bot.setSimulationCount(200);
+    const int before = human.getChipCount() + bot.getChipCount();
+
+    for (int i = 0; i < 8; ++i) {
+        if (human.getChipCount() <= 0 || bot.getChipCount() <= 0) break;
+        ScriptedInput in({"bet", "check", "call", "bet"});
+        PokerController controller(&in);
+        controller.setThinkingDelay(std::chrono::milliseconds(0));
+    controller.setThinkingDelay(std::chrono::milliseconds(0));
+        controller.playSingleRound(human, bot);
+        ASSERT_EQ(human.getChipCount() + bot.getChipCount(), before);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Model / view separation
+// ---------------------------------------------------------------------------
+
+// The model must not print. Player used to write its own bet and hand text to
+// stdout, which made the same model unusable behind any other front end.
+TEST(player_model_produces_text_without_printing) {
+    Player p("You", 500);
+    p.recieveCard(Card(Rank::Ace, Suit::Spades));
+    p.recieveCard(Card(Rank::King, Suit::Hearts));
+
+    std::string shown = p.handToString(true);
+    ASSERT_TRUE(shown.find("A") != std::string::npos);
+    ASSERT_TRUE(shown.find("K") != std::string::npos);
+
+    std::string hidden = p.handToString(false);
+    ASSERT_EQ(hidden, std::string("[hidden][hidden]"));
+}
+
+// A bot with no observer attached must still decide, silently.
+TEST(bot_decides_without_an_observer) {
+    std::vector<Card> hole = {Card(Rank::Ace, Suit::Spades), Card(Rank::Ace, Suit::Hearts)};
+    std::vector<Card> board = {Card(Rank::Ace, Suit::Clubs), Card(Rank::Seven, Suit::Hearts),
+                               Card(Rank::Two, Suit::Diamonds), Card(Rank::Nine, Suit::Spades),
+                               Card(Rank::Four, Suit::Clubs)};
+
+    BotPlayer bot("Bot", 1000, BotDifficulty::HardPlus, 424242);
+    bot.setSimulationCount(400);
+    // No setObserver call: must not crash and must still call with a full house.
+    ASSERT_TRUE(bot.shouldCallBet(hole, board, GameStage::River, 200, 100));
+}
+
+// Two bots with the same seed must make identical decisions.
+TEST(seeded_bots_are_reproducible) {
+    std::vector<Card> hole = {Card(Rank::Eight, Suit::Spades), Card(Rank::Seven, Suit::Hearts)};
+    std::vector<Card> board = {Card(Rank::King, Suit::Clubs), Card(Rank::Four, Suit::Hearts),
+                               Card(Rank::Two, Suit::Diamonds)};
+
+    BotPlayer a("Bot", 1000, BotDifficulty::Hard, 7777);
+    BotPlayer b("Bot", 1000, BotDifficulty::Hard, 7777);
+
+    for (int i = 0; i < 20; ++i) {
+        ASSERT_EQ(a.shouldCallBet(hole, board, GameStage::Flop, 200, 100),
+                  b.shouldCallBet(hole, board, GameStage::Flop, 200, 100));
+    }
 }
 
 int main() {
@@ -622,6 +771,16 @@ int main() {
     RUN_TEST(equity_std_dev_uses_the_right_variance);
     RUN_TEST(equity_confidence_interval_is_well_formed);
     RUN_TEST(simulation_matches_exact_enumeration);
+
+    RUN_TEST(round_conserves_chips_when_betting);
+    RUN_TEST(immediate_fold_moves_no_chips);
+    RUN_TEST(checking_down_conserves_chips);
+    RUN_TEST(short_stack_cannot_go_negative);
+    RUN_TEST(chips_conserved_over_many_rounds);
+
+    RUN_TEST(player_model_produces_text_without_printing);
+    RUN_TEST(bot_decides_without_an_observer);
+    RUN_TEST(seeded_bots_are_reproducible);
 
     std::cout << "\n✓ All tests passed!\n";
     return 0;

@@ -7,6 +7,7 @@
 #include "../animation/spinner.h"
 #include "../model/bot_player.h"
 #include "../utils/game_logger.h"
+#include "../view/bot_thinking_reporter.h"
 
 #include <iostream>
 #include <vector>
@@ -203,7 +204,7 @@ void PokerController::runGame()
     {
         std::cout << BOLD << CYAN << "Choose bot difficulty " << RESET << "(" << GREEN << "easy" << RESET << " / " << YELLOW << "medium" << RESET << " / " << RED << "hard" << RESET << " / " << MAGENTA << "hardplus" << RESET << "): ";
 
-        if (!(std::cin >> input))
+        if (!this->input->requestDifficulty(input))
         {
             // No more input (piped or EOF). Say what we settled on.
             std::cout << "\n" << YELLOW << "No input available - defaulting to medium." << RESET << "\n";
@@ -225,6 +226,11 @@ void PokerController::runGame()
     Player human("You", 1000);
     BotPlayer bot("Bot", 1000, botDiff);
 
+    // The controller wires the bot's reasoning to the console view. The model
+    // itself has no idea a console exists.
+    static BotThinkingReporter reporter;
+    bot.setObserver(&reporter);
+
     while (human.getChipCount() > 0 && bot.getChipCount() > 0)
     {
         CLIView::showDivider();
@@ -235,7 +241,7 @@ void PokerController::runGame()
 
         std::string choice;
         std::cout << "\n" << BOLD << BLUE << "Do you want to play another round? " << RESET << "(" << GREEN << "yes" << RESET << "/" << RED << "no" << RESET << "): ";
-        std::cin >> choice;
+        choice = this->input->requestAnotherRound();
 
         if (choice != "yes" && choice != "y")
         {
@@ -255,6 +261,14 @@ void PokerController::runGame()
     }
 }
 
+int PokerController::playSingleRound(Player &human, Player &bot)
+{
+    const int before = human.getChipCount() + bot.getChipCount();
+    playRound(human, bot);
+    // Chips are conserved, so this is only a guard for tests to assert on.
+    return before - (human.getChipCount() + bot.getChipCount());
+}
+
 void PokerController::playRound(Player &human, Player &bot)
 {
     Deck deck;
@@ -271,12 +285,10 @@ void PokerController::playRound(Player &human, Player &bot)
     bot.recieveCard(deck.dealCard());
     bot.recieveCard(deck.dealCard());
 
-    std::cout << "\n" << BOLD << GREEN << "Your Hand: " << RESET;
-    human.showHand(true);
-    std::cout << BOLD << CYAN << "Bot's Hand: " << RESET;
-    bot.showHand(false);
+    CLIView::showPlayerHand(human, "Your Hand: ", true);
+    CLIView::showPlayerHand(bot, "Bot's Hand: ", false);
 
-    CLIView::waitForEnter();
+    input->waitForContinue();
 
     // Record the stacks before any betting so the log can report real chip
     // deltas rather than inferring them from the pot.
@@ -357,7 +369,7 @@ void PokerController::logRoundOutcome(Player &human, Player &bot,
 bool PokerController::handleBetting(Player &human, Player &bot, const std::vector<Card> &community,
                                     GameStage stage, int &pot)
 {
-    CLIView::waitForEnter();
+    input->waitForContinue();
 
     const int BET_AMOUNT = 100;
     BotPlayer &botPlayer = static_cast<BotPlayer &>(bot);
@@ -365,13 +377,12 @@ bool PokerController::handleBetting(Player &human, Player &bot, const std::vecto
     std::cout << "\n" << BOLD << YELLOW << "Pot: " << pot << " chips" << RESET << "\n";
     std::cout << "\n" << BOLD << BLUE << "What do you want to do? " << RESET << "(" << GREEN << "check" << RESET << " / " << YELLOW << "bet" << RESET << " / " << RED << "fold" << RESET << "): ";
     std::string action;
-    std::cin >> action;
+    action = input->requestAction();
 
     if (action == "fold")
     {
         std::cout << RED << "You folded. " << RESET << CYAN << "Bot wins the round." << RESET << "\n";
-        std::cout << CYAN << "Bot's hand: " << RESET;
-        bot.showHand(true);
+        CLIView::showPlayerHand(bot, "", true);
         awardPot(bot, pot);
         return false;
     }
@@ -381,31 +392,36 @@ bool PokerController::handleBetting(Player &human, Player &bot, const std::vecto
         // Stake the chips first and add exactly what was wagered to the pot,
         // so an all-in for less than the full bet still balances.
         int wagered = human.bet(BET_AMOUNT);
+        CLIView::showBet(human.getName(), wagered, wagered < BET_AMOUNT);
         pot += wagered;
 
         std::atomic<bool> done(false);
-        std::thread spinner(Spinner::show, std::ref(done));
-
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::thread spinner;
+        if (thinkingDelay.count() > 0)
+        {
+            spinner = std::thread(Spinner::show, std::ref(done));
+            std::this_thread::sleep_for(thinkingDelay);
+        }
 
         // The bot is priced on the live pot (which already includes the bet it
         // is facing) and on what it actually costs to call.
         bool botCalls = botPlayer.shouldCallBet(bot.getHand(), community, stage, pot, wagered);
 
         done = true;
-        spinner.join();
+        if (spinner.joinable()) spinner.join();
 
         if (botCalls)
         {
             std::cout << CYAN << "Bot calls your bet." << RESET << "\n";
             int matched = bot.bet(wagered);
+            CLIView::showBet(bot.getName(), matched, matched < wagered);
             pot += matched;
             returnUncalled(human, wagered - matched, pot);
         }
         else
         {
             std::cout << CYAN << "Bot folds." << RESET << "\n";
-            bot.showHand(true);
+            CLIView::showPlayerHand(bot, "", true);
             awardPot(human, pot);
             return false;
         }
@@ -418,11 +434,15 @@ bool PokerController::handleBetting(Player &human, Player &bot, const std::vecto
         // "Bot checks" unconditionally, so the bot could never bet a made
         // hand and never won chips it was not first offered.
         std::atomic<bool> done(false);
-        std::thread spinner(Spinner::show, std::ref(done));
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::thread spinner;
+        if (thinkingDelay.count() > 0)
+        {
+            spinner = std::thread(Spinner::show, std::ref(done));
+            std::this_thread::sleep_for(thinkingDelay / 2);
+        }
         bool botBets = botPlayer.shouldBetWhenChecked(bot.getHand(), community, stage, pot, BET_AMOUNT);
         done = true;
-        spinner.join();
+        if (spinner.joinable()) spinner.join();
 
         if (!botBets)
         {
@@ -431,6 +451,7 @@ bool PokerController::handleBetting(Player &human, Player &bot, const std::vecto
         }
 
         int botWager = bot.bet(BET_AMOUNT);
+        CLIView::showBet(bot.getName(), botWager, botWager < BET_AMOUNT);
         pot += botWager;
 
         std::cout << "\n" << BOLD << YELLOW << "Pot: " << pot << " chips" << RESET
@@ -438,19 +459,19 @@ bool PokerController::handleBetting(Player &human, Player &bot, const std::vecto
         std::cout << BOLD << BLUE << "Bot bet " << botWager << ". Your move? " << RESET
                   << "(" << GREEN << "call" << RESET << " / " << RED << "fold" << RESET << "): ";
         std::string response;
-        std::cin >> response;
+        response = input->requestCallResponse();
 
         if (response == "call" && human.getChipCount() > 0)
         {
             int matched = human.bet(botWager);
+            CLIView::showBet(human.getName(), matched, matched < botWager);
             pot += matched;
             returnUncalled(bot, botWager - matched, pot);
         }
         else
         {
             std::cout << RED << "You folded. " << RESET << CYAN << "Bot wins the round." << RESET << "\n";
-            std::cout << CYAN << "Bot's hand: " << RESET;
-            bot.showHand(true);
+            CLIView::showPlayerHand(bot, "", true);
             awardPot(bot, pot);
             return false;
         }

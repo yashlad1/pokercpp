@@ -2,7 +2,6 @@
 #include "advanced_hand_evaluator.h"
 #include "poker_math.h"
 #include "../montecarlo/MonteCarloSimulator.h"
-#include "../view/bot_thinking_visualizer.h"
 #include "../utils/performance_monitor.h"
 #include <random>
 #include <algorithm>
@@ -11,8 +10,11 @@
 
 BotPlayer::BotPlayer(const std::string &name, int chips, BotDifficulty diff)
     : Player(name, chips), difficulty(diff), rng(std::random_device{}()) {
-    // RNG is seeded with random_device for non-deterministic behavior
-    // For testing, can be modified to accept a seed parameter
+}
+
+BotPlayer::BotPlayer(const std::string &name, int chips, BotDifficulty diff,
+                     std::uint_fast32_t seed)
+    : Player(name, chips), difficulty(diff), rng(seed) {
 }
 
 BotDifficulty BotPlayer::getDifficulty() const {
@@ -35,7 +37,7 @@ bool BotPlayer::shouldCallBet(const std::vector<Card>& holeCards,
         case BotDifficulty::Hard: diffStr = "HARD"; break;
         case BotDifficulty::HardPlus: diffStr = "HARD+"; break;
     }
-    BotThinkingVisualizer::showThinkingHeader(getName(), diffStr);
+    if (observer) observer->onThinkingStarted(getName(), diffStr);
 
     // Easy plays blind, and HardPlus works off simulated equity rather than
     // the current made hand, so neither needs a 5-card evaluation. Pre-flop
@@ -44,7 +46,7 @@ bool BotPlayer::shouldCallBet(const std::vector<Card>& holeCards,
     HandValue eval{HandRank::HighCard, {}};
     if (canEvaluate) {
         eval = AdvancedHandEvaluator::evaluate(fullHand);
-        BotThinkingVisualizer::showHandEvaluation(eval, fullHand);
+        if (observer) observer->onHandEvaluated(eval, fullHand);
     }
 
     // Show game stage
@@ -72,7 +74,7 @@ bool BotPlayer::shouldCallBet(const std::vector<Card>& holeCards,
     }
 
     bool hasDraws = canEvaluate && hasDrawingHand(fullHand);
-    BotThinkingVisualizer::showDecisionFactors(stageStr, eval, hasDraws, handStrength);
+    if (observer) observer->onDecisionFactors(stageStr, eval, hasDraws, handStrength);
 
     bool decision;
     switch (difficulty) {
@@ -140,7 +142,7 @@ bool BotPlayer::shouldBetWhenChecked(const std::vector<Card>& holeCards,
             // Bet when equity says the hand is ahead often enough that a
             // called bet shows a profit. Checking back a winner is the mistake
             // this branch exists to prevent.
-            double equity = estimateEquity(holeCards, community, 2000);
+            double equity = estimateEquity(holeCards, community, simulationCount);
             if (equity >= 0.60) {
                 return true;
             }
@@ -163,7 +165,7 @@ bool BotPlayer::shouldCallEasy() const {
     bool willCall = (dist(rng) == 0);  // 25% chance (1 in 4)
     
     std::string reasoning = "Random decision (25% chance to call)";
-    BotThinkingVisualizer::showFinalDecision(willCall, reasoning);
+    if (observer) observer->onDecision(willCall, reasoning);
     
     return willCall;
 }
@@ -176,14 +178,14 @@ bool BotPlayer::shouldCallMedium(const HandValue& eval, GameStage stage, const s
     if (eval.rank >= HandRank::ThreeOfAKind) {
         decision = true;
         reasoning = "Strong hand (Three of a Kind or better) - Always call";
-        BotThinkingVisualizer::showFinalDecision(decision, reasoning);
+        if (observer) observer->onDecision(decision, reasoning);
         return decision;
     }
     
     if (eval.rank >= HandRank::OnePair) {
         decision = true;
         reasoning = "At least one pair - Calling";
-        BotThinkingVisualizer::showFinalDecision(decision, reasoning);
+        if (observer) observer->onDecision(decision, reasoning);
         return decision;
     }
     
@@ -192,7 +194,7 @@ bool BotPlayer::shouldCallMedium(const HandValue& eval, GameStage stage, const s
     bool hasStraight = hasStraightDraw(fullHand);
     
     if (stage != GameStage::River && (hasFlush || hasStraight)) {
-        BotThinkingVisualizer::showDrawingHandAnalysis(hasFlush, hasStraight, fullHand);
+        if (observer) observer->onDrawingHand(hasFlush, hasStraight, fullHand);
         
         std::uniform_int_distribution<> dis(1, 100);
 
@@ -200,7 +202,7 @@ bool BotPlayer::shouldCallMedium(const HandValue& eval, GameStage stage, const s
         decision = dis(rng) <= 60;
         reasoning = decision ? "Drawing hand detected - Calling (60% chance)" : 
                               "Drawing hand but folding (40% chance)";
-        BotThinkingVisualizer::showFinalDecision(decision, reasoning);
+        if (observer) observer->onDecision(decision, reasoning);
         return decision;
     }
     
@@ -209,13 +211,13 @@ bool BotPlayer::shouldCallMedium(const HandValue& eval, GameStage stage, const s
     decision = shouldBluff(eval.rank);
     
     if (decision) {
-        BotThinkingVisualizer::showBluffCalculation(eval.rank, bluffChance, true);
+        if (observer) observer->onBluffConsidered(eval.rank, bluffChance, true);
         reasoning = "Attempting a bluff with weak hand";
     } else {
         reasoning = "Weak hand, no draws - Folding";
     }
     
-    BotThinkingVisualizer::showFinalDecision(decision, reasoning);
+    if (observer) observer->onDecision(decision, reasoning);
     return decision;
 }
 
@@ -233,7 +235,7 @@ bool BotPlayer::shouldCallHard(const HandValue& eval, GameStage stage,
     if (eval.rank >= HandRank::TwoPair) {
         decision = true;
         reasoning = "Strong hand (Two Pair or better) - Always call";
-        BotThinkingVisualizer::showFinalDecision(decision, reasoning);
+        if (observer) observer->onDecision(decision, reasoning);
         return decision;
     }
 
@@ -253,7 +255,7 @@ bool BotPlayer::shouldCallHard(const HandValue& eval, GameStage stage,
             reasoning = decision ? "One pair, steep price - Calling anyway"
                                  : "One pair, price too steep - Folding";
         }
-        BotThinkingVisualizer::showFinalDecision(decision, reasoning);
+        if (observer) observer->onDecision(decision, reasoning);
         return decision;
     }
 
@@ -264,7 +266,7 @@ bool BotPlayer::shouldCallHard(const HandValue& eval, GameStage stage,
     bool hasStraight = hasStraightDraw(fullHand);
 
     if (stage != GameStage::River && (hasFlush || hasStraight)) {
-        BotThinkingVisualizer::showDrawingHandAnalysis(hasFlush, hasStraight, fullHand);
+        if (observer) observer->onDrawingHand(hasFlush, hasStraight, fullHand);
 
         double drawEquity = hasFlush ? 0.35 : 0.32;
         if (stage == GameStage::Turn) {
@@ -277,7 +279,7 @@ bool BotPlayer::shouldCallHard(const HandValue& eval, GameStage stage,
               "% equity vs " + std::to_string(static_cast<int>(requiredEquity * 100)) +
               "% required - Calling"
             : "Draw too thin for the price - Folding";
-        BotThinkingVisualizer::showFinalDecision(decision, reasoning);
+        if (observer) observer->onDecision(decision, reasoning);
         return decision;
     }
 
@@ -286,13 +288,13 @@ bool BotPlayer::shouldCallHard(const HandValue& eval, GameStage stage,
     decision = shouldBluff(eval.rank);
 
     if (decision) {
-        BotThinkingVisualizer::showBluffCalculation(eval.rank, bluffChance, true);
+        if (observer) observer->onBluffConsidered(eval.rank, bluffChance, true);
         reasoning = "Aggressive bluff attempt";
     } else {
         reasoning = "Weak hand, no draws - Folding";
     }
 
-    BotThinkingVisualizer::showFinalDecision(decision, reasoning);
+    if (observer) observer->onDecision(decision, reasoning);
     return decision;
 }
 
@@ -314,10 +316,10 @@ bool BotPlayer::shouldCallHardPlus(const std::vector<Card>& holeCards,
                                    int pot, int callAmount) {
     PerformanceMonitor::start("MonteCarlo_Simulation");
 
-    // 2000 trials puts the 95% confidence interval at roughly +/-2%. The old
-    // 200 trials left it near +/-7%, wide enough to flip a marginal decision.
-    const int simulations = 2000;
-    BotThinkingVisualizer::showMonteCarloHeader(simulations);
+    // Defaults to 2000, which puts the 95% interval near +/-2%. The old 200
+    // trials left it near +/-7%, wide enough to flip a marginal decision.
+    const int simulations = simulationCount;
+    if (observer) observer->onSimulationStarted(simulations);
 
     MonteCarloSimulator sim(holeCards, community, simulations);
     sim.runSimulation();
@@ -336,8 +338,8 @@ bool BotPlayer::shouldCallHardPlus(const std::vector<Card>& holeCards,
     // covered the true equity well under a fifth of the time.
     auto [lowerBound, upperBound] = sim.getEquityConfidenceInterval(0.95);
 
-    BotThinkingVisualizer::showMonteCarloResult(winRate, totalWins, totalLosses, totalTies, simulations);
-    BotThinkingVisualizer::showConfidenceInterval(lowerBound, upperBound, 0.95);
+    if (observer) observer->onSimulationFinished(winRate, totalWins, totalLosses, totalTies, simulations);
+    if (observer) observer->onConfidenceInterval(lowerBound, upperBound, 0.95);
 
     // Use the real pot and the real amount to call. These used to be
     // hardcoded to 200 and 100, so every EV figure the bot reported was
@@ -347,8 +349,8 @@ bool BotPlayer::shouldCallHardPlus(const std::vector<Card>& holeCards,
     double ev = PokerMath::calculateEV(equity, pot, callAmount);
     double kelly = PokerMath::kellyFraction(equity, potOddsRatio);
 
-    BotThinkingVisualizer::showExpectedValue(ev, pot, callAmount);
-    BotThinkingVisualizer::showKellyCriterion(equity, potOddsRatio, kelly);
+    if (observer) observer->onExpectedValue(ev, pot, callAmount);
+    if (observer) observer->onKelly(equity, potOddsRatio, kelly);
 
     // Call when equity beats the price the pot is offering. A free call
     // (nothing to call) is never a fold.
@@ -369,7 +371,7 @@ bool BotPlayer::shouldCallHardPlus(const std::vector<Card>& holeCards,
                     " chips) - FOLDING";
     }
 
-    BotThinkingVisualizer::showFinalDecision(decision, reasoning);
+    if (observer) observer->onDecision(decision, reasoning);
     PerformanceMonitor::stop("MonteCarlo_Simulation");
 
     return decision;

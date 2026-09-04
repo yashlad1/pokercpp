@@ -3,13 +3,34 @@
 
 #include "../model/player.h"
 #include "../model/bot_player.h"
+#include "player_input.h"
+#include <chrono>
 
 class PokerController
 {
 public:
+    PokerController() = default;
+
+    // Injecting an input source lets tests drive a full hand without a
+    // terminal. Defaults to reading std::cin.
+    explicit PokerController(PlayerInput *in) : input(in) {}
+
     void runGame();
 
+    // Plays one hand and returns the pot that was awarded. Exposed so the
+    // round flow can be exercised directly in tests.
+    int playSingleRound(Player &human, Player &bot);
+
+    // Cosmetic pause while the bot "thinks". It dwarfs the real computation
+    // (a decision costs ~10ms), so tests set it to zero.
+    void setThinkingDelay(std::chrono::milliseconds d) { thinkingDelay = d; }
+
 private:
+    std::chrono::milliseconds thinkingDelay{2000};
+
+    ConsoleInput consoleInput;
+    PlayerInput *input = &consoleInput;
+
     void playRound(Player &human, Player &bot);
 
     // `pot` is carried by reference through the whole round so every chip
