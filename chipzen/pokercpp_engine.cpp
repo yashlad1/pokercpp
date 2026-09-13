@@ -33,7 +33,8 @@ static std::vector<Card> parseCards(const std::vector<std::string> &strs) {
 static py::dict decide(const std::vector<std::string> &hole,
                        const std::vector<std::string> &board,
                        int pot, int toCall, int minRaise, int maxRaise,
-                       int stack, int bb, int sims, int villainRaises) {
+                       int stack, int bb, int sims, int villainRaises,
+                       double realizationScale, bool bluffEnabled) {
     if (hole.size() != 2) {
         throw std::invalid_argument("need exactly 2 hole cards");
     }
@@ -48,7 +49,7 @@ static py::dict decide(const std::vector<std::string> &hole,
         // a 12 ms simulation would stall the WebSocket heartbeat.
         py::gil_scoped_release release;
         d = chipzen::decideFull(h, b, pot, toCall, minRaise, maxRaise, stack, bb,
-                                sims, villainRaises);
+                                sims, villainRaises, realizationScale, bluffEnabled);
     }
 
     // The numbers come back with the choice so a fold can be explained from
@@ -70,5 +71,6 @@ PYBIND11_MODULE(pokercpp_engine, m) {
           py::arg("hole"), py::arg("board"), py::arg("pot"), py::arg("to_call"),
           py::arg("min_raise"), py::arg("max_raise"), py::arg("stack"),
           py::arg("bb"), py::arg("sims") = 5000, py::arg("villain_raises") = 0,
+          py::arg("realization_scale") = 1.0, py::arg("bluff_enabled") = true,
           "Return 'fold', 'check', 'call' or 'raise <total>' for the given spot.");
 }

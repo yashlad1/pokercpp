@@ -187,10 +187,13 @@ struct Decision {
     bool bluff = false;   // true when this bet is made with a hand that cannot win a showdown
 };
 
+// `realizationScale` and `bluffEnabled` exist so tools/bench.py can A/B them.
+// Defaults reproduce shipping behaviour exactly.
 inline Decision decideFull(const std::vector<Card> &hole,
                           const std::vector<Card> &board,
                           int pot, int toCall, int minRaise, int maxRaise,
-                          int stack, int bb, int sims, int villainRaises = 0) {
+                          int stack, int bb, int sims, int villainRaises = 0,
+                          double realizationScale = 1.0, bool bluffEnabled = true) {
     Decision d;
     d.range = villainRangeFraction(villainRaises, toCall, pot);
 
@@ -207,8 +210,9 @@ inline Decision decideFull(const std::vector<Card> &hole,
     // Realization applies to continuing for a price. It does not apply when
     // betting: a bet can win the pot outright, and that fold equity is
     // exactly what a called-down hand lacks.
-    const double shaded = (toCall > 0) ? equity * equityRealization(board.size())
-                                       : equity;
+    const double shaded = (toCall > 0)
+        ? equity * std::min(1.0, equityRealization(board.size()) * realizationScale)
+        : equity;
     d.realized = shaded;
 
     d.required = (toCall > 0) ? PokerMath::calculatePotOddsPercentage(pot, toCall) : 0.0;
@@ -240,7 +244,7 @@ inline Decision decideFull(const std::vector<Card> &hole,
         //
         // ponytail: the 0.62 and 0.30 bucket edges are fitted. The frequency
         // between them is computed, not fitted.
-        if (equity < 0.30 && target > 0 && stack > target) {
+        if (bluffEnabled && equity < 0.30 && target > 0 && stack > target) {
             const double freq = bluffFrequency(board, d.range, 0.62, 0.30, pot, target);
             if (cardHash(hole, board) < freq) {
                 d.action = "raise";
