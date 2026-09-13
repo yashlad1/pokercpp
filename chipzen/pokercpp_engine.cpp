@@ -59,6 +59,7 @@ static py::dict decide(const std::vector<std::string> &hole,
     out["equity"] = d.equity;
     out["realized"] = d.realized;
     out["range"] = d.range;
+    out["bluff"] = d.bluff;
     out["required"] = d.required;
     return out;
 }

@@ -94,6 +94,89 @@ inline double equityRealization(size_t boardSize) {
     }
 }
 
+// Fraction of a betting range that should be bluffs, for a bet of `bet`
+// into a pot of `pot`.
+//
+// Villain calling `bet` to win `pot + bet` needs bet/(pot + 2*bet) to break
+// even. Make bluffs exactly that share of the betting range and villain
+// gains nothing by calling or by folding - the bluffs pay for the times the
+// value bets get paid. This is arithmetic, not an opponent model: it holds
+// whoever is sitting there.
+inline double bluffShare(int pot, int bet) {
+    if (pot <= 0 || bet <= 0) return 0.0;
+    return static_cast<double>(bet) / (pot + 2.0 * bet);
+}
+
+// Deterministic pseudo-random draw in [0,1) from the cards themselves.
+//
+// Bluffing has to be a frequency, not a rule, or it is readable. Deriving it
+// from the hole cards and board rather than an RNG means the same spot always
+// resolves the same way - reproducible in tests, and still unguessable to an
+// opponent who cannot see the hole cards. No generator state to thread
+// through, and no seeding question across decisions.
+inline double cardHash(const std::vector<Card> &hole, const std::vector<Card> &board) {
+    unsigned long long h = 1469598103934665603ULL;  // FNV-1a offset basis
+    for (const std::vector<Card> *v : {&hole, &board}) {
+        for (const Card &c : *v) {
+            h ^= static_cast<unsigned long long>(static_cast<int>(c.rank) * 4 +
+                                                 static_cast<int>(c.suit));
+            h *= 1099511628211ULL;
+        }
+    }
+    return static_cast<double>((h >> 11) % 100000) / 100000.0;
+}
+
+// How often to bluff with a hopeless hand, so that bluffs end up the right
+// share of the betting range.
+//
+// The share above is a property of the range, not of one hand. Betting a
+// fixed fraction of air hands only lands on it if air and value hands are
+// equally common, and they are not: most hands miss most boards, and miss
+// them worse the more cards are out. Getting this wrong over-bluffs by two
+// to one, which any opponent that calls a lot collects on.
+//
+// So count instead of guessing. Walk our own possible holdings on this
+// board, tally how many are strong enough to value bet against how many are
+// hopeless, and set the frequency from the actual composition. Cheap
+// simulations are fine here - this decides a frequency, not a hand.
+inline double bluffFrequency(const std::vector<Card> &board, double rangeFraction,
+                             double valueThreshold, double airThreshold,
+                             int pot, int bet) {
+    const double share = bluffShare(pot, bet);
+    if (share <= 0.0 || share >= 1.0) return 0.0;
+
+    std::vector<Card> deck;
+    for (int su = 0; su < 4; ++su) {
+        for (int r = 2; r <= 14; ++r) {
+            Card c(static_cast<Rank>(r), static_cast<Suit>(su));
+            if (std::find(board.begin(), board.end(), c) == board.end()) {
+                deck.push_back(c);
+            }
+        }
+    }
+
+    // Every 31st combination rather than a random sample: deterministic, so
+    // the same board always yields the same frequency, and 31 is coprime
+    // with the suit and rank strides so the walk does not land on one suit.
+    int value = 0, air = 0, step = 0;
+    for (size_t i = 0; i < deck.size(); ++i) {
+        for (size_t j = i + 1; j < deck.size(); ++j) {
+            if (step++ % 31 != 0) continue;
+            MonteCarloSimulator sim({deck[i], deck[j]}, board, 300);
+            sim.setVillainRange(rangeFraction);
+            sim.runSimulation();
+            const double eq = sim.getEquity();
+            if (eq >= valueThreshold) ++value;
+            else if (eq < airThreshold) ++air;
+        }
+    }
+
+    if (air == 0) return 0.0;
+    // bluffs / (bluffs + value) = share, with bluffs = freq * air.
+    const double freq = (share / (1.0 - share)) * (static_cast<double>(value) / air);
+    return std::max(0.0, std::min(1.0, freq));
+}
+
 struct Decision {
     std::string action;   // "fold" | "check" | "call" | "raise"
     int amount = 0;       // total bet, when action is "raise"
@@ -101,6 +184,7 @@ struct Decision {
     double realized = 0.0;// equity after the realization discount
     double range = 1.0;   // fraction of hands the opponent is credited with
     double required = 0.0;// equity the pot price demands
+    bool bluff = false;   // true when this bet is made with a hand that cannot win a showdown
 };
 
 inline Decision decideFull(const std::vector<Card> &hole,
@@ -139,11 +223,33 @@ inline Decision decideFull(const std::vector<Card> &hole,
     }
 
     if (toCall <= 0) {
-        // Nothing to call: bet for value, otherwise take the free card.
-        if (shaded >= 0.62) {
-            int target = boundedRaise(static_cast<int>(pot * 0.66), minRaise, maxRaise);
-            if (target > 0) { d.action = "raise"; d.amount = target; return d; }
+        const int target = boundedRaise(static_cast<int>(pot * 0.66), minRaise, maxRaise);
+
+        // Nothing to call: bet for value...
+        if (shaded >= 0.62 && target > 0) {
+            d.action = "raise";
+            d.amount = target;
+            return d;
         }
+
+        // ...or bluff, with hands too weak to win a showdown anyway. Betting
+        // is polarised on purpose: the strong hands and the hopeless ones,
+        // never the middle. A hand with some showdown value loses that value
+        // by betting - it folds out everything it beats and gets called by
+        // everything that beats it - so those check.
+        //
+        // ponytail: the 0.62 and 0.30 bucket edges are fitted. The frequency
+        // between them is computed, not fitted.
+        if (equity < 0.30 && target > 0 && stack > target) {
+            const double freq = bluffFrequency(board, d.range, 0.62, 0.30, pot, target);
+            if (cardHash(hole, board) < freq) {
+                d.action = "raise";
+                d.amount = target;
+                d.bluff = true;
+                return d;
+            }
+        }
+
         d.action = "check";
         return d;
     }
