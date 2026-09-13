@@ -30,10 +30,10 @@ static std::vector<Card> parseCards(const std::vector<std::string> &strs) {
     return out;
 }
 
-static std::string decide(const std::vector<std::string> &hole,
-                          const std::vector<std::string> &board,
-                          int pot, int toCall, int minRaise, int maxRaise,
-                          int stack, int bb, int sims) {
+static py::dict decide(const std::vector<std::string> &hole,
+                       const std::vector<std::string> &board,
+                       int pot, int toCall, int minRaise, int maxRaise,
+                       int stack, int bb, int sims) {
     if (hole.size() != 2) {
         throw std::invalid_argument("need exactly 2 hole cards");
     }
@@ -41,11 +41,24 @@ static std::string decide(const std::vector<std::string> &hole,
     std::vector<Card> b = parseCards(board);
     if (sims <= 0) sims = 5000;
 
-    // The simulation touches no Python objects, so drop the GIL for it. The
-    // SDK calls decide() from an async loop; holding the GIL through a
-    // 30 ms simulation would stall the WebSocket heartbeat.
-    py::gil_scoped_release release;
-    return chipzen::decide(h, b, pot, toCall, minRaise, maxRaise, stack, bb, sims);
+    chipzen::Decision d;
+    {
+        // The simulation touches no Python objects, so drop the GIL for it.
+        // The SDK calls decide() from an async loop; holding the GIL through
+        // a 12 ms simulation would stall the WebSocket heartbeat.
+        py::gil_scoped_release release;
+        d = chipzen::decideFull(h, b, pot, toCall, minRaise, maxRaise, stack, bb, sims);
+    }
+
+    // The numbers come back with the choice so a fold can be explained from
+    // the match log instead of guessed at.
+    py::dict out;
+    out["action"] = d.action;
+    out["amount"] = d.amount;
+    out["equity"] = d.equity;
+    out["shaded"] = d.shaded;
+    out["required"] = d.required;
+    return out;
 }
 
 PYBIND11_MODULE(pokercpp_engine, m) {

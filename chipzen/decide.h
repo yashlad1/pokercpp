@@ -51,13 +51,23 @@ inline int boundedRaise(int target, int minRaise, int maxRaise) {
     return std::max(minRaise, std::min(target, maxRaise));
 }
 
-inline std::string decide(const std::vector<Card> &hole,
+struct Decision {
+    std::string action;   // "fold" | "check" | "call" | "raise"
+    int amount = 0;       // total bet, when action is "raise"
+    double equity = 0.0;  // raw Monte Carlo equity
+    double shaded = 0.0;  // after the bet-size discount
+    double required = 0.0;// equity the pot price demands
+};
+
+inline Decision decideFull(const std::vector<Card> &hole,
                           const std::vector<Card> &board,
                           int pot, int toCall, int minRaise, int maxRaise,
                           int stack, int bb, int sims) {
+    Decision d;
     MonteCarloSimulator sim(hole, board, sims);
     sim.runSimulation();
     double equity = sim.getEquity();
+    d.equity = equity;
 
     // The simulator deals the opponent a uniform random hand. A real
     // opponent who is betting into us holds better than random, so raw
@@ -72,35 +82,48 @@ inline std::string decide(const std::vector<Card> &hole,
         shaded = equity - 0.10 * std::min(1.0, betFraction);
     }
 
+    d.shaded = shaded;
+    d.required = (toCall > 0) ? PokerMath::calculatePotOddsPercentage(pot, toCall) : 0.0;
+
     double stackInBB = (bb > 0) ? static_cast<double>(stack) / bb : 100.0;
 
     // Short stack: the fold-or-shove zone. With under 10 big blinds there is
     // no room to bet and still fold later, so flat-calling just leaks.
     if (stackInBB <= 10.0 && shaded >= 0.55) {
         int shove = boundedRaise(maxRaise, minRaise, maxRaise);
-        if (shove > 0) return "raise " + std::to_string(shove);
+        if (shove > 0) { d.action = "raise"; d.amount = shove; return d; }
     }
 
     if (toCall <= 0) {
         // Nothing to call: bet for value, otherwise take the free card.
         if (shaded >= 0.62) {
             int target = boundedRaise(static_cast<int>(pot * 0.66), minRaise, maxRaise);
-            if (target > 0) return "raise " + std::to_string(target);
+            if (target > 0) { d.action = "raise"; d.amount = target; return d; }
         }
-        return "check";
+        d.action = "check";
+        return d;
     }
 
-    double required = PokerMath::calculatePotOddsPercentage(pot, toCall);
-    if (shaded <= required) return "fold";
+    if (shaded <= d.required) { d.action = "fold"; return d; }
 
     // Strong enough that getting more money in beats just calling.
     if (shaded >= 0.75) {
         int target = boundedRaise(static_cast<int>((pot + toCall) * 0.75) + toCall,
                                   minRaise, maxRaise);
-        if (target > 0) return "raise " + std::to_string(target);
+        if (target > 0) { d.action = "raise"; d.amount = target; return d; }
     }
 
-    return "call";
+    d.action = "call";
+    return d;
+}
+
+// Line-protocol form, for the CLI binary the tests drive.
+inline std::string decide(const std::vector<Card> &hole,
+                          const std::vector<Card> &board,
+                          int pot, int toCall, int minRaise, int maxRaise,
+                          int stack, int bb, int sims) {
+    Decision d = decideFull(hole, board, pot, toCall, minRaise, maxRaise, stack, bb, sims);
+    return d.action == "raise" ? d.action + " " + std::to_string(d.amount) : d.action;
 }
 
 

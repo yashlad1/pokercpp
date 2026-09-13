@@ -57,7 +57,7 @@ class PokerCppBot(Bot):
         valid = list(state.valid_actions or ())
         try:
             _, bb = _current_blinds(state)
-            reply = pokercpp_engine.decide(
+            d = pokercpp_engine.decide(
                 # Card.__str__ is already the wire's two-char form.
                 hole=[str(c) for c in (state.hole_cards or ())],
                 board=[str(c) for c in (state.board or ())],
@@ -69,17 +69,27 @@ class PokerCppBot(Bot):
                 bb=int(bb or 0),
                 sims=SIMS,
             )
-            action = self._to_action(reply, state, valid)
+            action = self._to_action(d, state, valid)
         except Exception:
             # decide() must never raise: an exception here costs the whole
             # match, while a safe default costs one pot.
-            logger.exception("decide failed; using safe default")
+            # A traceback here is the signal that the engine never ran and
+            # every decision this match is a fallback, not a strategy.
+            logger.exception("ENGINE FAILED - falling back to check/fold")
+            d = None
             action = self._safe_default(valid)
 
         logger.info(
-            "hand=%s phase=%s to_call=%s legal=%s -> %s",
-            state.hand_number, state.phase, state.to_call,
-            ",".join(valid) or "-", action.action,
+            "hand=%s phase=%s pot=%s to_call=%s hole=%s legal=%s "
+            "equity=%s shaded=%s required=%s -> %s%s",
+            state.hand_number, state.phase, state.pot, state.to_call,
+            "".join(str(c) for c in (state.hole_cards or ())) or "NONE",
+            ",".join(valid) or "-",
+            f"{d['equity']:.3f}" if d else "n/a",
+            f"{d['shaded']:.3f}" if d else "n/a",
+            f"{d['required']:.3f}" if d else "n/a",
+            action.action,
+            f" {action.amount}" if action.action == "raise" else "",
         )
         return action
 
@@ -89,23 +99,20 @@ class PokerCppBot(Bot):
             return Action.check()
         return Action.fold()
 
-    def _to_action(self, reply: str, state: GameState, valid: list[str]) -> Action:
+    def _to_action(self, d: dict, state: GameState, valid: list[str]) -> Action:
         """Map the engine's reply onto a legal action.
 
         Every branch re-checks ``valid_actions``: the engine reasons about
         equity and knows nothing about which actions the server offered this
         turn, so this is the only place legality is enforced.
         """
-        if not reply:
+        if not d:
             return self._safe_default(valid)
 
-        word, _, amount = reply.partition(" ")
+        word = d["action"]
 
         if word == "raise" and "raise" in valid:
-            try:
-                target = int(amount)
-            except ValueError:
-                target = 0
+            target = int(d["amount"])
             lo, hi = int(state.min_raise or 0), int(state.max_raise or 0)
             if lo > 0 and hi > 0:
                 return Action.raise_to(max(lo, min(target, hi)))
