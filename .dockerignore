@@ -1,0 +1,9 @@
+.git
+poker
+tests/test_*
+*.tar.gz
+web/
+animation/
+view/
+res/
+docs/
