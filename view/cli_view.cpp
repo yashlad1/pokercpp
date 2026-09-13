@@ -52,6 +52,27 @@ void CLIView::showHandType(const std::string &name, const std::string &handType)
     std::cout << BOLD << color << name << RESET << "'s best hand: " << BOLD << MAGENTA << handType << RESET << "\n";
 }
 
+// Player used to print this itself. Moving it here keeps console output in the
+// view layer, where a different front end can replace it.
+void CLIView::showPlayerHand(const Player &player, const std::string &label, bool faceUp)
+{
+    std::string color = (player.getName() == "You") ? GREEN : CYAN;
+    std::cout << BOLD << color << label << RESET
+              << player.getName() << "'s hand: " << player.handToString(faceUp) << "\n";
+}
+
+void CLIView::showBet(const std::string &name, int amount, bool allIn)
+{
+    const char *color = (name == "You") ? GREEN : CYAN;
+    std::cout << BOLD << color << name << RESET << " bets "
+              << YELLOW << BOLD << amount << " chips" << RESET << ". 💵";
+    if (allIn)
+    {
+        std::cout << " " << BOLD << YELLOW << "(all-in)" << RESET;
+    }
+    std::cout << "\n";
+}
+
 void CLIView::showDivider()
 {
     std::cout << "\n" << CYAN;

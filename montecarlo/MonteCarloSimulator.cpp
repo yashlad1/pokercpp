@@ -21,17 +21,16 @@ void MonteCarloSimulator::runSimulation()
 {
     winCount = tieCount = loseCount = 0;
 
-    std::vector<Card> fullHand = playerHand;
-    fullHand.insert(fullHand.end(), communityCards.begin(), communityCards.end());
+    // Seed once and reuse. Re-seeding a fresh mt19937 from random_device on
+    // every iteration is expensive and gains nothing. The deck is built once
+    // and re-shuffled in place, since dealing only reads from it.
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::vector<Card> deck = getRemainingDeck();
 
     for (int i = 0; i < numSimulations; ++i)
     {
-        // Get remaining cards to deal from
-        std::vector<Card> deck = getRemainingDeck();
-
         // Shuffle the deck
-        std::random_device rd;
-        std::mt19937 g(rd());
         std::shuffle(deck.begin(), deck.end(), g);
 
         // Deal opponent hand and complete the board if needed
@@ -98,6 +97,102 @@ double MonteCarloSimulator::getWinRateStdDev() const
     return std::sqrt(variance);
 }
 
+/**
+ * Inverse of the standard normal CDF (the probit function).
+ *
+ * Needed to turn an arbitrary confidence level into a z-score. Uses Acklam's
+ * rational approximation, accurate to roughly 1e-9 over (0, 1) - far tighter
+ * than Monte Carlo sampling error, so it is never the limiting factor here.
+ */
+static double probit(double p)
+{
+    if (p <= 0.0)
+        return 0.0;
+    if (p >= 1.0)
+        return 0.0;
+
+    static const double a[6] = {
+        -3.969683028665376e+01,  2.209460984245205e+02, -2.759285104469687e+02,
+         1.383577518672690e+02, -3.066479806614716e+01,  2.506628277459239e+00};
+    static const double b[5] = {
+        -5.447609879822406e+01,  1.615858368580409e+02, -1.556989798598866e+02,
+         6.680131188771972e+01, -1.328068155288572e+01};
+    static const double c[6] = {
+        -7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e+00,
+        -2.549732539343734e+00,  4.374664141464968e+00,  2.938163982698783e+00};
+    static const double d[4] = {
+         7.784695709041462e-03,  3.224671290700398e-01,  2.445134137142996e+00,
+         3.754408661907416e+00};
+
+    const double pLow = 0.02425;
+    const double pHigh = 1.0 - pLow;
+
+    if (p < pLow)
+    {
+        double q = std::sqrt(-2.0 * std::log(p));
+        return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+               ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0);
+    }
+
+    if (p > pHigh)
+    {
+        double q = std::sqrt(-2.0 * std::log(1.0 - p));
+        return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+                ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0);
+    }
+
+    double q = p - 0.5;
+    double r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+           (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1.0);
+}
+
+double MonteCarloSimulator::getEquity() const
+{
+    // A split pot returns half the money, so it counts as half a win.
+    return getWinPercentage() + 0.5 * getTiePercentage();
+}
+
+/**
+ * Standard error of the equity estimate.
+ *
+ * Equity is the mean of a three-valued outcome (1 for a win, 0.5 for a tie,
+ * 0 for a loss), not a binary one, so the binomial p(1-p)/n used for the win
+ * rate does not apply. For X in {1, 0.5, 0}:
+ *
+ *   E[X]   = pw + pt/2
+ *   E[X^2] = pw + pt/4
+ *   Var(X) = pw + pt/4 - (pw + pt/2)^2
+ */
+double MonteCarloSimulator::getEquityStdDev() const
+{
+    if (numSimulations == 0)
+        return 0.0;
+
+    double pw = getWinPercentage();
+    double pt = getTiePercentage();
+    double mean = pw + 0.5 * pt;
+    double variance = pw + 0.25 * pt - mean * mean;
+
+    if (variance <= 0.0)
+        return 0.0;
+
+    return std::sqrt(variance / numSimulations);
+}
+
+std::pair<double, double> MonteCarloSimulator::getEquityConfidenceInterval(double confidence) const
+{
+    if (numSimulations == 0)
+        return {0.0, 0.0};
+    if (confidence <= 0.0 || confidence >= 1.0)
+        return {0.0, 1.0};
+
+    double equity = getEquity();
+    double margin = probit(0.5 * (1.0 + confidence)) * getEquityStdDev();
+
+    return {std::max(0.0, equity - margin), std::min(1.0, equity + margin)};
+}
+
 // Calculate confidence interval for win rate
 // Returns pair of (lower_bound, upper_bound)
 // Uses normal approximation for binomial: mean ± z * σ
@@ -106,20 +201,19 @@ std::pair<double, double> MonteCarloSimulator::getConfidenceInterval(double conf
     if (numSimulations == 0)
         return {0.0, 0.0};
     
+    if (confidence <= 0.0 || confidence >= 1.0)
+        return {0.0, 1.0};
+
     double winRate = getWinPercentage();
     double stdDev = getWinRateStdDev();
-    
-    // Z-scores for common confidence levels
-    // 95% = 1.96, 99% = 2.576, 90% = 1.645
-    double z = 1.96;  // Default to 95% confidence
-    
-    if (confidence >= 0.99)
-        z = 2.576;
-    else if (confidence >= 0.95)
-        z = 1.96;
-    else if (confidence >= 0.90)
-        z = 1.645;
-    
+
+    // Derive the z-score from the requested level instead of matching it
+    // against a handful of hardcoded thresholds. The old if/else chain had no
+    // branch below 0.90, so z kept its 1.96 initializer and any level under
+    // 90% silently came back as a 95% interval - a requested 50% interval was
+    // returned *wider* than a 90% one.
+    double z = probit(0.5 * (1.0 + confidence));
+
     double margin = z * stdDev;
     double lowerBound = std::max(0.0, winRate - margin);
     double upperBound = std::min(1.0, winRate + margin);
@@ -160,7 +254,7 @@ double MonteCarloSimulator::getFlushDrawOdds() const
     }
 
     // Calculate how many flush cards are left in the deck
-    int totalCards = playerHand.size() + communityCards.size();
+    int totalCards = static_cast<int>(playerHand.size() + communityCards.size());
     int cardsRemaining = 13 - suitCount[flushSuit]; // 13 cards per suit
     int deckSize = 52 - totalCards;
 
@@ -185,16 +279,20 @@ double MonteCarloSimulator::getStraightDrawOdds() const
     auto last = std::unique(ranks.begin(), ranks.end());
     ranks.erase(last, ranks.end());
 
-    // Check for open-ended straight draw (4 cards in sequence)
+    // Note: loop bounds are written as `i + 3 < size()` rather than
+    // `i < size() - 3`. size() is unsigned, so with fewer than 4 distinct
+    // ranks (any preflop hand) the subtraction wraps and the loop reads
+    // far past the end of the vector.
     std::vector<int> neededCards;
 
-    for (size_t i = 0; i < ranks.size() - 3; ++i)
+    // Open-ended straight draw: four consecutive ranks, completed by the
+    // rank immediately below or immediately above the run.
+    for (size_t i = 0; i + 3 < ranks.size(); ++i)
     {
         if (ranks[i + 1] == ranks[i] + 1 &&
-            ranks[i + 2] == ranks[i] + 1 &&
-            ranks[i + 3] == ranks[i] + 1)
+            ranks[i + 2] == ranks[i] + 2 &&
+            ranks[i + 3] == ranks[i] + 3)
         {
-            // Open-ended: we need the card before or after
             if (ranks[i] - 1 >= 2)
             { // 2 is the lowest card
                 neededCards.push_back(ranks[i] - 1);
@@ -206,14 +304,19 @@ double MonteCarloSimulator::getStraightDrawOdds() const
         }
     }
 
-    // Check for inside straight draw (gap in the middle)
-    for (size_t i = 0; i < ranks.size() - 3; ++i)
+    // Inside (gutshot) straight draw: four ranks spanning exactly five, so
+    // the one missing rank inside that window completes the straight.
+    for (size_t i = 0; i + 3 < ranks.size(); ++i)
     {
-        if (ranks[i + 1] == ranks[i] + 1 &&
-            ranks[i + 2] == ranks[i] + 2 &&
-            ranks[i + 3] == ranks[i] + 3)
+        if (ranks[i + 3] == ranks[i] + 4)
         {
-            neededCards.push_back(ranks[i] + 2);
+            for (int want = ranks[i] + 1; want < ranks[i] + 4; ++want)
+            {
+                if (std::find(ranks.begin(), ranks.end(), want) == ranks.end())
+                {
+                    neededCards.push_back(want);
+                }
+            }
         }
     }
 
@@ -228,11 +331,11 @@ double MonteCarloSimulator::getStraightDrawOdds() const
         return 0.0;
     }
 
-    int totalCards = playerHand.size() + communityCards.size();
+    int totalCards = static_cast<int>(playerHand.size() + communityCards.size());
     int deckSize = 52 - totalCards;
 
     // Each rank has 4 cards (one per suit)
-    int totalOuts = neededCards.size() * 4;
+    int totalOuts = static_cast<int>(neededCards.size()) * 4;
 
     // Subtract cards we already know
     for (const Card &c : playerHand)

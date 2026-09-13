@@ -6,7 +6,8 @@
 class Spinner
 {
 public:
-    static void show(std::atomic<bool> &running);
+    // Runs until `done` becomes true. Caller sets it to stop the animation.
+    static void show(std::atomic<bool> &done);
 };
 
 #endif

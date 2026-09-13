@@ -20,6 +20,14 @@ public:
     // Statistical rigor methods
     double getWinRateStdDev() const;  // Standard deviation of win rate
     std::pair<double, double> getConfidenceInterval(double confidence = 0.95) const;
+
+    // Equity = win% + half of tie%, i.e. the expected share of the pot. This
+    // is the quantity betting decisions are made on, so it needs its own
+    // interval: a win-rate interval does not contain the equity whenever ties
+    // are possible.
+    double getEquity() const;
+    double getEquityStdDev() const;
+    std::pair<double, double> getEquityConfidenceInterval(double confidence = 0.95) const;
     int getSampleSize() const { return numSimulations; }
 
     // Drawing hand probability methods
@@ -36,7 +44,6 @@ private:
 
     std::vector<Card> getRemainingDeck() const;
     std::pair<std::vector<Card>, std::vector<Card>> dealRandomOpponentAndBoard(const std::vector<Card> &deck) const;
-    int evaluateHand(const std::vector<Card> &hand, const std::vector<Card> &board) const;
 };
 
 #endif

@@ -35,7 +35,7 @@
                               │
               ┌───────────────▼───────────────┐
               │  Initialize Simulation        │
-              │  • Total: 200 simulations     │
+              │  • Total: 2000 simulations    │
               │  • Threads: 4                 │
               │  • Per Thread: 50 sims        │
               └───────────────┬───────────────┘
@@ -395,8 +395,8 @@ User Action: "bet"
 └─────────────────────────────────────────────────────────────┘
 
 Parallel Execution Benefits:
-• 4 threads vs 1 thread: ~3.8x speedup
-• 200 sims in 48ms vs ~180ms sequential
+• Single-threaded. A decision costs ~10ms, inside a 2s UI pause,
+  so parallelising it would not be observable.
 • CPU utilization: ~85% (efficient)
 
 Memory Usage:
@@ -414,7 +414,7 @@ Key Performance Indicators:
 
 ✓ Statistical Rigor:
   • 95% confidence intervals on all win rates
-  • Margin of error quantified (±6-7% for 200 sims)
+  • Margin of error quantified (±1.4% for 2000 sims)
   • Standard deviation calculated
 
 ✓ Mathematical Foundation:

@@ -4,9 +4,11 @@
 #include "player.h"
 #include "hand_types.h"
 #include "advanced_hand_evaluator.h"
+#include "bot_observer.h"
 #include <vector>
 #include <string>
 #include <random>
+#include <cstdint>
 
 enum class GameStage 
 {
@@ -29,17 +31,29 @@ class BotPlayer : public Player
 private:
     BotDifficulty difficulty;
     mutable std::mt19937 rng;  // Mersenne Twister RNG (mutable for const methods)
+    BotObserver *observer = nullptr;  // not owned; null means report nothing
+    int simulationCount = 2000;
 
     // basic decision making methods
     bool shouldCallEasy() const;
     bool shouldCallMedium(const HandValue& eval, GameStage stage, const std::vector<Card>& fullHand) const;
-    bool shouldCallHard(const HandValue& eval, GameStage stage, const std::vector<Card>& fullHand) const;
-    bool shouldCallHardPlus(const std::vector<Card>& fullHand);
+    bool shouldCallHard(const HandValue& eval, GameStage stage, const std::vector<Card>& fullHand,
+                       int pot, int callAmount) const;
+    bool shouldCallHardPlus(const std::vector<Card>& holeCards,
+                            const std::vector<Card>& community,
+                            int pot, int callAmount);
 
     // hand strength awareness methods
     bool hasDrawingHand(const std::vector<Card>& fullHand) const;
     bool hasFlushDraw(const std::vector<Card>& fullHand) const;
     bool hasStraightDraw(const std::vector<Card>& fullHand) const;
+
+    // Equity estimate used by the HardPlus profile. Runs a Monte Carlo
+    // simulation that completes the board, so a flop decision accounts for
+    // the turn and river still to come.
+    double estimateEquity(const std::vector<Card>& holeCards,
+                          const std::vector<Card>& community,
+                          int simulations) const;
 
     // Bluffing Logic
     bool shouldBluff(HandRank handRank) const;
@@ -47,9 +61,39 @@ private:
 public:
     BotPlayer(const std::string &name, int chips, BotDifficulty diff);
 
+    // Deterministic variant. Without a fixed seed a bot's randomised branches
+    // cannot be reproduced, so tests could not pin its behaviour.
+    BotPlayer(const std::string &name, int chips, BotDifficulty diff,
+              std::uint_fast32_t seed);
+
     BotDifficulty getDifficulty() const;
 
-    bool shouldCallBet(const std::vector<Card> &fullHand, GameStage stage = GameStage::River);
+    // Attach a reporter for the bot's reasoning. Null (the default) means the
+    // bot thinks silently, which is what tests want.
+    void setObserver(BotObserver *obs) { observer = obs; }
+
+    // Trials per HardPlus decision. 2000 puts the 95% interval near +/-2%.
+    // Lowering it trades accuracy for speed, which is what test suites want.
+    void setSimulationCount(int n) { if (n > 0) simulationCount = n; }
+    int getSimulationCount() const { return simulationCount; }
+
+    // Decide whether to call a bet of `callAmount` into a pot of `pot`.
+    // Hole cards and community cards are passed separately so the bot never
+    // has to guess where the board starts.
+    bool shouldCallBet(const std::vector<Card> &holeCards,
+                       const std::vector<Card> &community,
+                       GameStage stage = GameStage::River,
+                       int pot = 0,
+                       int callAmount = 0);
+
+    // Decide whether to bet when the opponent checks. Without this the bot
+    // could only ever call or fold, so it checked back made hands and never
+    // won a chip it was not first offered.
+    bool shouldBetWhenChecked(const std::vector<Card> &holeCards,
+                              const std::vector<Card> &community,
+                              GameStage stage,
+                              int pot,
+                              int betAmount);
 };
 
 #endif

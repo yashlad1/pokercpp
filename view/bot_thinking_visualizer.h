@@ -37,13 +37,15 @@ public:
                                    bool hasDraws, double handStrength);
     
     // Progress bar visualization
-    static void drawProgressBar(double percentage, int width = 40);
+    // `higherIsBetter` picks the color scale. Pass false for metrics where a
+    // large value is bad (loss rate), otherwise a high loss renders green.
+    static void drawProgressBar(double percentage, int width = 40, bool higherIsBetter = true);
     
     // Show hand strength meter
     static void showHandStrengthMeter(const HandValue& eval);
     
     // Show pot odds calculation and profitability
-    static void showPotOddsAnalysis(double potOdds, double equity);
+    static void showPotOddsAnalysis(double requiredEquity, double equity);
     
     // Show Kelly Criterion recommendation
     static void showKellyCriterion(double winProb, double potOdds, double kellyFraction);

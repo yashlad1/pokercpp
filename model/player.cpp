@@ -1,5 +1,5 @@
 #include "player.h"
-#include <iostream>
+#include <sstream>
 
 Player::Player(const std::string &name, int startingChips)
 	: name(name), chips(startingChips), folded(false) {}
@@ -7,13 +7,11 @@ Player::Player(const std::string &name, int startingChips)
 // Adds one of two hole cards
 void Player::recieveCard(const Card &card)
 {
+	// Silently ignores extras rather than writing to stderr; the caller
+	// controls dealing and a model should not be reporting to a console.
 	if (hand.size() < 2)
 	{
 		hand.push_back(card);
-	}
-	else
-	{
-		std::cerr << name << " already has 2 cards.\n";
 	}
 }
 
@@ -23,23 +21,20 @@ void Player::clearHand()
 	hand.clear();
 }
 
-// deducts chips from player's stack
-void Player::bet(int amount)
+// deducts chips from player's stack, returning what was actually wagered
+int Player::bet(int amount)
 {
-	if (amount > chips)
+	if (amount <= 0)
 	{
-		std::cerr << name << " does not have enough chips to bet $$$";
-		return;
+		return 0;
 	}
-	chips -= amount;
-	
-	// Color code based on player name
-	const char* color = (name == "You") ? "\033[32m" : "\033[36m"; // Green for You, Cyan for Bot
-	const char* reset = "\033[0m";
-	const char* bold = "\033[1m";
-	const char* yellow = "\033[33m";
-	
-	std::cout << bold << color << name << reset << " bets " << yellow << bold << amount << " chips" << reset << ". 💵\n";
+
+	// Clamp to the available stack rather than refusing the bet outright.
+	// The old version returned without deducting anything, but callers had no
+	// way to notice and carried on as though the chips had been staked.
+	int wagered = (amount > chips) ? chips : amount;
+	chips -= wagered;
+	return wagered;
 }
 
 // adds chips to player's stack (for winnings)
@@ -52,7 +47,6 @@ void Player::addChips(int amount)
 void Player::fold()
 {
 	folded = true;
-	std::cout << name << " folds.\n";
 }
 
 // unfolds player at start of new round
@@ -76,25 +70,25 @@ std::string Player::getName() const
 	return name;
 }
 
-// shows cards during a showdown
-void Player::showHand(bool showCards) const
+// Renders the hand for display. Returns text instead of printing it.
+std::string Player::handToString(bool showCards) const
 {
-	std::cout << name << "'s hand: ";
+	std::ostringstream out;
 	if (showCards)
 	{
 		for (const Card &card : hand)
 		{
-			std::cout << card.toString() << " ";
+			out << card.toString() << " ";
 		}
 	}
 	else
 	{
 		for (size_t i = 0; i < hand.size(); ++i)
 		{
-			std::cout << "[hidden]";
+			out << "[hidden]";
 		}
 	}
-	std::cout << std::endl;
+	return out.str();
 }
 
 std::vector<Card> Player::getHand() const

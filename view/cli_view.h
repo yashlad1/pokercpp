@@ -15,6 +15,10 @@ public:
     static void showChipCounts(const Player &p1, const Player &p2);
     static void showResult(const Player &p1, const Player &p2, const std::vector<Card> &community);
     static void showHandType(const std::string &name, const std::string &handType);
+
+    // Rendering that used to live inside the model.
+    static void showPlayerHand(const Player &player, const std::string &label, bool faceUp);
+    static void showBet(const std::string &name, int amount, bool allIn);
     static void showDivider();
     static void showTable(const std::vector<Card> &community, const Player &human, const Player &bot, bool showBotCards = false);
 };

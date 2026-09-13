@@ -174,13 +174,17 @@ void BotThinkingVisualizer::showMonteCarloHeader(int simulations)
 
 void BotThinkingVisualizer::showMonteCarloProgress(int current, int total, int wins, int /* ties */, int /* losses */)
 {
-    // Only update every 10% to avoid spam
+    // Guard against a zero total, which would divide by zero.
+    if (total <= 0) {
+        return;
+    }
+
+    // Only update every 10% to avoid spam. This deliberately avoids a function
+    // -local static: one would be shared across every simulation and every
+    // thread that called in.
     int percentComplete = (current * 100) / total;
-    static int lastPercent = -1;
-    
-    if (percentComplete % 10 == 0 && percentComplete != lastPercent) {
-        lastPercent = percentComplete;
-        
+
+    if (percentComplete % 10 == 0) {
         OUT << CYAN << "│" << RESET << " Progress: ";
         drawProgressBar(static_cast<double>(current) / total);
         
@@ -211,7 +215,7 @@ void BotThinkingVisualizer::showMonteCarloResult(double winRate, int /* totalWin
     // Loss percentage
     double lossRate = static_cast<double>(totalLosses) / simulations;
     OUT << CYAN << "│" << RESET << " │ " << RED << "Losses: " << RESET;
-    drawProgressBar(lossRate, 20);
+    drawProgressBar(lossRate, 20, /*higherIsBetter=*/false);
     OUT << " " << std::fixed << std::setprecision(1) << (lossRate * 100) << "%\n";
     
     OUT << CYAN << "│" << RESET << " └──────────────────────────────────────────────┘\n";
@@ -261,20 +265,31 @@ void BotThinkingVisualizer::showDecisionFactors(const std::string& stage, const 
     OUT << WHITE << "└───────────────────────────────────────────────────┘" << RESET << "\n\n";
 }
 
-void BotThinkingVisualizer::drawProgressBar(double percentage, int width)
+void BotThinkingVisualizer::drawProgressBar(double percentage, int width, bool higherIsBetter)
 {
-    int filled = static_cast<int>(percentage * width);
-    
+    // Clamp so a stray value out of [0,1] cannot overrun or under-fill the bar.
+    double p = percentage;
+    if (p < 0.0) p = 0.0;
+    if (p > 1.0) p = 1.0;
+
+    int filled = static_cast<int>(p * width);
+
+    // Color by meaning, not magnitude. Previously an 85% loss rate rendered in
+    // green because the scale only looked at the number.
+    const char* color;
+    double good = higherIsBetter ? p : (1.0 - p);
+    if (good >= 0.7) {
+        color = GREEN;
+    } else if (good >= 0.4) {
+        color = YELLOW;
+    } else {
+        color = RED;
+    }
+
     OUT << "[";
     for (int i = 0; i < width; i++) {
         if (i < filled) {
-            if (percentage >= 0.7) {
-                OUT << GREEN << "█" << RESET;
-            } else if (percentage >= 0.4) {
-                OUT << YELLOW << "█" << RESET;
-            } else {
-                OUT << RED << "█" << RESET;
-            }
+            OUT << color << "█" << RESET;
         } else {
             OUT << DIM << "░" << RESET;
         }
@@ -369,11 +384,17 @@ void BotThinkingVisualizer::showExpectedValue(double ev, int potSize, int callAm
     }
 }
 
-void BotThinkingVisualizer::showPotOddsAnalysis(double potOdds, double equity)
+// `requiredEquity` is the FRACTION of the pot being risked (call / (pot+call)),
+// i.e. the output of PokerMath::calculatePotOddsPercentage - not the pot-odds
+// ratio from calculatePotOdds, which would print as "200%" and never compare
+// meaningfully against equity.
+void BotThinkingVisualizer::showPotOddsAnalysis(double requiredEquity, double equity)
 {
+    double potOdds = requiredEquity;
+
     OUT << BOLD << BLUE << "┌─ POT ODDS ANALYSIS ───────────────────────────────┐" << RESET << "\n";
-    
-    OUT << BLUE << "│" << RESET << " Pot Odds:  " << std::fixed << std::setprecision(1) 
+
+    OUT << BLUE << "│" << RESET << " Needs:     " << std::fixed << std::setprecision(1) 
               << (potOdds * 100) << "%\n";
     OUT << BLUE << "│" << RESET << " Equity:    " << std::fixed << std::setprecision(1) 
               << (equity * 100) << "%\n";

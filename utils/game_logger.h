@@ -24,6 +24,7 @@ private:
     static bool initialized;
     static int handNumber;
     static std::string sessionId;
+    static std::string filePath;
     
     static std::string getCurrentTimestamp() {
         auto now = std::chrono::system_clock::now();
@@ -51,6 +52,9 @@ public:
             std::cerr << "Warning: Could not open game log file\n";
             return;
         }
+        // Remember where we actually opened. getLogFilePath() used to return a
+        // hardcoded path, so it lied whenever initialize() was given another.
+        filePath = filename;
         
         // Generate session ID
         auto now = std::chrono::system_clock::now();
@@ -118,50 +122,49 @@ public:
         logFile.flush();  // Ensure data is written
     }
     
+    /**
+     * Log the end of a hand.
+     *
+     * `humanNet` and `botNet` are the actual chip changes (stack after minus
+     * stack before). They used to be derived as `+potSize` for the winner and
+     * `-potSize/2` for the loser, which mixed gross and net: a winner who had
+     * staked half the pot was credited with the whole thing.
+     */
     static void logHandOutcome(const std::string& winner, const std::vector<Card>& playerHand,
                                const std::vector<Card>& botHand, const std::vector<Card>& community,
-                               HandRank playerRank, HandRank botRank, int potSize) {
+                               HandRank playerRank, HandRank botRank, int potSize,
+                               int humanNet, int botNet) {
         if (!initialized || !logFile.is_open()) return;
-        
-        // Log player outcome
+
         HandDecision playerOutcome;
         playerOutcome.player = "Human";
         playerOutcome.hand = playerHand;
         playerOutcome.community = community;
         playerOutcome.stage = "Showdown";
         playerOutcome.action = "reveal";
-        playerOutcome.amount = 0;
+        playerOutcome.amount = potSize;
         playerOutcome.handRank = playerRank;
         playerOutcome.winProbability = 0.0;
         playerOutcome.expectedValue = 0.0;
         playerOutcome.potOdds = 0.0;
         playerOutcome.decision = "N/A";
-        playerOutcome.outcome = winner;
-        playerOutcome.chipsChange = (winner == "Human") ? potSize : (winner == "Tie") ? 0 : -potSize/2;
-        
+        playerOutcome.outcome = (winner == "Human") ? "WIN" : (winner == "Tie") ? "TIE" : "LOSE";
+        playerOutcome.chipsChange = humanNet;
+
         logDecision(playerOutcome);
-        
-        // Log bot outcome
-        HandDecision botOutcome;
+
+        HandDecision botOutcome = playerOutcome;
         botOutcome.player = "Bot";
         botOutcome.hand = botHand;
-        botOutcome.community = community;
-        botOutcome.stage = "Showdown";
-        botOutcome.action = "reveal";
-        botOutcome.amount = 0;
         botOutcome.handRank = botRank;
-        botOutcome.winProbability = 0.0;
-        botOutcome.expectedValue = 0.0;
-        botOutcome.potOdds = 0.0;
-        botOutcome.decision = "N/A";
-        botOutcome.outcome = (winner == "Human") ? "LOSE" : (winner == "Tie") ? "TIE" : "WIN";
-        botOutcome.chipsChange = (winner == "Bot") ? potSize : (winner == "Tie") ? 0 : -potSize/2;
-        
+        botOutcome.outcome = (winner == "Bot") ? "WIN" : (winner == "Tie") ? "TIE" : "LOSE";
+        botOutcome.chipsChange = botNet;
+
         logDecision(botOutcome);
     }
-    
+
     static std::string getLogFilePath() {
-        return "/tmp/poker_game_log.csv";
+        return filePath;
     }
     
     static int getHandNumber() {

@@ -27,7 +27,10 @@ public:
 	void recieveCard(const Card &card); // Add a card to the hand
 	void clearHand();					// Reset hand (for new round)
 
-	void bet(int amount); // deduct chips
+	// Deducts chips and returns the amount actually wagered. The return value
+	// is clamped to the player's stack (an all-in), so callers can add exactly
+	// what was staked to the pot and keep chip totals conserved.
+	int bet(int amount);
 	void addChips(int amount); // add chips (for winnings)
 	void fold();		  // set folded=true
 	void resetStatus();	  // unfold for next round
@@ -37,12 +40,19 @@ public:
 	std::string getName() const;
 	std::vector<Card> getHand() const;
 
-	void showHand(bool showCards = true) const; // Print cards (face down if false)
+	// Renders the hand as a string. The model does not print: returning text
+	// lets the view decide how (and whether) to display it, and keeps tests
+	// from writing to stdout.
+	std::string handToString(bool showCards = true) const;
 };
 
 #endif
 
 /**
+ * This class holds state only. It deliberately performs no console output so
+ * the same model can be driven by a different front end and so unit tests stay
+ * silent.
+ *
  * hand -> Stores the player's 2 private (hole) cards
  * chips -> represents their current stack for betting
  * folded -> tracks whether player is out of round

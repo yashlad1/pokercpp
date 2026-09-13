@@ -33,7 +33,10 @@ static bool isStraight(const std::vector<int> &sortedRanks, int &highCard)
         uniqueRanks.insert(uniqueRanks.begin(), 1); // add ace as 1
     }
 
-    // Look for 5 consecutive ranks
+    // Look for 5 consecutive ranks, keeping the HIGHEST straight found.
+    // Do not return early: with 6+ consecutive ranks (or a wheel plus a higher
+    // straight) the first run of five is the lowest one, not the best one.
+    bool found = false;
     int count = 1;
     for (size_t i = 1; i < uniqueRanks.size(); ++i)
     {
@@ -42,8 +45,9 @@ static bool isStraight(const std::vector<int> &sortedRanks, int &highCard)
             count++;
             if (count >= 5)
             {
+                // Ranks ascend, so each later update is a better straight
                 highCard = uniqueRanks[i];
-                return true;
+                found = true;
             }
         }
         else
@@ -52,7 +56,7 @@ static bool isStraight(const std::vector<int> &sortedRanks, int &highCard)
         }
     }
 
-    return false;
+    return found;
 }
 
 /**
@@ -140,8 +144,14 @@ HandValue AdvancedHandEvaluator::evaluate(const std::vector<Card> &cards)
     // Check for Four of a Kind
     if (!quads.empty())
     {
-        // Highest card not in the quads as kicker
-        int kicker = singles.empty() ? (trips.empty() ? 0 : trips[0]) : singles[0];
+        // Highest card not in the quads as kicker. Must scan every remaining
+        // rank, not just the singles: with AAAA-KK-Q the kicker is the K.
+        int kicker = 0;
+        for (const auto &[rank, count] : rankCount)
+        {
+            if (rank != quads[0] && rank > kicker)
+                kicker = rank;
+        }
         return HandValue{
             HandRank::FourOfAKind, {quads[0], kicker}};
     }
@@ -194,7 +204,14 @@ HandValue AdvancedHandEvaluator::evaluate(const std::vector<Card> &cards)
     // Check for Two Pair
     if (pairs.size() >= 2)
     {
-        int kicker = singles.empty() ? 0 : singles[0];
+        // Highest card outside the top two pairs. A third pair can outrank
+        // every single card (AA-KK-QQ-J plays the Q, not the J).
+        int kicker = 0;
+        for (const auto &[rank, count] : rankCount)
+        {
+            if (rank != pairs[0] && rank != pairs[1] && rank > kicker)
+                kicker = rank;
+        }
         return HandValue{HandRank::TwoPair, {pairs[0], pairs[1], kicker}};
     }
 
@@ -202,7 +219,7 @@ HandValue AdvancedHandEvaluator::evaluate(const std::vector<Card> &cards)
     if (pairs.size() == 1)
     {
         std::vector<int> kickers = {pairs[0]};
-        for (int i = 0; i < 3 && i < (int)singles.size(); ++i)
+        for (size_t i = 0; i < 3 && i < singles.size(); ++i)
             kickers.push_back(singles[i]);
         return HandValue{HandRank::OnePair, kickers};
     }
