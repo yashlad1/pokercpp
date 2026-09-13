@@ -2,6 +2,7 @@
 #include "MonteCarloSimulator.h"
 #include "../model/deck.h"
 #include "../model/advanced_hand_evaluator.h"
+#include "preflop_ranks.h"
 
 #include <random>
 #include <algorithm>
@@ -13,8 +14,51 @@ MonteCarloSimulator::MonteCarloSimulator(const std::vector<Card> &playerHand,
                                          const std::vector<Card> &communityCards,
                                          int simulations)
     : playerHand(playerHand), communityCards(communityCards),
-      numSimulations(simulations), winCount(0), tieCount(0), loseCount(0)
+      numSimulations(simulations), winCount(0), tieCount(0), loseCount(0),
+      villainRangeFraction(1.0)
 {
+}
+
+void MonteCarloSimulator::setVillainRange(double fraction)
+{
+    // Clamped rather than rejected: callers derive this from observed
+    // betting, and a range of "top 0%" is a modelling artefact, not a
+    // request to simulate an opponent holding nothing.
+    if (fraction < 0.01) fraction = 0.01;
+    if (fraction > 1.0) fraction = 1.0;
+    villainRangeFraction = fraction;
+}
+
+std::vector<std::pair<Card, Card>> MonteCarloSimulator::villainCombos(
+    const std::vector<Card> &deck) const
+{
+    // Walk the ranked classes, strongest first, until the cumulative combo
+    // count reaches the wanted share of all 1326 holdings. Counting in
+    // combos rather than classes is what makes "top 20%" mean 20% of the
+    // hands actually dealt: there are 12 ways to be dealt AKo and only 6 to
+    // be dealt AA.
+    const int wanted = static_cast<int>(villainRangeFraction * 1326.0 + 0.5);
+    bool allowed[15][15][2] = {};
+    int cumulative = 0;
+    for (const chipzen::PreflopClass &c : chipzen::kPreflopRanked) {
+        if (cumulative >= wanted) break;
+        allowed[c.high][c.low][c.suited ? 1 : 0] = true;
+        cumulative += c.combos;
+    }
+
+    std::vector<std::pair<Card, Card>> combos;
+    for (size_t i = 0; i < deck.size(); ++i) {
+        for (size_t j = i + 1; j < deck.size(); ++j) {
+            int a = static_cast<int>(deck[i].rank);
+            int b = static_cast<int>(deck[j].rank);
+            int hi = std::max(a, b), lo = std::min(a, b);
+            bool suited = deck[i].suit == deck[j].suit;
+            if (allowed[hi][lo][suited ? 1 : 0]) {
+                combos.emplace_back(deck[i], deck[j]);
+            }
+        }
+    }
+    return combos;
 }
 
 void MonteCarloSimulator::runSimulation()
@@ -28,13 +72,45 @@ void MonteCarloSimulator::runSimulation()
     std::mt19937 g(rd());
     std::vector<Card> deck = getRemainingDeck();
 
+    // Only build the combo list when the range is actually restricted. The
+    // unrestricted path stays exactly as it was, which matters because that
+    // is the path the exact-enumeration tests validate.
+    std::vector<std::pair<Card, Card>> combos;
+    if (villainRangeFraction < 1.0)
+    {
+        combos = villainCombos(deck);
+        // A range narrow enough to be empty once our own cards are removed
+        // tells us nothing. Fall back to dealing at random rather than
+        // returning an equity computed from no opponent at all.
+        if (combos.empty()) villainRangeFraction = 1.0;
+    }
+    std::uniform_int_distribution<size_t> pick(0, combos.empty() ? 0 : combos.size() - 1);
+
     for (int i = 0; i < numSimulations; ++i)
     {
         // Shuffle the deck
         std::shuffle(deck.begin(), deck.end(), g);
 
-        // Deal opponent hand and complete the board if needed
-        auto [opponentHand, completeBoard] = dealRandomOpponentAndBoard(deck);
+        std::vector<Card> opponentHand;
+        std::vector<Card> completeBoard;
+        if (!combos.empty())
+        {
+            const auto &combo = combos[pick(g)];
+            opponentHand = {combo.first, combo.second};
+            completeBoard = communityCards;
+            // Fill the board from the shuffled deck, skipping the two cards
+            // the opponent is holding this trial.
+            for (const Card &c : deck)
+            {
+                if (completeBoard.size() >= 5) break;
+                if (c == combo.first || c == combo.second) continue;
+                completeBoard.push_back(c);
+            }
+        }
+        else
+        {
+            std::tie(opponentHand, completeBoard) = dealRandomOpponentAndBoard(deck);
+        }
 
         // Combine player hand with board
         std::vector<Card> playerFullHand = playerHand;

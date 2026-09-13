@@ -51,45 +51,89 @@ inline int boundedRaise(int target, int minRaise, int maxRaise) {
     return std::max(minRaise, std::min(target, maxRaise));
 }
 
+// How wide a range to credit the opponent with, from what they have done
+// this hand. Heads-up opens are wide; re-raises are not.
+//
+// ponytail: a step function fitted by hand, not from data. The right version
+// learns these from observed showdowns. Replace it once there are hands to
+// learn from - the shape below is a starting prior, not a finding.
+inline double villainRangeFraction(int villainRaises, int toCall, int pot) {
+    double f = 1.0;
+    if (villainRaises >= 1) f = 0.45;
+    if (villainRaises >= 2) f = 0.18;
+    if (villainRaises >= 3) f = 0.08;
+
+    // Within that band, the price asked says something too: betting large
+    // is a stronger action than betting small.
+    if (toCall > 0 && pot > 0) {
+        double betFraction = static_cast<double>(toCall) / pot;
+        if (betFraction > 0.75) f *= 0.7;
+        else if (betFraction < 0.35) f *= 1.3;
+    }
+
+    return std::max(0.05, std::min(1.0, f));
+}
+
+// Share of raw equity a hand can expect to actually collect.
+//
+// Monte Carlo equity assumes every hand runs to showdown for free. It does
+// not: calling now means surviving the betting still to come, and a hand
+// that has to fold the turn never collects the river equity counted here.
+// The further from showdown, the less of it is real. On the river the board
+// is complete and the number is exact, so realization is 1.
+//
+// ponytail: depends only on the street, not on position, stack depth or
+// whether the hand is the kind that flops well. Those are the next terms if
+// this proves to matter.
+inline double equityRealization(size_t boardSize) {
+    switch (boardSize) {
+        case 0:  return 0.75;   // preflop: three streets to navigate
+        case 3:  return 0.82;   // flop
+        case 4:  return 0.90;   // turn
+        default: return 1.00;   // river: showdown next, nothing left to lose
+    }
+}
+
 struct Decision {
     std::string action;   // "fold" | "check" | "call" | "raise"
     int amount = 0;       // total bet, when action is "raise"
-    double equity = 0.0;  // raw Monte Carlo equity
-    double shaded = 0.0;  // after the bet-size discount
+    double equity = 0.0;  // Monte Carlo equity against the modelled range
+    double realized = 0.0;// equity after the realization discount
+    double range = 1.0;   // fraction of hands the opponent is credited with
     double required = 0.0;// equity the pot price demands
 };
 
 inline Decision decideFull(const std::vector<Card> &hole,
                           const std::vector<Card> &board,
                           int pot, int toCall, int minRaise, int maxRaise,
-                          int stack, int bb, int sims) {
+                          int stack, int bb, int sims, int villainRaises = 0) {
     Decision d;
+    d.range = villainRangeFraction(villainRaises, toCall, pot);
+
     MonteCarloSimulator sim(hole, board, sims);
+    sim.setVillainRange(d.range);
     sim.runSimulation();
     double equity = sim.getEquity();
     d.equity = equity;
 
-    // The simulator deals the opponent a uniform random hand. A real
-    // opponent who is betting into us holds better than random, so raw
-    // equity overstates our share by more the larger the bet is. Shade it
-    // down in proportion to the price being asked.
+    // Equity is already measured against the range the opponent is credited
+    // with, so no bet-size fudge is needed on top. What is still needed is
+    // the discount for equity we will not get to collect.
     //
-    // ponytail: flat linear discount, no opponent model. Replace with a
-    // range model built from action_history if the rating says it matters.
-    double shaded = equity;
-    if (toCall > 0 && pot > 0) {
-        double betFraction = static_cast<double>(toCall) / pot;
-        shaded = equity - 0.10 * std::min(1.0, betFraction);
-    }
+    // Realization applies to continuing for a price. It does not apply when
+    // betting: a bet can win the pot outright, and that fold equity is
+    // exactly what a called-down hand lacks.
+    const double shaded = (toCall > 0) ? equity * equityRealization(board.size())
+                                       : equity;
+    d.realized = shaded;
 
-    d.shaded = shaded;
     d.required = (toCall > 0) ? PokerMath::calculatePotOddsPercentage(pot, toCall) : 0.0;
 
     double stackInBB = (bb > 0) ? static_cast<double>(stack) / bb : 100.0;
 
-    // Short stack: the fold-or-shove zone. With under 10 big blinds there is
-    // no room to bet and still fold later, so flat-calling just leaks.
-    if (stackInBB <= 10.0 && shaded >= 0.55) {
+    // Short stack: the fold-or-shove zone, judged on raw equity for the same
+    // reason - a shove ends the betting, so there is nothing left to realize.
+    if (stackInBB <= 10.0 && equity >= 0.55) {
         int shove = boundedRaise(maxRaise, minRaise, maxRaise);
         if (shove > 0) { d.action = "raise"; d.amount = shove; return d; }
     }
@@ -104,10 +148,14 @@ inline Decision decideFull(const std::vector<Card> &hole,
         return d;
     }
 
+    // Continuing for a price is judged on equity we expect to collect...
     if (shaded <= d.required) { d.action = "fold"; return d; }
 
-    // Strong enough that getting more money in beats just calling.
-    if (shaded >= 0.75) {
+    // ...but whether to raise is judged on the raw number. Realization is
+    // the cost of having to call down; raising is how a hand avoids paying
+    // it, so discounting the raise threshold by it would have the best hands
+    // flat-calling exactly when they should be building the pot.
+    if (equity >= 0.75) {
         int target = boundedRaise(static_cast<int>((pot + toCall) * 0.75) + toCall,
                                   minRaise, maxRaise);
         if (target > 0) { d.action = "raise"; d.amount = target; return d; }
@@ -121,8 +169,9 @@ inline Decision decideFull(const std::vector<Card> &hole,
 inline std::string decide(const std::vector<Card> &hole,
                           const std::vector<Card> &board,
                           int pot, int toCall, int minRaise, int maxRaise,
-                          int stack, int bb, int sims) {
-    Decision d = decideFull(hole, board, pot, toCall, minRaise, maxRaise, stack, bb, sims);
+                          int stack, int bb, int sims, int villainRaises = 0) {
+    Decision d = decideFull(hole, board, pot, toCall, minRaise, maxRaise, stack, bb,
+                            sims, villainRaises);
     return d.action == "raise" ? d.action + " " + std::to_string(d.amount) : d.action;
 }
 

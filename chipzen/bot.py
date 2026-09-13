@@ -34,6 +34,22 @@ logger = logging.getLogger("pokercpp")
 SIMS = int(os.environ.get("POKERCPP_SIMS", "5000"))
 
 
+def _villain_raises(state: GameState) -> int:
+    """Count aggressive actions by anyone other than us in this hand.
+
+    This is the whole opponent model: how many times they have chosen to put
+    money in voluntarily. Posting a blind is not a choice, so the synthetic
+    entries are skipped.
+    """
+    n = 0
+    for entry in state.action_history or ():
+        if entry.get("seat") == state.your_seat:
+            continue
+        if entry.get("action") in ("raise", "bet", "all_in"):
+            n += 1
+    return n
+
+
 def _current_blinds(state: GameState) -> tuple[int, int]:
     """Read this hand's blinds off the synthetic entries in action_history.
 
@@ -68,6 +84,7 @@ class PokerCppBot(Bot):
                 stack=int(state.your_stack or 0),
                 bb=int(bb or 0),
                 sims=SIMS,
+                villain_raises=_villain_raises(state),
             )
             action = self._to_action(d, state, valid)
         except Exception:
@@ -81,12 +98,13 @@ class PokerCppBot(Bot):
 
         logger.info(
             "hand=%s phase=%s pot=%s to_call=%s hole=%s legal=%s "
-            "equity=%s shaded=%s required=%s -> %s%s",
+            "range=%s equity=%s realized=%s required=%s -> %s%s",
             state.hand_number, state.phase, state.pot, state.to_call,
             "".join(str(c) for c in (state.hole_cards or ())) or "NONE",
             ",".join(valid) or "-",
+            f"{d['range']:.2f}" if d else "n/a",
             f"{d['equity']:.3f}" if d else "n/a",
-            f"{d['shaded']:.3f}" if d else "n/a",
+            f"{d['realized']:.3f}" if d else "n/a",
             f"{d['required']:.3f}" if d else "n/a",
             action.action,
             f" {action.amount}" if action.action == "raise" else "",

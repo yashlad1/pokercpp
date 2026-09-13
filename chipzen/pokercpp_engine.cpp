@@ -33,7 +33,7 @@ static std::vector<Card> parseCards(const std::vector<std::string> &strs) {
 static py::dict decide(const std::vector<std::string> &hole,
                        const std::vector<std::string> &board,
                        int pot, int toCall, int minRaise, int maxRaise,
-                       int stack, int bb, int sims) {
+                       int stack, int bb, int sims, int villainRaises) {
     if (hole.size() != 2) {
         throw std::invalid_argument("need exactly 2 hole cards");
     }
@@ -47,7 +47,8 @@ static py::dict decide(const std::vector<std::string> &hole,
         // The SDK calls decide() from an async loop; holding the GIL through
         // a 12 ms simulation would stall the WebSocket heartbeat.
         py::gil_scoped_release release;
-        d = chipzen::decideFull(h, b, pot, toCall, minRaise, maxRaise, stack, bb, sims);
+        d = chipzen::decideFull(h, b, pot, toCall, minRaise, maxRaise, stack, bb,
+                                sims, villainRaises);
     }
 
     // The numbers come back with the choice so a fold can be explained from
@@ -56,7 +57,8 @@ static py::dict decide(const std::vector<std::string> &hole,
     out["action"] = d.action;
     out["amount"] = d.amount;
     out["equity"] = d.equity;
-    out["shaded"] = d.shaded;
+    out["realized"] = d.realized;
+    out["range"] = d.range;
     out["required"] = d.required;
     return out;
 }
@@ -66,6 +68,6 @@ PYBIND11_MODULE(pokercpp_engine, m) {
     m.def("decide", &decide,
           py::arg("hole"), py::arg("board"), py::arg("pot"), py::arg("to_call"),
           py::arg("min_raise"), py::arg("max_raise"), py::arg("stack"),
-          py::arg("bb"), py::arg("sims") = 5000,
+          py::arg("bb"), py::arg("sims") = 5000, py::arg("villain_raises") = 0,
           "Return 'fold', 'check', 'call' or 'raise <total>' for the given spot.");
 }

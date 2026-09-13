@@ -13,6 +13,13 @@ public:
                         int simulations = 10000);
 
     void runSimulation();
+
+    // Restrict the opponent to the strongest `fraction` of starting hands
+    // (1.0 = any two cards, the default). Dealing the opponent a uniformly
+    // random hand overstates our equity against anyone who only puts money
+    // in with good ones, which is the single largest source of error in a
+    // decision made from this number.
+    void setVillainRange(double fraction);
     double getWinPercentage() const;
     double getTiePercentage() const;
     double getLosePercentage() const;
@@ -41,8 +48,12 @@ private:
     int winCount;
     int tieCount;
     int loseCount;
+    double villainRangeFraction;  // 1.0 means unrestricted
 
     std::vector<Card> getRemainingDeck() const;
+
+    // Concrete two-card holdings from `deck` that fall inside the range.
+    std::vector<std::pair<Card, Card>> villainCombos(const std::vector<Card> &deck) const;
     std::pair<std::vector<Card>, std::vector<Card>> dealRandomOpponentAndBoard(const std::vector<Card> &deck) const;
 };
 

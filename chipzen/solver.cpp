@@ -5,7 +5,7 @@
 // decides anything lives here, so the C++ engine stays the brain.
 //
 // Line protocol (all integers, cards as two chars "As" "Th" "2c"):
-//   <nhole> <hole...> <nboard> <board...> <pot> <to_call> <min_raise> <max_raise> <stack> <bb> <sims>
+//   <nhole> <hole...> <nboard> <board...> <pot> <to_call> <min_raise> <max_raise> <stack> <bb> <sims> [villain_raises]
 // Reply:
 //   fold | check | call | raise <total_bet>
 //
@@ -46,6 +46,11 @@ int main() {
         int pot = 0, toCall = 0, minRaise = 0, maxRaise = 0, stack = 0, bb = 0, sims = 0;
         if (ok) ok = static_cast<bool>(in >> pot >> toCall >> minRaise >> maxRaise >> stack >> bb >> sims);
 
+        // Trailing and optional: older callers omit it and get the
+        // unrestricted opponent the field defaults to.
+        int villainRaises = 0;
+        if (ok) in >> villainRaises;
+
         // A malformed line must still get an answer: the Python side is
         // waiting on exactly one reply and would otherwise block until the
         // server's decision budget expires.
@@ -55,7 +60,8 @@ int main() {
         }
 
         if (sims <= 0) sims = 5000;
-        std::cout << chipzen::decide(hole, board, pot, toCall, minRaise, maxRaise, stack, bb, sims)
+        std::cout << chipzen::decide(hole, board, pot, toCall, minRaise, maxRaise,
+                                     stack, bb, sims, villainRaises)
                   << std::endl;
     }
     return 0;
