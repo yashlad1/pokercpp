@@ -14,3 +14,9 @@ build-asan/
 
 # Editor
 *.swp
+
+# Build artifacts
+*.so
+pokercpp.tar.gz
+__pycache__/
+tests/test_equity_exact
