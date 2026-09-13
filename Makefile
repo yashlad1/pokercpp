@@ -39,6 +39,7 @@ TARGET = poker
 TEST_MC = tests/test_monte_carlo
 TEST_HAND = tests/test_hand_evaluator
 TEST_GAME = tests/test_game_logic
+TEST_EQUITY = tests/test_equity_exact
 
 # Main game target
 $(TARGET): $(SRC)
@@ -57,8 +58,14 @@ test_game_logic: tests/test_game_logic.cpp $(LIB_SRC) $(VIEW_SRC)
 	$(CXX) $(CXXFLAGS) tests/test_game_logic.cpp $(LIB_SRC) $(VIEW_SRC) -o $(TEST_GAME)
 	./$(TEST_GAME)
 
+# Ground truth for the equity engine: counts every case where the simulator
+# samples. Pass --slow for the preflop and flop enumerations (~12s).
+test_equity_exact: tests/test_equity_exact.cpp $(LIB_SRC)
+	$(CXX) $(CXXFLAGS) tests/test_equity_exact.cpp $(LIB_SRC) -o $(TEST_EQUITY)
+	./$(TEST_EQUITY)
+
 # Run all tests
-test: test_hand_evaluator test_monte_carlo test_game_logic
+test: test_hand_evaluator test_monte_carlo test_game_logic test_equity_exact
 	@echo "\n=== All Tests Passed ==="
 
 # Every test binary rebuilt with AddressSanitizer + UndefinedBehaviorSanitizer.
