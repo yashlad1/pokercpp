@@ -51,12 +51,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /bot
 
-RUN pip install chipzen-bot \
+# Pinned: unpinned, each build silently picks up a newer SDK, which already
+# changed the validator once. 0.7.1 is what this image was validated with
+# on 24 Nov 2026.
+RUN pip install chipzen-bot==0.7.1 \
     && rm -rf /root/.cache \
     && find /usr/local/lib/python3.11 -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 COPY --from=builder /pokercpp_engine*.so /bot/
-COPY chipzen/bot.py chipzen/opponent.py /bot/
+# Dockerfile and .dockerignore are here only for `chipzen-sdk validate .`, whose
+# packaging check wants them in the bot folder. The platform runs this built
+# image; it does not rebuild from /bot.
+COPY chipzen/bot.py chipzen/opponent.py chipzen/Dockerfile chipzen/.dockerignore /bot/
 
 RUN adduser -D -u 10001 -s /bin/sh bot && chown -R bot:bot /bot
 USER bot

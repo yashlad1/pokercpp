@@ -195,6 +195,10 @@ inline Decision decideFull(const std::vector<Card> &hole,
                           int stack, int bb, int sims, int villainRaises = 0,
                           double realizationScale = 1.0, bool bluffEnabled = true,
                           double rangeFloor = 0.0) {
+    // The SDK passes to_call uncapped. Facing a bet bigger than our stack we
+    // can only call the stack; the excess goes back uncalled. Without this,
+    // `required` and the range's bet-size read use chips that can never be won or lost.
+    if (toCall > stack && stack > 0) { pot -= toCall - stack; toCall = stack; }
     Decision d;
     d.range = std::max(villainRangeFraction(villainRaises, toCall, pot), rangeFloor);
 

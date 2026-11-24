@@ -168,4 +168,21 @@ assert not r.startswith("raise"), f"72o is below 50% and should not open, got {r
 r = ask(["Ks", "9h"], max_raise=750, stack=750, **OPEN)
 assert r in ("fold", "raise 750"), f"8bb must shove or fold, not open to 2.5bb, got {r!r}"
 
+# --- a bet bigger than our stack ---------------------------------------------
+#
+# The platform may report a to_call above our stack. We can only call what we
+# have; the excess goes back to the bettor. Chips we can't call can't be won
+# or lost, so they must not set the price: the report must be decided exactly
+# like to_call = stack with the pot cut by the excess. A2o has the equity to
+# call 400 into 600 as the big blind, but not the 9900-into-10100 the raw
+# report implies.
+
+CAP = dict(board=[], min_raise=0, max_raise=0, stack=400, bb=100, villain_raises=1, sims=5000)
+
+for hole, want in ((["As", "2h"], "call"), (["7s", "2h"], "fold"), (["As", "Ad"], "call")):
+    capped = ask(hole, pot=600, to_call=400, **CAP)
+    over = ask(hole, pot=10100, to_call=9900, **CAP)
+    assert capped == want, f"{hole} capped spot should {want}, got {capped!r}"
+    assert over == capped, f"{hole} over-stack report must match the capped spot {capped!r}, got {over!r}"
+
 print("solver self-check: all passed")
