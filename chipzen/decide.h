@@ -209,8 +209,10 @@ inline Decision decideFull(const std::vector<Card> &hole,
     //
     // Realization applies to continuing for a price. It does not apply when
     // betting: a bet can win the pot outright, and that fold equity is
-    // exactly what a called-down hand lacks.
-    const double shaded = (toCall > 0)
+    // exactly what a called-down hand lacks. Nor does it apply when the call
+    // ends the betting (all-in, or raising closed): nothing is left to lose.
+    const bool callEndsBetting = toCall >= stack || maxRaise <= 0;
+    const double shaded = (toCall > 0 && !callEndsBetting)
         ? equity * std::min(1.0, equityRealization(board.size()) * realizationScale)
         : equity;
     d.realized = shaded;

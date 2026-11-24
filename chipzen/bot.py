@@ -79,8 +79,9 @@ class PokerCppBot(Bot):
                 board=[str(c) for c in (state.board or ())],
                 pot=int(state.pot or 0),
                 to_call=int(state.to_call or 0),
-                min_raise=int(state.min_raise or 0),
-                max_raise=int(state.max_raise or 0),
+                # The SDK passes the server's bounds through; 0 means raising is closed.
+                min_raise=int(state.min_raise or 0) if "raise" in valid else 0,
+                max_raise=int(state.max_raise or 0) if "raise" in valid else 0,
                 stack=int(state.your_stack or 0),
                 bb=int(bb or 0),
                 sims=SIMS,
