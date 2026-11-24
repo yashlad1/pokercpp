@@ -146,4 +146,26 @@ assert r == "call", f"call vs an all-in with equity over the price should call, 
 r = ask(["6s", "6d"], pot=900, to_call=700, min_raise=1400, max_raise=1900, stack=1900, **ENDS)
 assert r == "fold", f"discount must still apply while betting continues, got {r!r}"
 
+# --- opening from the small blind ------------------------------------------
+#
+# Limping hands the big blind the initiative; an open takes it. A hand that
+# beats a random one more often than not (K9o is ~59%) opens to 2.5bb, and
+# AA opens to the same size so the raise says nothing about the hand.
+# Below 50% it stays out of the raise. At 10bb or less the shove-or-fold
+# rule decides, so there is no 2.5bb open.
+
+OPEN = dict(board=[], pot=150, to_call=50, min_raise=200, bb=100, villain_raises=0, sims=5000)
+
+r = ask(["Ks", "9h"], max_raise=9950, stack=9950, **OPEN)
+assert r == "raise 250", f"K9o should open to 2.5bb, got {r!r}"
+
+r = ask(["As", "Ad"], max_raise=9950, stack=9950, **OPEN)
+assert r == "raise 250", f"AA should open to the same 2.5bb, got {r!r}"
+
+r = ask(["7h", "2c"], max_raise=9950, stack=9950, **OPEN)
+assert not r.startswith("raise"), f"72o is below 50% and should not open, got {r!r}"
+
+r = ask(["Ks", "9h"], max_raise=750, stack=750, **OPEN)
+assert r in ("fold", "raise 750"), f"8bb must shove or fold, not open to 2.5bb, got {r!r}"
+
 print("solver self-check: all passed")

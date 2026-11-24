@@ -229,6 +229,19 @@ inline Decision decideFull(const std::vector<Card> &hole,
         if (shove > 0) { d.action = "raise"; d.amount = shove; return d; }
     }
 
+    // Small blind's first action: facing only the blind difference, no raise
+    // yet. Raising beats limping with any hand ahead of a random one: it takes
+    // the initiative, and a limp hands the big blind a free chance to raise us
+    // off the pot. 2.5 big blinds is a standard open - big enough to charge a
+    // call, small enough to risk little when the big blind re-raises.
+    //
+    // ponytail: the 0.50 cut is fitted, not solved. A solved short-stack
+    // open/shove table would replace it.
+    if (board.empty() && villainRaises == 0 && toCall > 0 && bb > 0 && equity >= 0.50) {
+        int open = boundedRaise(static_cast<int>(2.5 * bb), minRaise, maxRaise);
+        if (open > 0) { d.action = "raise"; d.amount = open; return d; }
+    }
+
     if (toCall <= 0) {
         const int target = boundedRaise(static_cast<int>(pot * 0.66), minRaise, maxRaise);
 
