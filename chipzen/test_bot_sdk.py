@@ -130,6 +130,56 @@ check(b.decide(shove_spot(22, H)).action == "fold",
 
 print("opponent-memory checks:", "FAILED" if extra else "ok")
 
+# The platform's own fixture sends no blinds in the history, so the bot has to
+# work the big blind out from its first preflop decision, and an all-in is
+# sometimes the only way to call or to raise.
+extra_before = extra
+
+def wire(hist, **kw):
+    kw.setdefault("hand_number", 1)
+    kw.setdefault("phase", "preflop")
+    kw.setdefault("board", [])
+    kw.setdefault("opponent_stacks", [1000])
+    kw["hole_cards"] = [C(kw["hole_cards"][:2]), C(kw["hole_cards"][2:])]
+    return GameState(action_history=hist, **kw)
+
+# 1. Small blind, empty history: pot 15 + to_call 5 gives a 10 chip big blind,
+# so the open is 2.5 big blinds, a raise to 25.
+b = botmod.PokerCppBot()
+b.on_match_start({"game_config": {"small_blind": 5, "big_blind": 10, "ante": 0,
+                                  "starting_stack": 1000}})
+a = b.decide(wire([], hole_cards="AhKd", your_seat=0, dealer_seat=0, pot=15,
+                  to_call=5, min_raise=20, max_raise=995, your_stack=995,
+                  valid_actions=["fold", "call", "raise"]))
+check(a.action == "raise" and a.amount == 25,
+      f"small blind, empty history: AKo should open to 25, got {a.action} {a.amount}")
+
+# 2. Big blind, empty history, no match_start fallback: (pot 40 - to_call 20) / 2
+# is a 10 chip big blind, so 70 behind is 7 big blinds and AA shoves.
+b = botmod.PokerCppBot()
+a = b.decide(wire([], hole_cards="AhAd", your_seat=1, dealer_seat=0, pot=40,
+                  to_call=20, min_raise=50, max_raise=80, your_stack=70,
+                  valid_actions=["fold", "call", "raise"]))
+check(a.action == "all_in" or (a.action == "raise" and a.amount == 80),
+      f"big blind, empty history, 7bb deep: AA should shove, got {a.action} {a.amount}")
+
+# 3. Only all_in offered: wanting to raise means sending all_in.
+b = botmod.PokerCppBot()
+a = b.decide(wire(list(BL), hole_cards="AhAd", your_seat=0, dealer_seat=0, pot=150,
+                  to_call=50, min_raise=0, max_raise=0, your_stack=700,
+                  valid_actions=["fold", "call", "all_in"]))
+check(a.action == "all_in", f"only all_in raises: AA should all_in, got {a.action}")
+
+# 4. The call is offered as all_in (the opponent's shove covers our stack).
+b = botmod.PokerCppBot()
+a = b.decide(wire(BL + [{"seat": 0, "action": "all_in", "amount": 1500,
+                         "phase": "preflop", "is_timeout": False}],
+                  hole_cards="AhAd", your_seat=1, dealer_seat=0, pot=1600,
+                  to_call=1400, min_raise=0, max_raise=0, your_stack=900,
+                  valid_actions=["fold", "all_in"]))
+check(a.action == "all_in", f"call offered only as all_in: AA must not fold, got {a.action}")
+print("wire-adapter checks:", "FAILED" if extra > extra_before else "ok")
+
 print()
 print(f"worst decision latency: {worst:.1f} ms  (ranked budget 2000 ms)")
 print("ILLEGAL ACTIONS FOUND" if fails else "all actions legal")

@@ -73,16 +73,55 @@ class PokerCppBot(Bot):
     def __init__(self):
         super().__init__()
         self.opponent = Opponent()
+        self._reset_blinds({})
+
+    def _reset_blinds(self, match_info):
+        cfg = (match_info or {}).get("game_config") or {}
+        self.ante = int(cfg.get("ante") or 0)
+        self.last_bb = int(cfg.get("big_blind") or 0)  # fallback until a hand shows its own
+        self.hand_bb: dict[int, int] = {}
 
     def on_match_start(self, match_info):
         # One process can play several matches; do not carry one opponent into the next.
         self.opponent = Opponent()
+        self._reset_blinds(match_info)
+
+    def _bb(self, state: GameState) -> int:
+        """This hand's big blind.
+
+        The protocol fixture shows blinds are not guaranteed in action_history
+        (preflop it is empty, pot 15 / to_call 5), so history is only the first
+        source. Failing that, back it out of the first preflop decision we see:
+        heads-up the button posts the small blind, so pot + to_call (as SB) or
+        pot - to_call (as BB) is two big blinds once antes are taken out.
+        """
+        n = state.hand_number
+        if n and n in self.hand_bb:  # hand 0/missing: one key would freeze the first hand's bb
+            return self.hand_bb[n]
+        bb = _current_blinds(state)[1]
+        if not bb and state.phase == "preflop":
+            pot, to_call = int(state.pot or 0) - 2 * self.ante, int(state.to_call or 0)
+            sb_seat = state.your_seat == state.dealer_seat
+            bb = (pot + to_call if sb_seat else pot - to_call) // 2
+        if bb > 0:
+            if n:
+                self.hand_bb[n] = bb
+            self.last_bb = bb
+            return bb
+        return max(self.last_bb, 0)
 
     def decide(self, state: GameState) -> Action:
         valid = list(state.valid_actions or ())
         try:
-            _, bb = _current_blinds(state)
+            bb = self._bb(state)
             vr = _villain_raises(state)
+            if "raise" in valid:
+                lo, hi = int(state.min_raise or 0), int(state.max_raise or 0)
+            elif "all_in" in valid:
+                # Only a shove is offered: let the engine pick it.
+                lo = hi = int(state.your_stack or 0)
+            else:
+                lo = hi = 0
             self.opponent.saw(state.hand_number, vr)
             d = pokercpp_engine.decide(
                 # Card.__str__ is already the wire's two-char form.
@@ -91,8 +130,7 @@ class PokerCppBot(Bot):
                 pot=int(state.pot or 0),
                 to_call=int(state.to_call or 0),
                 # The SDK passes the server's bounds through; 0 means raising is closed.
-                min_raise=int(state.min_raise or 0) if "raise" in valid else 0,
-                max_raise=int(state.max_raise or 0) if "raise" in valid else 0,
+                min_raise=lo, max_raise=hi,
                 stack=int(state.your_stack or 0),
                 bb=int(bb or 0),
                 sims=SIMS,
@@ -107,12 +145,14 @@ class PokerCppBot(Bot):
             # every decision this match is a fallback, not a strategy.
             logger.exception("ENGINE FAILED - falling back to check/fold")
             d = None
+            bb = 0
             action = self._safe_default(valid)
 
         logger.info(
-            "hand=%s phase=%s pot=%s to_call=%s hole=%s legal=%s "
+            "hand=%s phase=%s pot=%s to_call=%s bb=%s hist=%s hole=%s legal=%s "
             "range=%s equity=%s realized=%s required=%s -> %s%s",
             state.hand_number, state.phase, state.pot, state.to_call,
+            bb, len(state.action_history or ()),
             "".join(str(c) for c in (state.hole_cards or ())) or "NONE",
             ",".join(valid) or "-",
             f"{d['range']:.2f}" if d else "n/a",
@@ -142,13 +182,22 @@ class PokerCppBot(Bot):
 
         word = d["action"]
 
+        if word == "raise" and "raise" not in valid and "all_in" in valid:
+            return Action.all_in()
+
         if word == "raise" and "raise" in valid:
             target = int(d["amount"])
             lo, hi = int(state.min_raise or 0), int(state.max_raise or 0)
             if lo > 0 and hi > 0:
-                return Action.raise_to(max(lo, min(target, hi)))
+                target = max(lo, min(target, hi))
+                if target >= hi and "all_in" in valid:
+                    return Action.all_in()
+                return Action.raise_to(target)
             # Raising was illegal after all — fall through to the next best.
             word = "call" if state.to_call else "check"
+
+        if word == "call" and "call" not in valid and "all_in" in valid:
+            return Action.all_in()  # facing a bet >= stack: the call is offered as all_in
 
         if word == "call":
             return Action.call() if "call" in valid else self._safe_default(valid)
