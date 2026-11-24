@@ -29,6 +29,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import itertools
 import math
 import os
 import random
@@ -39,6 +40,7 @@ from collections import Counter
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "chipzen"))
 
 import pokercpp_engine
+from opponent import Opponent
 from pokerkit import Automation as A
 from pokerkit import NoLimitTexasHoldem
 
@@ -58,12 +60,16 @@ class View:
     deciding from the same information."""
 
     __slots__ = ("hole", "board", "pot", "to_call", "min_raise", "max_raise",
-                 "stack", "bb", "villain_raises")
+                 "stack", "bb", "villain_raises", "hand")
 
     def __init__(self, **kw):
         for k in self.__slots__:
             setattr(self, k, kw[k])
 
+
+# A unique id per play_hand call: the two seat-swapped plays of one seed are
+# different hands as far as an opponent model is concerned.
+HAND_IDS = itertools.count()
 
 # --------------------------------------------------------------------------
 # Agents
@@ -73,19 +79,24 @@ class PokerCpp:
     """The real engine, with its knobs exposed so variants can be compared."""
 
     def __init__(self, sims=2000, name="pokercpp", realization_scale=1.0,
-                 bluff_enabled=True):
+                 bluff_enabled=True, memory=True):
+        self.memory = Opponent() if memory else None
         self.sims = sims
         self.name = name
         self.realization_scale = realization_scale
         self.bluff_enabled = bluff_enabled
 
     def act(self, v: View):
+        floor = 0.0
+        if self.memory:
+            self.memory.saw(v.hand, v.villain_raises)
+            floor = self.memory.range_floor(v.villain_raises)
         d = pokercpp_engine.decide(
             hole=v.hole, board=v.board, pot=v.pot, to_call=v.to_call,
             min_raise=v.min_raise, max_raise=v.max_raise, stack=v.stack,
             bb=v.bb, sims=self.sims, villain_raises=v.villain_raises,
             realization_scale=self.realization_scale,
-            bluff_enabled=self.bluff_enabled,
+            bluff_enabled=self.bluff_enabled, range_floor=floor,
         )
         return d["action"], d["amount"]
 
@@ -202,8 +213,9 @@ class LoosePassive:
 
 class RandomLegal:
     """Picks any legal action at random. A bot that cannot beat this has a leak
-    somewhere basic. Uses its own RNG, reseeded each decision from the view, so
-    it never touches the deck's stream and both seat-swapped plays see the same draws."""
+    somewhere basic. Uses its own RNG, reseeded each decision from its own hole
+    cards and the view, so it never touches the deck's RNG stream. (The two
+    seat-swapped plays do not see the same draws: it holds different cards.)"""
     name = "random"
 
     def __init__(self):
@@ -229,6 +241,7 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000):
     the same cards to the same seats - which is what makes the pairing in
     `duplicate_match` cancel the luck instead of merely averaging it.
     """
+    hand = next(HAND_IDS)
     random.seed(seed)
     st = NoLimitTexasHoldem.create_state(
         AUTOMATIONS, True, 0, blinds, blinds[1], (stack, stack), 2)
@@ -253,6 +266,7 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000):
             stack=st.stacks[i],
             bb=blinds[1],
             villain_raises=aggression[1 - i],
+            hand=hand,
         )
 
         action, amount = agents[i].act(view)
@@ -332,6 +346,7 @@ if __name__ == "__main__":
         # is itself duplicate-dealt and not just each row against its opponent.
         variants = [
             ("shipping", dict()),
+            ("no memory", dict(memory=False)),
             ("no bluffing", dict(bluff_enabled=False)),
             ("realization x0.85 (tighter)", dict(realization_scale=0.85)),
             ("realization x1.15 (looser)", dict(realization_scale=1.15)),
@@ -346,10 +361,10 @@ if __name__ == "__main__":
             report(label, res, args.bb)
         sys.exit(0)
 
-    hero = PokerCpp(sims=args.sims)
     names = list(OPPONENTS) if args.vs == "all" else [args.vs]
     print(f"pokercpp ({args.sims} sims/decision) vs opponents, duplicate-dealt, {args.stack} bb deep\n")
     for nm in names:
+        hero = PokerCpp(sims=args.sims)  # fresh, so memory never carries between opponents
         res = duplicate_match(args.hands, hero, OPPONENTS[nm](), blinds=(args.bb // 2, args.bb),
                              stack=args.stack * args.bb)
         report(f"vs {nm}", res, args.bb)

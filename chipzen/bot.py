@@ -26,6 +26,7 @@ from chipzen import Action, Bot, GameState
 from chipzen.client import run_bot
 
 import pokercpp_engine
+from opponent import Opponent
 
 logger = logging.getLogger("pokercpp")
 
@@ -69,10 +70,20 @@ def _current_blinds(state: GameState) -> tuple[int, int]:
 
 
 class PokerCppBot(Bot):
+    def __init__(self):
+        super().__init__()
+        self.opponent = Opponent()
+
+    def on_match_start(self, match_info):
+        # One process can play several matches; do not carry one opponent into the next.
+        self.opponent = Opponent()
+
     def decide(self, state: GameState) -> Action:
         valid = list(state.valid_actions or ())
         try:
             _, bb = _current_blinds(state)
+            vr = _villain_raises(state)
+            self.opponent.saw(state.hand_number, vr)
             d = pokercpp_engine.decide(
                 # Card.__str__ is already the wire's two-char form.
                 hole=[str(c) for c in (state.hole_cards or ())],
@@ -85,7 +96,8 @@ class PokerCppBot(Bot):
                 stack=int(state.your_stack or 0),
                 bb=int(bb or 0),
                 sims=SIMS,
-                villain_raises=_villain_raises(state),
+                villain_raises=vr,
+                range_floor=self.opponent.range_floor(vr),
             )
             action = self._to_action(d, state, valid)
         except Exception:

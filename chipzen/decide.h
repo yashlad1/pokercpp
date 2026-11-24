@@ -193,9 +193,10 @@ inline Decision decideFull(const std::vector<Card> &hole,
                           const std::vector<Card> &board,
                           int pot, int toCall, int minRaise, int maxRaise,
                           int stack, int bb, int sims, int villainRaises = 0,
-                          double realizationScale = 1.0, bool bluffEnabled = true) {
+                          double realizationScale = 1.0, bool bluffEnabled = true,
+                          double rangeFloor = 0.0) {
     Decision d;
-    d.range = villainRangeFraction(villainRaises, toCall, pot);
+    d.range = std::max(villainRangeFraction(villainRaises, toCall, pot), rangeFloor);
 
     MonteCarloSimulator sim(hole, board, sims);
     sim.setVillainRange(d.range);

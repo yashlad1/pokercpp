@@ -56,7 +56,7 @@ RUN pip install chipzen-bot \
     && find /usr/local/lib/python3.11 -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 COPY --from=builder /pokercpp_engine*.so /bot/
-COPY chipzen/bot.py /bot/bot.py
+COPY chipzen/bot.py chipzen/opponent.py /bot/
 
 RUN adduser -D -u 10001 -s /bin/sh bot && chown -R bot:bot /bot
 USER bot

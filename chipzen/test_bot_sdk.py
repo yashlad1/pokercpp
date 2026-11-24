@@ -76,7 +76,61 @@ for name, kw in SPOTS:
         fails += 1
     print(f"  {name:32s} -> {act.action}{detail:22s} {ms:6.1f}ms  {'ok' if ok else 'ILLEGAL'}")
 
+
+# An opponent who raises every hand is not showing a strong hand when they
+# raise. The bot remembers, across the match, how often this opponent has
+# raised, and widens the range it puts them on to match. K8o is a fold against
+# a shove from a tight range and a call against a shove from any two cards.
+BL = [
+    {"seat": 0, "action": "post_small_blind", "amount": 50,  "phase": "preflop", "is_timeout": False},
+    {"seat": 1, "action": "post_big_blind",   "amount": 100, "phase": "preflop", "is_timeout": False},
+]
+SHOVE = BL + [{"seat": 0, "action": "raise", "amount": 1500, "phase": "preflop", "is_timeout": False}]
+LIMP  = BL + [{"seat": 0, "action": "call",  "amount": 50,   "phase": "preflop", "is_timeout": False}]
+
+def shove_spot(n, hole):
+    return GameState(hand_number=n, dealer_seat=0, your_seat=1, opponent_stacks=[0],
+        action_history=list(SHOVE), phase="preflop", hole_cards=[C(hole[:2]), C(hole[2:])],
+        board=[], pot=1600, to_call=1400, min_raise=0, max_raise=0, your_stack=1400,
+        valid_actions=["fold", "call"])
+
+def limp_spot(n, hole):
+    return GameState(hand_number=n, dealer_seat=0, your_seat=1, opponent_stacks=[1400],
+        action_history=list(LIMP), phase="preflop", hole_cards=[C(hole[:2]), C(hole[2:])],
+        board=[], pot=200, to_call=0, min_raise=200, max_raise=1400, your_stack=1400,
+        valid_actions=["check", "raise"])
+
+H = "Ks8h"
+extra = 0
+
+def check(cond, msg):
+    global extra
+    if not cond:
+        extra += 1
+        print("FAIL:", msg)
+
+b = botmod.PokerCppBot()
+check(b.decide(shove_spot(1, H)).action == "fold", "fresh bot should fold K8o to a shove")
+
+b = botmod.PokerCppBot()
+for n in range(1, 21):
+    b.decide(shove_spot(n, "7h2c"))
+check(b.decide(shove_spot(21, H)).action == "call",
+      "after 20 shove hands the bot should call K8o: a constant shover has a wide range")
+
+b2 = botmod.PokerCppBot()
+for n in range(1, 21):
+    b2.decide(limp_spot(n, "7h2c"))
+check(b2.decide(shove_spot(21, H)).action == "fold",
+      "after 20 passive hands a shove is still strong: K8o folds")
+
+b.on_match_start({})
+check(b.decide(shove_spot(22, H)).action == "fold",
+      "on_match_start must clear the memory: K8o folds again")
+
+print("opponent-memory checks:", "FAILED" if extra else "ok")
+
 print()
 print(f"worst decision latency: {worst:.1f} ms  (ranked budget 2000 ms)")
 print("ILLEGAL ACTIONS FOUND" if fails else "all actions legal")
-sys.exit(1 if fails else 0)
+sys.exit(1 if fails or extra else 0)
