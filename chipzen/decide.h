@@ -65,8 +65,11 @@ inline double villainRangeFraction(int villainRaises, int toCall, int pot) {
 
     // Within that band, the price asked says something too: betting large
     // is a stronger action than betting small.
-    if (toCall > 0 && pot > 0) {
-        double betFraction = static_cast<double>(toCall) / pot;
+    // pot already includes the bet, so measure against the pot before it:
+    // a pot-size bet is 1.0 (100%), not 0.5, and the 0.75 / 0.35 cuts below
+    // mean 75% and 35% of the pot.
+    if (toCall > 0 && pot - toCall > 0) {
+        double betFraction = static_cast<double>(toCall) / (pot - toCall);
         if (betFraction > 0.75) f *= 0.7;
         else if (betFraction < 0.35) f *= 1.3;
     }
@@ -228,6 +231,7 @@ inline Decision decideFull(const std::vector<Card> &hole,
 
     // Short stack: the fold-or-shove zone, judged on raw equity for the same
     // reason - a shove ends the betting, so there is nothing left to realize.
+    // ponytail: shoving when checked to is a 5x-pot overbet. It is right against callers and wrong against folders, so sizing it by opponent type is planned (Phase 4).
     if (stackInBB <= 10.0 && equity >= 0.55) {
         int shove = boundedRaise(maxRaise, minRaise, maxRaise);
         if (shove > 0) { d.action = "raise"; d.amount = shove; return d; }
@@ -241,7 +245,9 @@ inline Decision decideFull(const std::vector<Card> &hole,
     //
     // ponytail: the 0.50 cut is fitted, not solved. A solved short-stack
     // open/shove table would replace it.
-    if (board.empty() && villainRaises == 0 && toCall > 0 && bb > 0 && equity >= 0.50) {
+    // toCall < bb: the blind difference is under one big blind; more than that
+    // means a raise we did not count, and this is no longer an open.
+    if (board.empty() && villainRaises == 0 && toCall > 0 && toCall < bb && bb > 0 && equity >= 0.50) {
         int open = boundedRaise(static_cast<int>(2.5 * bb), minRaise, maxRaise);
         if (open > 0) { d.action = "raise"; d.amount = open; return d; }
     }

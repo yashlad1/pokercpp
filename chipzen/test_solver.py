@@ -185,4 +185,29 @@ for hole, want in ((["As", "2h"], "call"), (["7s", "2h"], "fold"), (["As", "Ad"]
     assert capped == want, f"{hole} capped spot should {want}, got {capped!r}"
     assert over == capped, f"{hole} over-stack report must match the capped spot {capped!r}, got {over!r}"
 
+# --- short-stack shove, open path, and bet sizing ----------------------------
+#
+# A1: shoving when checked to at 10bb or less is deliberate: a 5x-pot overbet,
+# right vs callers and wrong vs folders; sizing by opponent type is planned.
+BOARD5 = ["Ks", "7c", "2d", "9h", "4s"]
+
+# Facing a bet at 10bb a shove is still allowed; only demand it is not a fold.
+r = ask(["Ah", "Kd"], BOARD5, pot=40, to_call=20, min_raise=40, max_raise=100,
+        stack=100, bb=10)
+assert r != "fold", f"top pair top kicker facing a small bet must not fold, got {r!r}"
+
+# A2: the 2.5bb open applies only when just the blind difference is owed. A
+# full bb or more to call with villain_raises=0 must be decided like a raise.
+SPOT = dict(board=[], pot=50, to_call=40, min_raise=80, max_raise=1000, stack=1000, bb=10)
+for hole in (["Ah", "Kd"], ["Qs", "Jd"]):
+    a, b = ask(hole, villain_raises=0, **SPOT), ask(hole, villain_raises=1, **SPOT)
+    assert a == b, f"{hole} to_call>=bb must skip the open path: vr=0 {a!r} vs vr=1 {b!r}"
+
+# B: the bet is sized against the pot before it. Pot 200 with 100 to call is a
+# pot-size bet (fraction 1.0): the credited range narrows, and 7s on A-T-7 (a
+# pair under the ace) is no longer worth 100 to win 300.
+r = ask(["2h", "7s"], ["7c", "Tc", "Ad"], pot=200, to_call=100, min_raise=9000,
+        max_raise=9000, stack=9000, bb=100, villain_raises=1, sims=5000)
+assert r == "fold", f"a pair of sevens vs a pot-size bet should fold to the narrowed range, got {r!r}"
+
 print("solver self-check: all passed")
