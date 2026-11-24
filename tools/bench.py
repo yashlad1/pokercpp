@@ -169,6 +169,55 @@ class Nit:
         return ("check", 0) if v.to_call == 0 else ("fold", 0)
 
 
+class Maniac:
+    """Shoves every hand. A bot that cannot beat this folds too much to all-ins."""
+    name = "maniac"
+
+    def act(self, v: View):
+        if v.max_raise:
+            return "raise", v.max_raise
+        return ("check", 0) if v.to_call == 0 else ("call", 0)
+
+
+class Aggro:
+    """Raises big at every chance. A bot that cannot beat this is pushed off too many pots."""
+    name = "aggro"
+
+    def act(self, v: View):
+        if v.max_raise:
+            return "raise", min(max(3 * v.min_raise, v.pot), v.max_raise)
+        return ("check", 0) if v.to_call == 0 else ("call", 0)
+
+
+class LoosePassive:
+    """Never raises, calls any bet up to pot size and folds to bigger ones. A bot that
+    cannot beat this is not extracting value from weak, passive ranges."""
+    name = "loosepassive"
+
+    def act(self, v: View):
+        if v.to_call == 0:
+            return "check", 0
+        return ("call", 0) if v.to_call <= v.pot - v.to_call else ("fold", 0)
+
+
+class RandomLegal:
+    """Picks any legal action at random. A bot that cannot beat this has a leak
+    somewhere basic. Uses its own RNG, reseeded each decision from the view, so
+    it never touches the deck's stream and both seat-swapped plays see the same draws."""
+    name = "random"
+
+    def __init__(self):
+        self.rng = random.Random(0)
+
+    def act(self, v: View):
+        self.rng.seed(f"{v.hole}{v.board}{v.pot}{v.to_call}")
+        options = ["call"] + (["fold"] if v.to_call > 0 else []) + (["raise"] if v.max_raise > 0 else [])
+        pick = self.rng.choice(options)
+        if pick == "raise":
+            return "raise", self.rng.randint(v.min_raise, v.max_raise)
+        return (pick, 0)
+
+
 # --------------------------------------------------------------------------
 # One hand
 # --------------------------------------------------------------------------
@@ -262,7 +311,9 @@ def report(label, results, bb, hands_per_pair=2):
           f"{hands:6d} hands   {verdict}")
 
 
-OPPONENTS = {"reference": Reference, "station": CallingStation, "nit": Nit}
+OPPONENTS = {"reference": Reference, "station": CallingStation, "nit": Nit,
+             "maniac": Maniac, "aggro": Aggro,
+             "loosepassive": LoosePassive, "random": RandomLegal}
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -272,6 +323,8 @@ if __name__ == "__main__":
     ap.add_argument("--ab", action="store_true",
                     help="sweep the knobs instead of playing the fixed bot")
     ap.add_argument("--bb", type=int, default=100)
+    ap.add_argument("--stack", type=int, default=100,
+                    help="starting stack in big blinds")
     args = ap.parse_args()
 
     if args.ab:
@@ -285,16 +338,18 @@ if __name__ == "__main__":
             ("realization off (x1.33)", dict(realization_scale=1.33)),
         ]
         opp = OPPONENTS["reference" if args.vs == "all" else args.vs]()
-        print(f"Knob sweep vs {opp.name}, {args.sims} sims/decision, duplicate-dealt\n")
+        print(f"Knob sweep vs {opp.name}, {args.sims} sims/decision, duplicate-dealt, {args.stack} bb deep\n")
         for label, kw in variants:
             res = duplicate_match(args.hands, PokerCpp(sims=args.sims, **kw), opp,
-                                  blinds=(args.bb // 2, args.bb))
+                                  blinds=(args.bb // 2, args.bb),
+                                  stack=args.stack * args.bb)
             report(label, res, args.bb)
         sys.exit(0)
 
     hero = PokerCpp(sims=args.sims)
     names = list(OPPONENTS) if args.vs == "all" else [args.vs]
-    print(f"pokercpp ({args.sims} sims/decision) vs opponents, duplicate-dealt\n")
+    print(f"pokercpp ({args.sims} sims/decision) vs opponents, duplicate-dealt, {args.stack} bb deep\n")
     for nm in names:
-        res = duplicate_match(args.hands, hero, OPPONENTS[nm](), blinds=(args.bb // 2, args.bb))
+        res = duplicate_match(args.hands, hero, OPPONENTS[nm](), blinds=(args.bb // 2, args.bb),
+                             stack=args.stack * args.bb)
         report(f"vs {nm}", res, args.bb)
