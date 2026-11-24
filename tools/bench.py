@@ -234,7 +234,7 @@ class RandomLegal:
 # One hand
 # --------------------------------------------------------------------------
 
-def play_hand(seed: int, agents, blinds=(50, 100), stack=10000):
+def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
     """Deal from `seed` and play it out. Returns each seat's chip delta.
 
     The seed fixes the deck, so the same seed with the agents swapped deals
@@ -242,9 +242,10 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000):
     `duplicate_match` cancel the luck instead of merely averaging it.
     """
     hand = next(HAND_IDS)
+    start = (stack, stack) if stacks is None else tuple(stacks)
     random.seed(seed)
     st = NoLimitTexasHoldem.create_state(
-        AUTOMATIONS, True, 0, blinds, blinds[1], (stack, stack), 2)
+        AUTOMATIONS, True, 0, blinds, blinds[1], start, 2)
 
     aggression = [0, 0]  # voluntary bets/raises this hand, by seat
     guard = 0
@@ -287,7 +288,7 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000):
         else:
             break
 
-    return [st.stacks[k] - stack for k in range(2)]
+    return [st.stacks[k] - start[k] for k in range(2)]
 
 
 def duplicate_match(hands: int, hero, villain, blinds=(50, 100), stack=10000, seed0=1):
