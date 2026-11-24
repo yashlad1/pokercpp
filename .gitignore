@@ -20,3 +20,6 @@ build-asan/
 pokercpp.tar.gz
 __pycache__/
 tests/test_equity_exact
+# image tarballs and local secrets
+*.tar.gz
+.env

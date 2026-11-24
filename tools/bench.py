@@ -101,6 +101,24 @@ class PokerCpp:
         return d["action"], d["amount"]
 
 
+class September:
+    """The bot as shipped in September (c057f40), built as pokercpp_engine_base.
+    No opponent memory: the point is to measure what the memory work added."""
+
+    name = "september"
+
+    def __init__(self, sims=2000):
+        self.sims = sims
+
+    def act(self, v: View):
+        d = pokercpp_engine_base.decide(
+            hole=v.hole, board=v.board, pot=v.pot, to_call=v.to_call,
+            min_raise=v.min_raise, max_raise=v.max_raise, stack=v.stack,
+            bb=v.bb, sims=self.sims, villain_raises=v.villain_raises,
+        )
+        return d["action"], d["amount"]
+
+
 class Reference:
     """The strategy Chipzen ships as its reference bot: preflop rank buckets,
     postflop made-hand class. Not strong, but it is what a straightforward
@@ -261,7 +279,9 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
             hole=[repr(c) for c in st.hole_cards[i]],
             board=[repr(c) for row in st.board_cards for c in (row if isinstance(row, list) else [row])],
             pot=st.total_pot_amount,
-            to_call=st.checking_or_calling_amount or 0,
+            # Uncapped, as the platform sends it: pokerkit's own amount is
+            # capped at our stack, which would hide the engine's cap.
+            to_call=max(max(st.bets) - st.bets[i], 0),
             min_raise=st.min_completion_betting_or_raising_to_amount or 0,
             max_raise=st.max_completion_betting_or_raising_to_amount or 0,
             stack=st.stacks[i],
@@ -329,6 +349,14 @@ def report(label, results, bb, hands_per_pair=2):
 OPPONENTS = {"reference": Reference, "station": CallingStation, "nit": Nit,
              "maniac": Maniac, "aggro": Aggro,
              "loosepassive": LoosePassive, "random": RandomLegal}
+
+# Only when the September build is next to the current one, so --vs all still
+# works without it.
+try:
+    import pokercpp_engine_base
+    OPPONENTS["september"] = September
+except ImportError:
+    pass
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
