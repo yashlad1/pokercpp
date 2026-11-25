@@ -36,6 +36,7 @@ import os
 import random
 import re
 import statistics
+import subprocess
 import sys
 import zlib
 from collections import Counter
@@ -97,6 +98,24 @@ class Seeder:
         x = ((x ^ (x >> 30)) * 0xBF58476D1CE4E5B9) & (2**64 - 1)
         x = ((x ^ (x >> 27)) * 0x94D049BB133111EB) & (2**64 - 1)
         return (x ^ (x >> 31)) or 1
+
+
+def engine_impl():
+    """"metal" when the loaded engine was built with Metal and POKER_NO_METAL is not 1
+    (the switch tools/metal_parity.py uses); a USE_METAL build links Metal.framework."""
+    if os.environ.get("POKER_NO_METAL") == "1":
+        return "cpu"
+    with open(pokercpp_engine.__file__, "rb") as f:
+        return "metal" if b"Metal.framework" in f.read() else "cpu"
+
+
+def git_commit():
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True,
+                                       cwd=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."),
+                                       stderr=subprocess.DEVNULL).strip()
+    except Exception:
+        return "unknown"
 
 
 class PokerCpp:
@@ -694,4 +713,7 @@ if __name__ == "__main__":
         if args.dump:
             with open(args.dump, "w") as f:
                 json.dump({"seed0": args.seed0, "bb": args.bb, "stack_bb": args.stack,
-                           "opponent": nm, "results": res, **knobs}, f)
+                           "opponent": nm, "results": res, **knobs,
+                           "meta": dict(sims=args.sims, hero=args.hero, history=args.history,
+                                        hand_number=args.hand_number, impl=engine_impl(),
+                                        commit=git_commit(), knobs=knobs)}, f)
