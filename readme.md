@@ -1,30 +1,43 @@
-# 🃏 CLI Texas Hold'em Poker Game in C++
+# pokercpp: Texas Hold'em in C++
 
-This project is a **command-line Texas Hold'em poker game** built in modern **C++17**, featuring Monte Carlo bot opponents, an MVC layering with no view dependencies in the model, and a tested hand evaluator.
+A command-line Texas Hold'em game in modern **C++17**, with Monte Carlo bot opponents, an MVC layering with no view dependencies in the model, and a tested hand evaluator. The same Monte Carlo engine also plays heads-up no-limit hold'em as a bot on the Chipzen platform (see below).
 
 ---
 
-## ♠️ Features (Implemented)
+## Chipzen bot
 
-- ✅ Card & Deck generation (with emojis for suits ♠️♦️♥️♣️)
-- ✅ Full game loop with betting and showdown
-- ✅ **Bot opponents: Easy / Medium / Hard / HardPlus**, the last driven by Monte Carlo equity and pot odds
-- ✅ **Threaded spinner animation** while the bot thinks
-- ✅ Best-five-of-seven hand evaluator with full kicker resolution
-- ✅ Clear CLI interface (check, bet, fold actions)
-- ✅ SOLID design with `BotPlayer` subclass
-- ✅ MVC layering: the model performs no console I/O. `BotPlayer` reports its
+- **What it is:** the same Monte Carlo engine plays heads-up no-limit hold'em on the Chipzen platform. The decision logic in `chipzen/decide.h` is compiled into a Python extension, and `chipzen/bot.py` handles the wire protocol and checks that every action is legal.
+- **Build, validate and upload:** [chipzen/README.md](chipzen/README.md).
+- **Offline measurement:**
+  - `tools/bench.py`: duplicate-dealt bb/100 against scripted opponents, seeded and repeatable; `--hero bot` runs the real `chipzen/bot.py`.
+  - `tools/paired.py`: the paired difference between two builds, from `bench.py --dump` files.
+  - `tools/match.py`: freezeout matches with rising blinds, scored by match wins.
+- **Tests:** `make test` (C++ engine), `chipzen/test_solver.py` (decision rules through the CLI solver), `chipzen/test_bot_sdk.py` (bot.py against the real SDK), `chipzen/test_engine_seed.py` and `tools/test_paired.py`.
+- **Results:** write-ups of the benchmark runs in [results/](results/).
+
+---
+
+## Features (Implemented)
+
+- Card and deck generation, with suit symbols in the terminal
+- Full game loop with betting and showdown
+- **Bot opponents: Easy / Medium / Hard / HardPlus**, the last driven by Monte Carlo equity and pot odds
+- **Threaded spinner animation** while the bot thinks
+- Best-five-of-seven hand evaluator with full kicker resolution
+- Clear CLI interface (check, bet, fold actions)
+- SOLID design with `BotPlayer` subclass
+- MVC layering: the model performs no console I/O. `BotPlayer` reports its
   reasoning through a `BotObserver` interface and the view supplies the
   adapter, so game logic can run headless.
-- ✅ Injectable input (`PlayerInput`) and a configurable thinking delay, so a
+- Injectable input (`PlayerInput`) and a configurable thinking delay, so a
   full hand can be played in tests without a terminal
-- ✅ **64 unit tests** covering hand ranking, chip conservation, bot decisions
+- **64 unit tests** covering hand ranking, chip conservation, bot decisions
   and the statistical machinery; `make test-asan` runs them under
   AddressSanitizer and UBSan
 
 ---
 
-## ⚠️ Known limitations
+## Known limitations
 
 - **No blinds or antes**, so folding preflop costs nothing.
 - **No preflop betting round**; action starts on the flop.
@@ -35,7 +48,7 @@ This project is a **command-line Texas Hold'em poker game** built in modern **C+
 
 ---
 
-## 📜 Poker Rules - Texas Hold'em
+## Poker Rules - Texas Hold'em
 
 1. **2 hole cards** dealt to each player
 2. **5 community cards** revealed in stages:
@@ -50,7 +63,7 @@ This project is a **command-line Texas Hold'em poker game** built in modern **C+
 
 ---
 
-## 🏆 Hand Rankings (Best to Worst)
+## Hand Rankings (Best to Worst)
 
 1. Royal Flush
 2. Straight Flush
@@ -65,7 +78,7 @@ This project is a **command-line Texas Hold'em poker game** built in modern **C+
 
 ---
 
-## 🤖 Bot Difficulty Logic
+## Bot Difficulty Logic
 
 You can choose bot difficulty at the start:
 - **Easy**: Randomly calls ~25% of the time
@@ -74,7 +87,7 @@ You can choose bot difficulty at the start:
 
 ---
 
-## 🧠 Architecture Overview
+## Architecture Overview
 
 ```mermaid
 classDiagram
@@ -157,32 +170,31 @@ flowchart LR
 The bot does not use a lookup table or hand-tuned heuristics for hand strength. It deals out
 the unknown cards many times, evaluates each complete board with the same evaluator the real
 game uses, and counts how often it wins. Difficulty changes what it does with that number,
-not how the number is produced. Rollouts are the reason the simulator is multithreaded: the
-work is embarrassingly parallel and the game has to stay responsive.
+not how the number is produced.
 
 
-### 🔹 `Card` & `Deck`
+### `Card` & `Deck`
 - Card = suit + rank
 - Deck = 52-card generation + shuffling
 
-### 🔹 `Player` & `BotPlayer`
+### `Player` & `BotPlayer`
 - `Player`: name, chip count, hand
 - `BotPlayer`: subclass with `shouldCallBet()` based on difficulty
 
-### 🔹 `HandEvaluator`
+### `HandEvaluator`
 - Uses frequency maps and sorted ranks
 - Detects pairs, trips, flushes, full house, straights, etc.
 
-### 🔹 `PokerController`
+### `PokerController`
 - Manages game loop, betting, round progression
 
-### 🔹 `CLIView`
+### `CLIView`
 - Handles output formatting and emoji display
 - Includes `Spinner` animation using multithreading
 
 ---
 
-## 🔄 How a Round Works
+## How a Round Works
 
 1. Deal hole cards
 2. Reveal flop → turn → river
@@ -193,7 +205,7 @@ work is embarrassingly parallel and the game has to stay responsive.
 
 ---
 
-## 🤹 Strategy Guide: How Poker Players Think
+## Strategy Guide: How Poker Players Think
 
 - Is my pre-flop hand strong?
 - Did the flop improve my hand?
@@ -203,14 +215,14 @@ work is embarrassingly parallel and the game has to stay responsive.
 
 ---
 
-## 🧰 How to Run the Game
+## How to Run the Game
 
-### 📦 Requirements
+### Requirements
 - macOS or Linux with **clang++ or g++**
 - C++17 compatible terminal setup
 - (Optional) Sublime Text or VSCode
 
-### ▶️ Compile and Run
+### Compile and Run
 ```bash
 make clean
 make run
@@ -218,7 +230,5 @@ make run
 
 or without MakeFile
 ```bash
-clang++ -std=c++17 main.cpp controller/poker_controller.cpp view/cli_view.cpp \
-model/card.cpp model/deck.cpp model/player.cpp model/hand_evaluator.cpp \
-model/advanced_hand_evaluator.cpp model/bot_player.cpp animation/spinner.cpp -o poker && ./poker
+clang++ -std=c++17 main.cpp controller/poker_controller.cpp view/cli_view.cpp view/ascii_art.cpp view/bot_thinking_visualizer.cpp view/bot_thinking_config.cpp model/card.cpp model/deck.cpp model/player.cpp model/advanced_hand_evaluator.cpp model/bot_player.cpp animation/spinner.cpp animation/card_animation.cpp montecarlo/MonteCarloSimulator.cpp utils/performance_monitor.cpp utils/game_logger.cpp -o poker && ./poker
 ```
