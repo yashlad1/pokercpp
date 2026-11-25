@@ -23,3 +23,6 @@ tests/test_equity_exact
 # image tarballs and local secrets
 *.tar.gz
 .env
+
+.claude/
+
