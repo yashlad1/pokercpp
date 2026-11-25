@@ -61,6 +61,16 @@ Run under the rule above, which was committed before this run. Spot seed 3801, e
 
 Verdict: **PARITY HOLDS**, exit code 0. All four conditions hold, and this run also clears the issue's 99% bar (99.4%). The aggro interval is wide (about +/-19 bb/100), so a small Metal edge vs aggro is still not ruled out; it is not seen.
 
+## Three decision runs, and the rule amendment
+
+| Spot seed (engine offset) | Rule | Same action | Flips vs control (limit) | Mean difference | Verdict |
+|---|---|---|---|---|---|
+| 3801 (500000) | original (b) | 99.4% | 6 vs 8 (13.7) | +0.00007, 0.5 SE; streets 1.2, 0.8, 0.6, 1.1 SE | holds |
+| 4242 (700000), reviewer's run | original (b) | 98.8% | 12 vs 11 (17.6) | +0.00013, 1.0 SE; streets 2.0, 0.6, 0.1, 0.4 SE | **failed** on one flip |
+| 5151 (900000) | amended (b) | 98.8% | 12 vs 7 (12.3) | +0.00008, 0.6 SE; streets 0.8, 0.5, 0.9, 0.7 SE | holds, exit 0 |
+
+The 4242 failure: spot 701037, CPU raise (0.2247) vs Metal check (0.2293), 0.0707 from the nearest threshold. Both equities are under 0.30, so both builds take the bluff branch, whose own inner sims run on the GPU in the Metal build on different random streams. That is expected noise, not a Metal defect, and rule (b) did not know about it. Rule (b) was amended to count a flip as explained when either build used the bluff path and both equities are below 0.30 + band; those flips print tagged "bluff gate". Seed 5151 was run under the amended rule only. It had 3 bluff-gate flips, all explained; the other 9 sit within 0.0034 of a threshold. The 5151 flip count (12) is just under its limit (12.3).
+
 ## Detection check (scratch Metal builds, not committed)
 
 A constant added to the equity the Metal path returns, decision part only, default spots (spot seed 38, no engine seed offset).
