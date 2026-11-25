@@ -330,3 +330,14 @@ A2 = the small-blind open requires facing less than one big blind. B = the oppon
 Verdict: no significant loss anywhere; A2 + B committed. v3's loss to September at 100 bb (about -40 bb/100 over four runs) comes from fix 3's open; tuning it is the next step.
 
 Match-mode baseline for v3 (400 matches each, assumed schedule): reference 99.2% [97.8%, 99.7%], station 97.0% [94.8%, 98.3%], nit 99.5% [98.2%, 99.9%], maniac 59.2% [54.4%, 64.0%], aggro 61.8% [56.9%, 66.4%], loosepassive 96.2% [93.9%, 97.7%], random 76.2% [71.8%, 80.2%].
+
+## Correction: the September regression is not established
+
+- Every v3 vs September chips row above (-40.6, -39.8, -37.0, -38.8, -47.1, plus the spot-split -29.7 and the paired-tool -37.1) used the same 1,000 deal pairs: `--hands 2000`, default seed0 = 1, so seeds 1-1000. The repeats were not independent samples; they re-ran the same deals with fresh Monte Carlo noise. Match mode vs September used seeds 1-200.
+- A 10,000-hand rerun on seeds 1-5000 (100 bb, 2,000 sims) gave v3 vs September -6.2 bb/100 [-22.1, +9.7], inconclusive. A near-identical build gave -10.7 [-26.7, +5.3]. On seeds 1-1000, two near-identical builds gave -1.0 [-37.1, +35.0] and -50.9 [-90.1, -11.8]: at that size, unseeded Monte Carlo noise alone can produce a "significant" loss.
+- "A 3-bet is credited as an opening range" also failed its test: September re-raised the small-blind open about 20 times in about 2,430 opens, worth -2.5 bb/100 [-6.2, +1.1].
+- Consequences:
+  - fix 3's open is not tuned on this evidence;
+  - the open-on vs open-off question will be settled on fresh seeds (seed0 = 100001), 5,000+ pairs, with seeded Monte Carlo, scored by the paired per-seed difference;
+  - the A-only vs A+B comparison above also used one seed set and unseeded Monte Carlo, so B's bench evidence is weak either way. B was kept as a logic fix: the bet size really was read on the wrong scale.
+- Also noted: the opponent memory's floor counts postflop bets as raises. It held a credited re-raise range near 0.41 where the step function gives 0.18. This goes with the planned raises-in-the-pot keying.
