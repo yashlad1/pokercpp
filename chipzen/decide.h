@@ -163,18 +163,33 @@ inline double bluffFrequency(const std::vector<Card> &board, double rangeFractio
     // with the suit and rank strides so the walk does not land on one suit.
     int value = 0, air = 0, step = 0;
     unsigned long long n = 0;  // inner simulation index, for its seed
+    auto tally = [&](double eq) {
+        if (eq >= valueThreshold) ++value;
+        else if (eq < airThreshold) ++air;
+    };
+#ifdef USE_METAL
+    const bool gpu = metalAvailable();
+    std::vector<EquityJob> jobs;  // every inner simulation goes out as one GPU batch
+#endif
     for (size_t i = 0; i < deck.size(); ++i) {
         for (size_t j = i + 1; j < deck.size(); ++j) {
             if (step++ % 31 != 0) continue;
             MonteCarloSimulator sim({deck[i], deck[j]}, board, 300);
             sim.setVillainRange(rangeFraction);
             if (seed) sim.setSeed(seed + 1 + n++);
+#ifdef USE_METAL
+            if (gpu) { jobs.push_back(sim.metalJob()); continue; }
+#endif
             sim.runSimulation();
-            const double eq = sim.getEquity();
-            if (eq >= valueThreshold) ++value;
-            else if (eq < airThreshold) ++air;
+            tally(sim.getEquity());
         }
     }
+#ifdef USE_METAL
+    if (gpu) {
+        for (const EquityResult &r : metalEquityBatch(jobs))
+            tally((r.wins + 0.5 * r.ties) / r.trials);
+    }
+#endif
 
     if (air == 0) return 0.0;
     // bluffs / (bluffs + value) = share, with bluffs = freq * air.
