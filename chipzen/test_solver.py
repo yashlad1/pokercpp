@@ -194,7 +194,7 @@ assert r == "raise 250", f"AA should open to the same 2.5bb, got {r!r}"
 r = ask(["7h", "2c"], max_raise=9950, stack=9950, **OPEN)
 assert not r.startswith("raise"), f"72o is below 50% and should not open, got {r!r}"
 
-# [invariant]
+# [pin]
 r = ask(["Ks", "9h"], max_raise=750, stack=750, **OPEN)
 assert r in ("fold", "raise 750"), f"8bb must shove or fold, not open to 2.5bb, got {r!r}"
 
@@ -234,7 +234,7 @@ assert r != "fold", f"top pair top kicker facing a small bet must not fold, got 
 # of these hands reaches 80 by equity (all call or fold once the guard is on),
 # so a raise 80 here can only come from the open path.
 SPOT = dict(board=[], pot=50, to_call=40, min_raise=80, max_raise=1000, stack=1000, bb=10)
-# [invariant]
+# [pin]
 for hole in (["Ah", "Kd"], ["Qs", "Jd"], ["9h", "9d"], ["As", "5s"], ["Ks", "Td"]):
     r = ask(hole, villain_raises=0, **SPOT)
     assert r != "raise 80", f"{hole} to_call>=bb must skip the open path, got {r!r}"

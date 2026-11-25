@@ -79,8 +79,8 @@ odds. A raise is judged on raw equity.
 |---|---|
 | Stack at 10 bb or less | Raw equity of 55% or more: raise to the max (shove). |
 | Small blind, first action, no raise yet | Raw equity of 50% or more: raise to 2.5 bb. |
-| Nothing to call | Discounted equity of 62% or more: bet 66% of the pot. |
-| Nothing to call, hopeless hand | Raw equity under 30%: bet 66% of the pot on a computed share of hands (a bluff). Otherwise check. |
+| Nothing to call | Raw equity of 62% or more: bet 66% of the pot (the discount does not apply when betting). |
+| Nothing to call, hopeless hand | Raw equity under 30% and the stack larger than the bet: bet 66% of the pot on a computed share of hands (a bluff). Otherwise check. |
 | Facing a bet | Fold if discounted equity is at or below the pot odds. |
 | Facing a bet, strong hand | Raw equity of 75% or more: raise. Otherwise call. |
 
@@ -95,7 +95,7 @@ All are marked `ponytail:` in the source.
 
 - Every threshold above is fitted by hand. None is solved or learned.
 - Realization depends on the street only, not on position or stack depth.
-- Short-stack play is a single shove-or-fold threshold at 10 BB, not an ICM
+- Short-stack play is a single shove threshold at 10 BB (below 55% equity the normal rules apply), not an ICM
   calculation.
 - A shove when checked to at 10 bb is a large overbet. It suits callers and
   not folders.
@@ -116,7 +116,7 @@ Time limit and turn fixtures come from the SDK's conformance fixtures.
 | `max_raise` | The all-in raise-to total. |
 | Short stack | `raise` is offered with `min_raise` > `max_raise`. The bot raises exactly `max_raise` (`_raise_band` in `bot.py`). |
 | End-of-hand history | The `round_result` history is complete, including folds after our last action. |
-| Time limit | `turn_timeout_ms` is 5000. The median decision is about 8 ms. |
+| Time limit | `turn_timeout_ms` is 5000. In live match 5 the gap from the STATE line to the decision line over the first 50 decisions was a median of 8 ms (p95 20 ms, max 23 ms) at 5000 trials. |
 
 `bot.py` still handles `all_in` as an offered action (the SDK allows it).
 
