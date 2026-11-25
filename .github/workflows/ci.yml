@@ -48,3 +48,53 @@ jobs:
         env:
           ASAN_OPTIONS: detect_leaks=0
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+
+  bot:
+    name: Bot (solver + engine + SDK)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: .github/workflows/ci.yml
+
+      # chipzen-bot is the version the Docker image is validated with.
+      # pokerkit 0.7.8 is what the local bench venv runs (no pin in the repo).
+      - name: Install Python dependencies
+        run: pip install chipzen-bot==0.7.1 pybind11 pokerkit==0.7.8 pytest
+
+      - name: Build the CLI solver
+        run: |
+          g++ -std=c++17 -O2 -o /tmp/solver chipzen/solver.cpp \
+            montecarlo/MonteCarloSimulator.cpp model/advanced_hand_evaluator.cpp \
+            model/card.cpp model/deck.cpp
+
+      - name: Build the engine module
+        run: tools/build_engine.sh
+        env:
+          PY: python
+
+      - name: Test the solver
+        run: python chipzen/test_solver.py /tmp/solver
+
+      - name: Test the bot against the SDK
+        run: PYTHONPATH=chipzen python chipzen/test_bot_sdk.py
+
+      - name: Test the v4 behaviour checks
+        run: PYTHONPATH=chipzen POKERCPP_SIMS=2000 python chipzen/test_v4.py
+
+      - name: Test the logging
+        run: python chipzen/test_logging.py
+
+      - name: Test the engine seed
+        # The test reads sys.argv[1] as a module dir, so the file goes in
+        # PYTEST_ADDOPTS to keep it off the command line.
+        run: python -m pytest
+        env:
+          PYTEST_ADDOPTS: chipzen/test_engine_seed.py
+
+      - name: Test replay
+        run: '[ ! -f chipzen/test_replay.py ] || PYTHONPATH=chipzen python chipzen/test_replay.py'
