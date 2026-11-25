@@ -62,6 +62,6 @@ No blocking fail, but no loose bluffer is above 0 on both seed sets, so the pass
 
 ## Wall times
 
-- Paired chips: 24 rows, ON and OFF, about 10 s per run at 15 bb and about 10 s at 100 bb for most rows (100 s per batch of 4 in parallel).
+- Paired chips: 48 runs (24 rows, ON and OFF), 11 s at most each and about 8 s on average, about 100 s in total for each depth.
 - Activity: about 40 s.
 - Match mode: about 2,575 CPU-s in total (about 11 min with 4 in parallel).
