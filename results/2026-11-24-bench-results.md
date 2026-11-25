@@ -363,3 +363,90 @@ Match mode vs september (200 pairs, seed0 100001, assumed schedule): open 199/40
 The station and loosepassive rows are identical to the digit. This is not a mix-up: each chunk's dump carries its own opponent label. With seeded Monte Carlo, and a bot that never bets more than about 2/3 pot at 100 bb, the two opponents act identically (loosepassive only folds to bets above pot).
 
 Verdict: the open clearly helps against six scripted opponents and makes no detectable difference against the September build, in chips or matches. Fix 3 stays; no tuning of the open.
+
+## j. Range keying on raises in the pot (parked)
+The problem: ranges step on the opponent's own raise count over the whole hand. So a 3-bet over our open reads as an open, and an open plus a c-bet reads as a 3-bet.
+
+**What changed, in two parts:**
+- **Range step:** bot.py works out the pot's raise count at the opponent's last raise, preflop and on the current street (`preflop_k`, `street_k`). The engine takes the narrower of the two steps (0.45 / 0.18 / 0.08 as before). An empty history falls back to the old count.
+- **Memory:** the opponent memory records that raise level instead of the raise count, and the floor applies preflop only (0 postflop).
+
+**Run:** `--hero bot`, seed0 300001, 2,000 pairs per row.
+- "Step only" is the range step with the old memory.
+- Checked by diffing the builds: same engine binary; bot.py differs only in the two memory lines.
+
+| Opponent, depth | Both parts - old | Step only - old | Memory part (both - step only) |
+|---|---|---|---|
+| aggro 100 | -253.6 [-345.7, -161.5] | +43.4 [+2.5, +84.4] | -297.0 [-379.8, -214.3] |
+| aggro 15 | -76.7 [-97.4, -56.0] | +11.7 [+4.4, +19.0] | -88.4 [-106.8, -70.0] |
+| maniac 100 | -389.0 [-520.4, -257.6] | 0.0 (identical) | -389.0 [-520.4, -257.6] |
+| maniac 15 | -59.9 [-77.1, -42.6] | 0.0 (identical) | -59.9 [-77.1, -42.6] |
+| random 100 | -173.1 [-227.8, -118.3] | +28.7 [+7.8, +49.7] | -201.8 [-257.4, -146.2] |
+| random 15 | -25.7 [-38.2, -13.2] | +11.0 [+5.4, +16.7] | -36.7 [-49.0, -24.5] |
+| september 100 | -19.6 [-37.5, -1.8] | -26.3 [-43.6, -9.0] | +6.6 [+1.7, +11.5] |
+| september 15 | -10.6 [-16.3, -5.0] | -12.1 [-17.7, -6.4] | +1.4 [+0.2, +2.6] |
+| reference 100 | -2.1 [-3.6, -0.5] | -2.1 [-3.6, -0.5] | 0.0 (identical) |
+| reference 15 | -1.1 [-2.0, -0.2] | -1.1 [-2.0, -0.2] | +0.1 [-0.1, +0.2] |
+| nit 100 | -0.1 [-7.1, +7.0] | -0.1 [-7.1, +7.0] | 0.0 (identical) |
+| station 100 | 0.0 (identical) | 0.0 (identical) | 0.0 (identical) |
+
+- **The memory part is the loss.**
+  - Against maniac the step changes nothing, so the whole -389 is the memory part.
+  - The mechanical fact: the new memory turns the floor off postflop, and the old floor widened the range against bots that bet every street.
+  - Why the level-keyed floor also loses against aggro and random is a hypothesis. The floor divides by every hand seen, not by hands where the opponent had the chance to make that raise, so a re-raise floor comes out too low.
+- **The step alone is a trade-off, not a near-miss.**
+  - It gains against aggro and random.
+  - It loses against September (-26.3, -12.1) and reference (-2.1, -1.1).
+  - It rests on one seed set with no confirmation run, so it is not adopted.
+- **Parked:** `research/range-keying` at `11664c0`, not merged.
+
+## k. Recency-weighted memory with a switch reset (parked)
+What changed:
+- Each remembered hand's weight falls by a factor per hand of age (default 0.93, about a 14-hand window).
+- Once 16 hands are kept, if the share of raising hands in the last 8 differs from the earlier share by 0.5 or more, the older hands are dropped.
+- The prior stays at 3 pseudo-hands.
+
+**Screen:** engine hero, seed0 200001, 1,500 pairs per row; each variant (decay / prior) minus the current match-wide memory. Five variants times eight rows is 40 comparisons, so one or two "worse" results at 95% are expected by chance. Read it as a screen.
+
+| Row | 0.93 / 3 (default) | 0.97 / 3 | 0.97 / 1 | 0.99 / 3 | 0.93 / 1 |
+|---|---|---|---|---|---|
+| aggro 100 | -107.5 [-182.0, -33.0] | -27.7 [-87.4, +32.1] | +19.9 [-36.8, +76.6] | -8.9 [-60.7, +42.8] | -42.8 [-105.8, +20.1] |
+| aggro 15 | -9.6 [-23.9, +4.6] | -1.4 [-12.9, +10.0] | +3.7 [-7.2, +14.6] | +0.2 [-9.4, +9.8] | -2.5 [-13.7, +8.8] |
+| switcher 100 | +6.4 [-59.8, +72.5] | -13.4 [-83.4, +56.7] | +29.6 [-51.8, +110.9] | -3.0 [-74.4, +68.5] | +30.9 [-49.8, +111.7] |
+| switcher 15 | -4.3 [-13.7, +5.1] | -3.8 [-13.4, +5.9] | -11.5 [-22.8, -0.1] | -2.3 [-12.0, +7.5] | -8.8 [-19.9, +2.3] |
+| maniac 100 | -14.4 [-108.1, +79.3] | +65.6 [-1.1, +132.3] | +41.8 [-14.6, +98.2] | +38.6 [-18.9, +96.1] | +56.8 [-6.5, +120.0] |
+| maniac 15 | -4.2 [-19.3, +11.0] | -10.9 [-23.1, +1.3] | -16.2 [-26.5, -5.9] | -15.3 [-25.8, -4.8] | -9.5 [-21.1, +2.1] |
+| september 100 | +0.1 [-5.0, +5.2] | -1.0 [-4.0, +2.0] | +0.3 [-1.9, +2.4] | +0.5 [-0.6, +1.6] | -0.1 [-5.6, +5.4] |
+| september 15 | -2.0 [-4.5, +0.5] | -0.4 [-2.3, +1.4] | -1.3 [-3.6, +1.0] | -0.3 [-0.9, +0.3] | -1.9 [-5.0, +1.3] |
+
+For the default, reference, station, nit and loosepassive were identical (0.0) at both depths.
+
+**Confirmation on fresh seeds:** the screen's best candidate, 0.97 / 3, was picked on seed0 200001 and rerun on seed0 400001, engine hero, 5,000 pairs per row.
+
+| Row | 0.97 / 3 - current |
+|---|---|
+| aggro 100 | -55.1 [-88.2, -21.9] worse |
+| aggro 15 | -10.5 [-16.8, -4.3] worse |
+| september 15 | -1.3 [-2.6, -0.1] worse |
+| switcher 100 | -27.2 [-62.5, +8.1] inconclusive |
+| switcher 15 | -3.9 [-9.1, +1.4] inconclusive |
+| maniac 100 | -17.9 [-59.7, +23.9] inconclusive |
+| maniac 15 | -4.7 [-11.4, +2.0] inconclusive |
+| september 100 | -0.2 [-3.2, +2.8] inconclusive |
+
+**Match mode** (assumed schedule, 200 pairs, seed0 200001), default against current. All intervals overlap.
+
+| Opponent | Default | Current |
+|---|---|---|
+| aggro | 60.8% [55.9%, 65.4%] | 62.5% [57.7%, 67.1%] |
+| maniac | 55.5% [50.6%, 60.3%] | 56.0% [51.1%, 60.8%] |
+| switcher | 66.2% [61.5%, 70.7%] | 66.0% [61.2%, 70.5%] |
+
+- **No variant gained anywhere,** including against the switcher it was built for.
+  - The current match-wide memory already beats the switcher: +330 to +366 bb/100 at 100 bb, +56 to +59 at 15 bb.
+- **The screen's pick failed its check.** It was chosen on one seed set and lost to aggro at both depths on fresh seeds. Picking on one set and confirming on another caught it.
+- **A known ceiling, and a hypothesis.**
+  - With decay 0.93 the weights sum to at most about 14.3. With the prior of 3, the floor can't pass 14.3 / 17.3 = 0.83.
+  - The match-wide count tends to 1 against a bot that raises every hand.
+  - That this ceiling explains the aggro loss is a hypothesis.
+- **Parked:** `research/adaptive-memory` at `65b3910`, with its two switch tests. Not merged.
