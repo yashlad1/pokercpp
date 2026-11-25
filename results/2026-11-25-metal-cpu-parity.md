@@ -20,9 +20,9 @@ Issue #38. Compares a plain CPU build of the engine with a `-DUSE_METAL` build (
 | Control, CPU vs CPU, other seeds | 10 disagreements (1.0%) |
 | Disagreements within noise of a threshold | 14 of 14 |
 
-Largest distance from a threshold among the 14: 0.0024 equity, against a band of 0.020. The two equities in each pair differ by 0.0001 to 0.008. Eight sit at the 0.50, 0.55, 0.62 or 0.75 cuts and six at the call gate (realized vs required).
+Largest distance from a threshold among the 14: 0.0024 equity, against a band of 0.020. The two equities in each pair differ by 0.001 to 0.008. Nine sit at the 0.50, 0.55, 0.62 or 0.75 cuts and five at the call gate (realized vs required).
 
-**The 99% bar.** The issue asks for more than 99%. This mix misses it, and so does CPU against itself (99.0% would be 10 flips; the control had 10 and Metal 14, a gap within count noise). The mix is deliberately dense near thresholds, so the share depends on the mix more than on the build. The script therefore treats "no more than the control" as the pass; the strict 99% reading is not met here.
+**The 99% bar.** The issue asks for more than 99%. This mix misses it, and so does CPU against itself (the control flipped 10 times, Metal 14; 10 flips is exactly 99.0%, and 14 against 10 is within count noise). The mix is deliberately dense near thresholds, so the share depends on the mix more than on the build. The script therefore treats "no more than the control" as the pass; the strict 99% reading is not met here.
 
 ## Bench parity (paired, same seeds)
 
