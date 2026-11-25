@@ -62,7 +62,8 @@ class View:
     deciding from the same information."""
 
     __slots__ = ("hole", "board", "pot", "to_call", "min_raise", "max_raise",
-                 "stack", "bb", "villain_raises", "hand")
+                 "stack", "bb", "villain_raises", "hand",
+                 "history", "seat", "dealer_seat", "opp_stack")
 
     def __init__(self, **kw):
         for k in self.__slots__:
@@ -122,6 +123,71 @@ class PokerCpp:
             seed=self.seeder.next(v.hand),
         )
         return d["action"], d["amount"]
+
+
+REAL_DECIDE = pokercpp_engine.decide
+
+
+class Bot:
+    """The shipped wire adapter (chipzen/bot.py) as hero: the View is rebuilt
+    into a chipzen GameState the way the platform sends it, bot.decide() runs
+    unchanged, and its Action is mapped back to bench terms. Exercises blind
+    reading, raise counting, legality mapping and opponent memory keyed by
+    hand number. The engine seed comes from a wrapper on pokercpp_engine.decide
+    (bot.py gets no bench code), keyed like PokerCpp's, so parity is exact."""
+
+    name = "bot"
+
+    def __init__(self, sb, bb, stack, sims=2000, history="full"):
+        import bot as bot_mod
+        from chipzen import GameState
+        from chipzen.models import Card
+        self.GameState, self.Card = GameState, Card
+        self.history, self.sims = history, sims
+        self.seeder, self.cur = Seeder("pokercpp"), 0
+        real = REAL_DECIDE  # never a previous Bot's wrapper
+
+        def seeded(**kw):
+            kw["sims"] = self.sims  # bot.py reads POKERCPP_SIMS (5000); the bench sets sims
+            kw["seed"] = self.seeder.next(self.cur)
+            self.last_kw = kw
+            return real(**kw)
+
+        pokercpp_engine.decide = seeded
+        self.bot = bot_mod.PokerCppBot()
+        self.bot.on_match_start({"game_config": {
+            "small_blind": sb, "big_blind": bb, "ante": 0, "starting_stack": stack}})
+
+    def act(self, v: View):
+        self.cur = v.hand
+        to_call, stack, n = v.to_call, v.stack, len(v.board)
+        can_raise = v.max_raise > 0
+        valid = ["fold"] if to_call > 0 else []
+        if to_call == 0:
+            valid.append("check")
+        elif to_call < stack:
+            valid.append("call")
+        if can_raise:
+            valid.append("raise")
+        if can_raise or (0 < stack <= to_call):
+            valid.append("all_in")
+        hist = [e for e in v.history
+                if self.history == "full" or not e["action"].startswith("post_")]
+        st = self.GameState(
+            hand_number=v.hand + 1,  # the platform counts from 1; 0 is falsy to bot.py
+            phase={0: "preflop", 3: "flop", 4: "turn", 5: "river"}[n],
+            hole_cards=[self.Card.from_str(c) for c in v.hole],
+            board=[self.Card.from_str(c) for c in v.board],
+            pot=v.pot, your_stack=stack, opponent_stacks=[v.opp_stack],
+            your_seat=v.seat, dealer_seat=v.dealer_seat, to_call=to_call,
+            min_raise=v.min_raise, max_raise=v.max_raise,
+            valid_actions=valid, action_history=hist)
+        a = self.bot.decide(st)
+        if a.action == "raise":
+            return "raise", a.amount
+        if a.action == "all_in":
+            return ("call", 0) if to_call >= stack else ("raise", v.max_raise)
+        return a.action, 0
 
 
 class September:
@@ -298,6 +364,14 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
         AUTOMATIONS, True, 0, blinds, blinds[1], start, 2)
 
     aggression = [0, 0]  # voluntary bets/raises this hand, by seat
+    # SDK-shaped log of the hand so far, for the Bot agent. pokerkit heads-up:
+    # the small blind is the dealer and acts first preflop.
+    sb = 0 if st.bets[0] < st.bets[1] else 1
+    history = [
+        {"seat": sb, "action": "post_small_blind", "amount": st.bets[sb], "phase": "preflop", "is_timeout": False},
+        {"seat": 1 - sb, "action": "post_big_blind", "amount": st.bets[1 - sb], "phase": "preflop", "is_timeout": False},
+    ]
+    phases = {0: "preflop", 3: "flop", 4: "turn", 5: "river"}
     guard = 0
     while st.status:
         i = st.actor_index
@@ -320,7 +394,9 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
             bb=blinds[1],
             villain_raises=aggression[1 - i],
             hand=hand,
+            history=list(history), seat=i, dealer_seat=sb, opp_stack=st.stacks[1 - i],
         )
+        phase = phases.get(len(view.board), "river")
 
         action, amount = agents[i].act(view)
 
@@ -329,16 +405,25 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
         if action == "raise" and st.can_complete_bet_or_raise_to():
             lo = st.min_completion_betting_or_raising_to_amount
             hi = st.max_completion_betting_or_raising_to_amount
-            st.complete_bet_or_raise_to(min(max(amount, lo), hi))
+            to = min(max(amount, lo), hi)
+            st.complete_bet_or_raise_to(to)
             aggression[i] += 1
+            entry = ("all_in" if to >= hi else "raise", to)
         elif action in ("call", "check") and st.can_check_or_call():
             st.check_or_call()
+            entry = (("check", 0) if view.to_call == 0 else
+                     ("all_in" if view.to_call >= view.stack else "call", min(view.to_call, view.stack)))
         elif st.can_fold() and view.to_call > 0:
             st.fold()
+            entry = ("fold", 0)
         elif st.can_check_or_call():
             st.check_or_call()
+            entry = (("check", 0) if view.to_call == 0 else
+                     ("all_in" if view.to_call >= view.stack else "call", min(view.to_call, view.stack)))
         else:
             break
+        history.append({"seat": i, "action": entry[0], "amount": entry[1],
+                        "phase": phase, "is_timeout": False})
 
     return [st.stacks[k] - start[k] for k in range(2)]
 
@@ -408,6 +493,10 @@ if __name__ == "__main__":
                     help="starting stack in big blinds")
     ap.add_argument("--seed0", type=int, default=1,
                     help="first deal seed; pair k uses seed0 + k")
+    ap.add_argument("--hero", default="engine", choices=["engine", "bot"],
+                    help="engine: call the C++ engine directly; bot: run chipzen/bot.py")
+    ap.add_argument("--history", default="full", choices=["full", "noblinds"],
+                    help="with --hero bot: include the blind posts in action_history or omit them")
     ap.add_argument("--dump", metavar="PATH",
                     help="write per-pair results as JSON, for tools/paired.py")
     args = ap.parse_args()
@@ -446,7 +535,9 @@ if __name__ == "__main__":
     names = list(OPPONENTS) if args.vs == "all" else [args.vs]
     print(f"pokercpp ({args.sims} sims/decision) vs opponents, duplicate-dealt, {args.stack} bb deep\n")
     for nm in names:
-        hero = PokerCpp(sims=args.sims)  # fresh, so memory never carries between opponents
+        # fresh, so memory never carries between opponents
+        hero = (Bot(args.bb // 2, args.bb, args.stack * args.bb, args.sims, args.history)
+                if args.hero == "bot" else PokerCpp(sims=args.sims))
         res = duplicate_match(args.hands, hero, OPPONENTS[nm](), blinds=(args.bb // 2, args.bb),
                              stack=args.stack * args.bb, seed0=args.seed0)
         report(f"vs {nm}", res, args.bb)
