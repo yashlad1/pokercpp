@@ -85,6 +85,7 @@ class PokerCppBot(Bot):
         super().__init__()
         self.opponent = Opponent()
         self._reset_blinds({})
+        self._turns = 0
 
     def _reset_blinds(self, match_info):
         cfg = (match_info or {}).get("game_config") or {}
@@ -96,6 +97,39 @@ class PokerCppBot(Bot):
         # One process can play several matches; do not carry one opponent into the next.
         self.opponent = Opponent()
         self._reset_blinds(match_info)
+        try:
+            seats = (match_info or {}).get("seats") or []
+            logger.info(
+                "match_start seats=%s",
+                [(s.get("seat"), s.get("is_self")) for s in seats if isinstance(s, dict)],
+            )
+        except Exception:
+            logger.exception("match_start log failed")
+
+    def on_turn_result(self, message):
+        self._turns += 1
+
+    def on_round_result(self, message):
+        try:
+            res = (message or {}).get("result") or {}
+            hist = res.get("action_history") or []
+            entries = ",".join(
+                f"{e.get('seat')}:{e.get('action')}:{e.get('amount')}:{e.get('phase')}"
+                for e in hist
+                if isinstance(e, dict)
+            )
+            logger.info(
+                "round_result hand=%s history_len=%s turn_results=%s showdown=%s winners=%s history=%s",
+                res.get("hand_number"),
+                len(hist),
+                self._turns,
+                len(res.get("showdown") or []),
+                res.get("winner_seats"),
+                entries,
+            )
+        except Exception:
+            logger.exception("round_result log failed")
+        self._turns = 0
 
     def _bb(self, state: GameState) -> int:
         """This hand's big blind.
