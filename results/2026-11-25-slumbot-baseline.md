@@ -60,7 +60,7 @@ Same settings as above (2000 sims, 200 bb deep, 0.2 s between hands, sequential,
 | bot, first run | 200 | -79,338 | -396.7 [-761.3, -32.1] | 88.5% (177/200) | 25.0% (50/200) | 15 of 56 (26.8%) | 0 / 0 | 170 s |
 | bot, rerun | 200 | -19,096 | -95.5 [-458.1, +267.1] | 92.5% (185/200) | 23.0% (46/200) | 18 of 39 (46.2%) | 0 / 0 | 137 s |
 
-- **Reading:** the engine rerun overlaps the first run. The bot rerun moved a lot (-396.7 to -95.5), and both bot intervals overlap, so that is sample noise on 200 random hands, not a change in the bot. Both engine reruns still lose; neither bot interval can be told apart from the engine's.
+- **Reading:** the engine rerun overlaps the first run. The bot rerun moved a lot (-396.7 to -95.5), and both bot intervals overlap, so that is sample noise on 200 random hands, not a change in the bot. Both engine runs lose, and the bot and engine intervals overlap.
 - **Privacy:** requests carry no identifying data (urllib's default User-Agent, the anonymous session token in the body only). The token is never written to the hand log or to stdout.
 
 Eval log rows (Runs sheet, unpaired: only the A columns are filled): R296 and R297 are the two first runs carried over from the earlier rows R190 and R191 (renumbered after main's R295); R298 is the engine rerun and R299 the bot rerun.
