@@ -34,6 +34,7 @@ import json
 import math
 import os
 import random
+import re
 import statistics
 import sys
 import zlib
@@ -44,7 +45,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import pokercpp_engine
 from opponent import Opponent
 from pokerkit import Automation as A
-from pokerkit import NoLimitTexasHoldem
+from pokerkit import NoLimitTexasHoldem, StandardHighHand
+from pokerkit.state import ChipsPulling, ChipsPushing
 
 AUTOMATIONS = (
     A.ANTE_POSTING, A.BET_COLLECTION, A.BLIND_OR_STRADDLE_POSTING,
@@ -193,6 +195,14 @@ class Bot:
             return ("call", 0) if to_call >= stack else ("raise", v.max_raise)
         return a.action, 0
 
+    def hand_over(self, res, seat):
+        """The end-of-hand message as the live server sends it. Seats swap under
+        duplicate dealing and the hero may not have acted this hand (the big blind
+        after a fold), so the seat is set here."""
+        self.bot.my_seat = seat  # the seat chipzen/bot.py's bluff detector reads
+        res = dict(res, hand_number=0 if self.zero else res["hand_number"])
+        self.bot.on_round_result({"type": "round_result", "result": res})
+
 
 class September:
     """The bot as shipped in September (c057f40), built as pokercpp_engine_base.
@@ -295,6 +305,41 @@ class Bluffer(Reference):
         return super()._postflop(v)
 
 
+def _preflop_pct():
+    """Fraction of the 1326 combos ranked ahead of each hand class (midpoint of the
+    class), from montecarlo/preflop_ranks.h: equity against a random hand, measured
+    by this repo's simulator. Key (high rank, low rank, suited)."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "montecarlo", "preflop_ranks.h")
+    out, cum = {}, 0
+    for hi, lo, suited, combos in re.findall(r"\{\s*(\d+),\s*(\d+),\s*(true|false)\s*,\s*(\d+)\},", open(path).read()):
+        out[(int(hi), int(lo), suited == "true")] = (cum + int(combos) / 2) / 1326
+        cum += int(combos)
+    return out
+
+
+PREFLOP_PCT = _preflop_pct()
+
+
+class LooseBluffer(Bluffer):
+    """Bluffer postflop. Preflop modelled on a live opponent: first in as the small blind
+    it raises to 3 bb with the top 58% of hands, limps the next 27% and folds the rest;
+    facing a raise it re-raises to 3x with the top 4%, calls to the top 75% and folds the
+    rest. The big blind checks its option after a limp."""
+
+    def _preflop(self, v: View):
+        r = sorted((RANK_ORDER[c[0]] + 2 for c in v.hole), reverse=True)
+        q = PREFLOP_PCT[(r[0], r[1], v.hole[0][1] == v.hole[1][1] and r[0] != r[1])]
+        if v.villain_raises == 0:
+            if v.to_call == 0:
+                return "check", 0
+            raise_to, raise_cut, call_cut = 3 * v.bb, 0.58, 0.85
+        else:
+            raise_to, raise_cut, call_cut = 3 * (v.pot + v.to_call) // 2, 0.04, 0.75
+        if q < raise_cut and v.max_raise:
+            return "raise", min(max(raise_to, v.min_raise), v.max_raise)
+        return ("call", 0) if q < call_cut else ("fold", 0)
+
+
 class CallingStation:
     """Never folds. A bot that cannot beat this is not bluffing profitably."""
     name = "station"
@@ -384,6 +429,38 @@ class RandomLegal:
 # One hand
 # --------------------------------------------------------------------------
 
+HAND_RANK = {"HIGH_CARD": "High Card", "ONE_PAIR": "Pair", "TWO_PAIR": "Two Pair",
+             "THREE_OF_A_KIND": "Three of a Kind", "STRAIGHT": "Straight", "FLUSH": "Flush",
+             "FULL_HOUSE": "Full House", "FOUR_OF_A_KIND": "Four of a Kind",
+             "STRAIGHT_FLUSH": "Straight Flush"}
+
+
+def round_result(st, hand, live, holes):
+    """The `result` of the live server's round_result message for a finished hand.
+    `holes` are the dealt cards: pokerkit mucks the loser's at showdown. As live,
+    payouts are what each winner pulls (their own uncalled bet included) and pot is
+    the matched pot."""
+    pushed, pulled = 0, [0, 0]
+    for op in st.operations:
+        if isinstance(op, ChipsPushing):
+            pushed += sum(op.amounts)
+        elif isinstance(op, ChipsPulling):
+            pulled[op.player_index] += op.amount
+    folded = live[-1]["action"] == "fold"
+    showdown = []
+    if not folded:
+        board = "".join(repr(c) for row in st.board_cards for c in (row if isinstance(row, list) else [row]))
+        for k in (0, 1):
+            h = StandardHighHand.from_game("".join(holes[k]), board)
+            showdown.append({"seat": k, "hole_cards": holes[k],
+                             "hand_rank": HAND_RANK[h.entry.label.name],
+                             "best_hand": [repr(c) for c in h.cards]})
+    return {"hand_number": hand + 1, "winner_seats": [k for k in (0, 1) if pulled[k] > 0],
+            "pot": pushed * (2 if folded else 1),
+            "payouts": [{"seat": k, "amount": pulled[k]} for k in (0, 1) if pulled[k] > 0],
+            "showdown": showdown, "action_history": live, "stacks": list(st.stacks)}
+
+
 def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
     """Deal from `seed` and play it out. Returns each seat's chip delta.
 
@@ -397,6 +474,7 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
     st = NoLimitTexasHoldem.create_state(
         AUTOMATIONS, True, 0, blinds, blinds[1], start, 2)
 
+    holes = [[repr(c) for c in st.hole_cards[k]] for k in (0, 1)]
     aggression = [0, 0]  # voluntary bets/raises this hand, by seat
     # SDK-shaped log of the hand so far, for the Bot agent. pokerkit heads-up:
     # the small blind is the dealer and acts first preflop.
@@ -405,6 +483,9 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
         {"seat": sb, "action": "post_small_blind", "amount": st.bets[sb], "phase": "preflop", "is_timeout": False},
         {"seat": 1 - sb, "action": "post_big_blind", "amount": st.bets[1 - sb], "phase": "preflop", "is_timeout": False},
     ]
+    live = [dict(e) for e in history]  # same, in the live round_result labels
+    for e in live:
+        del e["is_timeout"]
     phases = {0: "preflop", 3: "flop", 4: "turn", 5: "river"}
     guard = 0
     while st.status:
@@ -443,21 +524,32 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
             st.complete_bet_or_raise_to(to)
             aggression[i] += 1
             entry = ("all_in" if to >= hi else "raise", to)
+            live_label = "raise"  # live labels every bet and all-in raise "raise"
         elif action in ("call", "check") and st.can_check_or_call():
             st.check_or_call()
             entry = (("check", 0) if view.to_call == 0 else
                      ("all_in" if view.to_call >= view.stack else "call", min(view.to_call, view.stack)))
+            live_label = "check" if view.to_call == 0 else "call"
         elif st.can_fold() and view.to_call > 0:
             st.fold()
             entry = ("fold", 0)
+            live_label = "fold"
         elif st.can_check_or_call():
             st.check_or_call()
             entry = (("check", 0) if view.to_call == 0 else
                      ("all_in" if view.to_call >= view.stack else "call", min(view.to_call, view.stack)))
+            live_label = "check" if view.to_call == 0 else "call"
         else:
             break
         history.append({"seat": i, "action": entry[0], "amount": entry[1],
                         "phase": phase, "is_timeout": False})
+        live.append({"seat": i, "action": live_label, "amount": entry[1], "phase": phase})
+
+    if any(hasattr(a, "hand_over") for a in agents):
+        res = round_result(st, hand, live, holes)
+        for k, a in enumerate(agents):
+            if hasattr(a, "hand_over"):
+                a.hand_over(res, k)
 
     return [st.stacks[k] - start[k] for k in range(2)]
 
@@ -507,7 +599,10 @@ OPPONENTS = {"reference": Reference, "station": CallingStation, "nit": Nit,
              "maniac": Maniac, "aggro": Aggro, "switcher": Switcher,
              "loosepassive": LoosePassive, "random": RandomLegal,
              "bluff0": lambda: Bluffer(0.0, "bluff0"), "bluff25": lambda: Bluffer(0.25, "bluff25"),
-             "bluff50": lambda: Bluffer(0.5, "bluff50")}
+             "bluff50": lambda: Bluffer(0.5, "bluff50"),
+             "loosebluff0": lambda: LooseBluffer(0.0, "loosebluff0"),
+             "loosebluff25": lambda: LooseBluffer(0.25, "loosebluff25"),
+             "loosebluff50": lambda: LooseBluffer(0.5, "loosebluff50")}
 
 # Only when the September build is next to the current one, so --vs all still
 # works without it.

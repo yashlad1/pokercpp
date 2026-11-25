@@ -13,7 +13,7 @@ import argparse
 import math
 import sys
 
-from bench import OPPONENTS, PokerCpp, play_hand
+from bench import OPPONENTS, Bot, PokerCpp, play_hand
 
 START_BB, FIRST_BB, DOUBLE_EVERY = 100, 100, 25  # stack in bb, big blind, hands per level
 
@@ -49,14 +49,17 @@ def wilson(k, n, z=1.96):
     return c - h, c + h
 
 
-def run(opp_name, matches, hand_cap, sims, seed0):
+def run(opp_name, matches, hand_cap, sims, seed0, hero="engine"):
+    # bot: a fresh chipzen/bot.py per match, so its memory starts empty every match
+    new_hero = ((lambda: Bot(FIRST_BB // 2, FIRST_BB, START_BB * FIRST_BB, sims)) if hero == "bot"
+                else (lambda: PokerCpp(sims=sims)))
     pair = [0, 0, 0]  # lost both, split, won both
     wins = hands = 0
     for m in range(matches):
         ms = seed0 + m
-        h1 = (PokerCpp(sims=sims), OPPONENTS[opp_name]())
+        h1 = (new_hero(), OPPONENTS[opp_name]())
         w1, n1 = play_match(ms, h1, hand_cap)       # hero on the button first
-        v2 = (OPPONENTS[opp_name](), PokerCpp(sims=sims))
+        v2 = (OPPONENTS[opp_name](), new_hero())
         w2, n2 = play_match(ms, v2, hand_cap)       # villain on the button first
         won = [w1 == 0, w2 == 1]
         wins += sum(won)
@@ -76,9 +79,11 @@ if __name__ == "__main__":
     ap.add_argument("--hand-cap", type=int, default=1000)
     ap.add_argument("--sims", type=int, default=2000)
     ap.add_argument("--seed0", type=int, default=1)
+    ap.add_argument("--hero", default="engine", choices=["engine", "bot"],
+                    help="engine: call the C++ engine directly; bot: run chipzen/bot.py")
     a = ap.parse_args()
     print(f"ASSUMED SCHEDULE: {START_BB} bb start, blinds {blinds_for(1)[0]}/{blinds_for(1)[1]} "
           f"doubling every {DOUBLE_EVERY} hands, no antes, hand cap {a.hand_cap}", flush=True)
     for nm in (list(OPPONENTS) if a.vs == "all" else [a.vs]):
-        run(nm, a.matches, a.hand_cap, a.sims, a.seed0)
+        run(nm, a.matches, a.hand_cap, a.sims, a.seed0, a.hero)
         sys.stdout.flush()
