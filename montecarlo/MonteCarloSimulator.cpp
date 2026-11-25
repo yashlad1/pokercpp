@@ -2,6 +2,7 @@
 #include "MonteCarloSimulator.h"
 #include "../model/deck.h"
 #include "../model/advanced_hand_evaluator.h"
+#include "../model/fast_eval.h"
 #include "preflop_ranks.h"
 
 #include <random>
@@ -117,6 +118,56 @@ void MonteCarloSimulator::runSimulation()
         if (combos.empty()) villainRangeFraction = 1.0;
     }
     std::uniform_int_distribution<size_t> pick(0, combos.empty() ? 0 : combos.size() - 1);
+
+    // Fast path: fixed arrays and the bitmask evaluator, same draws in the same
+    // order as the general loop below. Only taken for the normal shape (a
+    // two-card hero, at most five distinct board cards, a full-size deck).
+    uint64_t heroMask = 0, boardMask = 0;
+    for (const Card &c : playerHand) heroMask |= 1ULL << fast_eval::cardId(c);
+    for (const Card &c : communityCards) boardMask |= 1ULL << fast_eval::cardId(c);
+    const size_t need = communityCards.size() <= 5 ? 5 - communityCards.size() : 0;
+    if (playerHand.size() == 2 && communityCards.size() <= 5 &&
+        __builtin_popcountll(heroMask) == 2 &&
+        __builtin_popcountll(boardMask) == (int)communityCards.size() &&
+        !(heroMask & boardMask) && deck.size() >= 2 + need && deck.size() <= 52)
+    {
+        uint8_t ids[52];
+        const size_t n = deck.size();
+        for (size_t k = 0; k < n; ++k) ids[k] = (uint8_t)fast_eval::cardId(deck[k]);
+        std::vector<std::pair<uint8_t, uint8_t>> cid;
+        cid.reserve(combos.size());
+        for (const auto &cb : combos)
+            cid.emplace_back((uint8_t)fast_eval::cardId(cb.first), (uint8_t)fast_eval::cardId(cb.second));
+        const bool ranged = !cid.empty();
+        for (int i = 0; i < numSimulations; ++i)
+        {
+            std::shuffle(ids, ids + n, g);
+            uint64_t board = boardMask, opp;
+            if (ranged)
+            {
+                const auto &cb = cid[pick(g)];
+                opp = (1ULL << cb.first) | (1ULL << cb.second);
+                size_t have = communityCards.size();
+                for (size_t k = 0; k < n && have < 5; ++k)
+                {
+                    if (ids[k] == cb.first || ids[k] == cb.second) continue;
+                    board |= 1ULL << ids[k];
+                    ++have;
+                }
+            }
+            else
+            {
+                opp = (1ULL << ids[0]) | (1ULL << ids[1]);
+                for (size_t k = 0; k < need; ++k) board |= 1ULL << ids[2 + k];
+            }
+            uint32_t hs = fast_eval::evalMask(heroMask | board);
+            uint32_t vs = fast_eval::evalMask(opp | board);
+            if (hs > vs) winCount++;
+            else if (vs > hs) loseCount++;
+            else tieCount++;
+        }
+        return;
+    }
 
     for (int i = 0; i < numSimulations; ++i)
     {
