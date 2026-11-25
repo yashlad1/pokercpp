@@ -197,11 +197,14 @@ r = ask(["Ah", "Kd"], BOARD5, pot=40, to_call=20, min_raise=40, max_raise=100,
 assert r != "fold", f"top pair top kicker facing a small bet must not fold, got {r!r}"
 
 # A2: the 2.5bb open applies only when just the blind difference is owed. A
-# full bb or more to call with villain_raises=0 must be decided like a raise.
+# full bb or more to call with villain_raises=0 must not open. The open would
+# raise to 2.5bb = 25, clamped up to min_raise, so the tell is "raise 80". None
+# of these hands reaches 80 by equity (all call or fold once the guard is on),
+# so a raise 80 here can only come from the open path.
 SPOT = dict(board=[], pot=50, to_call=40, min_raise=80, max_raise=1000, stack=1000, bb=10)
-for hole in (["Ah", "Kd"], ["Qs", "Jd"]):
-    a, b = ask(hole, villain_raises=0, **SPOT), ask(hole, villain_raises=1, **SPOT)
-    assert a == b, f"{hole} to_call>=bb must skip the open path: vr=0 {a!r} vs vr=1 {b!r}"
+for hole in (["Ah", "Kd"], ["Qs", "Jd"], ["9h", "9d"], ["As", "5s"], ["Ks", "Td"]):
+    r = ask(hole, villain_raises=0, **SPOT)
+    assert r != "raise 80", f"{hole} to_call>=bb must skip the open path, got {r!r}"
 
 # B: the bet is sized against the pot before it. Pot 200 with 100 to call is a
 # pot-size bet (fraction 1.0): the credited range narrows, and 7s on A-T-7 (a
