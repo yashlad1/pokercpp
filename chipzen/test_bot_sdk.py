@@ -5,6 +5,9 @@ The check that matters is the last column: an action the server did not
 offer is rejected on the wire, and a raise outside [min_raise, max_raise]
 is rejected too.
 
+Every check is tagged. [invariant] must hold whatever the constants are.
+[pin] pins fitted behaviour and may need new numbers when a constant changes.
+
 Needs the SDK and the compiled engine:
     pip install chipzen-bot pybind11
     g++ -std=c++17 -O2 -shared -fPIC $(python -m pybind11 --includes) \
@@ -54,6 +57,8 @@ SPOTS = [
         min_raise=0, max_raise=0, your_stack=900, valid_actions=["check"])),
 ]
 
+# [invariant] every action is one the server offered, and a raise sits in its
+# band. The printed action per spot is not checked: that part would be a pin.
 fails = 0
 worst = 0.0
 for name, kw in SPOTS:
@@ -100,6 +105,8 @@ def limp_spot(n, hole):
         board=[], pot=200, to_call=0, min_raise=200, max_raise=1400, your_stack=1400,
         valid_actions=["check", "raise"])
 
+# [pin] the checks below that read K8o (fold vs call) depend on the range
+# steps, the memory floor and the realization discount.
 H = "Ks8h"
 extra = 0
 
@@ -143,6 +150,7 @@ def wire(hist, **kw):
     kw["hole_cards"] = [C(kw["hole_cards"][:2]), C(kw["hole_cards"][2:])]
     return GameState(action_history=hist, **kw)
 
+# [pin] open size 2.5 bb and the 0.50 open cut.
 # 1. Small blind, empty history: pot 15 + to_call 5 gives a 10 chip big blind,
 # so the open is 2.5 big blinds, a raise to 25.
 b = botmod.PokerCppBot()
@@ -154,6 +162,7 @@ a = b.decide(wire([], hole_cards="AhKd", your_seat=0, dealer_seat=0, pot=15,
 check(a.action == "raise" and a.amount == 25,
       f"small blind, empty history: AKo should open to 25, got {a.action} {a.amount}")
 
+# [pin] 10 bb or less shoves AA.
 # 2. Big blind, empty history, no match_start fallback: (pot 40 - to_call 20) / 2
 # is a 10 chip big blind, so 70 behind is 7 big blinds and AA shoves.
 b = botmod.PokerCppBot()
@@ -163,6 +172,7 @@ a = b.decide(wire([], hole_cards="AhAd", your_seat=1, dealer_seat=0, pot=40,
 check(a.action == "all_in" or (a.action == "raise" and a.amount == 80),
       f"big blind, empty history, 7bb deep: AA should shove, got {a.action} {a.amount}")
 
+# [invariant] legality mapping.
 # 3. Only all_in offered: wanting to raise means sending all_in.
 b = botmod.PokerCppBot()
 a = b.decide(wire(list(BL), hole_cards="AhAd", your_seat=0, dealer_seat=0, pot=150,
@@ -170,6 +180,7 @@ a = b.decide(wire(list(BL), hole_cards="AhAd", your_seat=0, dealer_seat=0, pot=1
                   valid_actions=["fold", "call", "all_in"]))
 check(a.action == "all_in", f"only all_in raises: AA should all_in, got {a.action}")
 
+# [invariant] legality mapping.
 # 4. The call is offered as all_in (the opponent's shove covers our stack).
 b = botmod.PokerCppBot()
 a = b.decide(wire(BL + [{"seat": 0, "action": "all_in", "amount": 1500,

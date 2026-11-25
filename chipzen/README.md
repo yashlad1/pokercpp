@@ -22,21 +22,140 @@ process spawn per decision.
 
 ## How it decides
 
-Per turn, `bot.py` calls into the C++ engine, which runs a Monte Carlo
-simulation (5000 trials, ~12 ms) to get equity, shades it down against the
-size of the bet it faces, and compares that to the pot odds. The GIL is
-released for the simulation so the WebSocket heartbeat keeps running.
+Per turn, `bot.py` calls into the C++ engine (`decideFull` in `decide.h`).
+The engine runs a Monte Carlo simulation (5000 trials, ~12 ms) of our hand
+against a modelled opponent range. It then applies the rules below, top to
+bottom, and the first one that fires wins. The GIL is released for the
+simulation so the WebSocket heartbeat keeps running.
 
 The equity engine itself is validated by `make test` — see
 `tests/test_equity_exact.cpp`, which counts every case the simulator samples.
 
-Known ceilings, both marked in the source:
+### 1. Opponent range
 
-- The opponent is modelled as a uniform random hand. Against a real bot that
-  only bets strong hands, raw equity is optimistic; the bet-size discount is
-  a flat linear stand-in for a range model.
-- Short-stack play is a single push-or-fold threshold at 10 BB, not an ICM
+The opponent is credited with a fraction of all hands, set by how often they
+raised this hand (`villainRangeFraction`).
+
+| Opponent raises this hand | Range (top share of hands) |
+|---|---|
+| 0 | 100% |
+| 1 | 45% |
+| 2 | 18% |
+| 3 or more | 8% |
+
+The price asked then scales the range. A bet over 75% of the pot before it
+multiplies the range by 0.7. A bet under 35% multiplies it by 1.3. The result
+stays between 5% and 100%.
+
+Every number here is a hand-fitted prior, not a measurement.
+
+### 2. Memory floor
+
+`opponent.py` counts, per hand, the most raises the opponent made. The floor
+is the share of hands in which they made at least this many raises, over
+`hands seen + 3`. The range never drops below the floor. An opponent who
+raises every hand therefore keeps a wide range, however many times they raise.
+Memory resets at each match start.
+
+### 3. Realization discount
+
+Raw equity assumes a free showdown. When we call for a price, equity is
+multiplied by a street factor.
+
+| Street | Factor |
+|---|---|
+| Preflop | 0.75 |
+| Flop | 0.82 |
+| Turn | 0.90 |
+| River | 1.00 |
+
+The discount does not apply when betting, or when the call ends the betting
+(all-in, or raising closed). A call needs discounted equity above the pot
+odds. A raise is judged on raw equity.
+
+### 4. Actions
+
+| Spot | Rule |
+|---|---|
+| Stack at 10 bb or less | Raw equity of 55% or more: raise to the max (shove). |
+| Small blind, first action, no raise yet | Raw equity of 50% or more: raise to 2.5 bb. |
+| Nothing to call | Discounted equity of 62% or more: bet 66% of the pot. |
+| Nothing to call, hopeless hand | Raw equity under 30%: bet 66% of the pot on a computed share of hands (a bluff). Otherwise check. |
+| Facing a bet | Fold if discounted equity is at or below the pot odds. |
+| Facing a bet, strong hand | Raw equity of 75% or more: raise. Otherwise call. |
+
+A bet bigger than our stack is treated as a call of the stack, and the excess
+leaves the pot. Every raise is clamped to the band the server offered.
+
+Not on this page: a detector for opponent bluffs. It is planned, see #51.
+
+### Known ceilings
+
+All are marked `ponytail:` in the source.
+
+- Every threshold above is fitted by hand. None is solved or learned.
+- Realization depends on the street only, not on position or stack depth.
+- Short-stack play is a single shove-or-fold threshold at 10 BB, not an ICM
   calculation.
+- A shove when checked to at 10 bb is a large overbet. It suits callers and
+  not folders.
+
+## Wire contract
+
+What the server sends, observed in 7 live matches on 24 Nov 2026 (logs in
+`results/live-logs/`, analysis in `results/2026-11-24-live-log-analysis.md`).
+Time limit and turn fixtures come from the SDK's conformance fixtures.
+
+| Topic | What the wire does |
+|---|---|
+| Hand numbers | `hand_number` is sent on every state. |
+| Blinds | Blinds appear in `action_history` as `post_small_blind` and `post_big_blind`. |
+| Short blind | A short stack posts a partial all-in blind, e.g. `post_big_blind` 506 when the bb is 600. |
+| Labels | Bets and all-ins are both labelled `raise`. |
+| `all_in` | Never offered as a valid action in these matches. |
+| `max_raise` | The all-in raise-to total. |
+| Short stack | `raise` is offered with `min_raise` > `max_raise`. The bot raises exactly `max_raise` (`_raise_band` in `bot.py`). |
+| End-of-hand history | The `round_result` history is complete, including folds after our last action. |
+| Time limit | `turn_timeout_ms` is 5000. The median decision is about 8 ms. |
+
+`bot.py` still handles `all_in` as an offered action (the SDK allows it).
+
+`round_result` carries these fields:
+
+| Field | Content |
+|---|---|
+| `hand_number` | The hand. |
+| `winner_seats` | Seats that won. |
+| `pot` | Pot size. |
+| `payouts` | Chips paid out. |
+| `showdown` | Per seat: `hole_cards`, `hand_rank` (e.g. "High Card", "Pair", "Two Pair", "Straight"), `best_hand` (five cards). |
+| `stacks` | Stacks after the hand. |
+| `deck_commitment` | Deck commitment. |
+| `deck_reveal` | `null`. |
+
+There is no `board` key.
+
+`match_start` lists `seats`. Each seat has `seat`, `is_self`, `display_name`
+and `participant_id`.
+
+### Blind schedule
+
+The starting stack is 10,000 chips, which is 100 bb at a bb of 100. The bb
+rises every 20 hands.
+
+| Hands | 1-20 | 21-40 | 41-60 | 61-80 | 81-100 | 101-120 | 121-140 |
+|---|---|---|---|---|---|---|---|
+| bb | 100 | 150 | 200 | 300 | 400 | 600 | 800 |
+
+### What the bot logs
+
+- A version and commit line at match start.
+- The `match_start` seats with names.
+- One decision line per turn: hand, phase, pot, to_call, bb, raise bounds,
+  stack, seat, dealer, history, hole, board, legal actions, range, equity,
+  realized, required, action.
+- A `round_result` line and a `ROUND` JSON line per hand.
+- `STATE` JSON lines for the first 50 decisions.
 
 ## Local check
 
@@ -79,7 +198,9 @@ season — it is the only way to see the decision log.
 
 ## Budget
 
-Ranked bot-vs-bot allows 2000 ms per decision, end to end. The engine
+The wire sends `turn_timeout_ms` of 5000 (see Wire contract). An earlier
+note put the ranked bot-vs-bot limit at 2000 ms per decision, end to end;
+plan against the smaller number. The engine
 answers in ~12 ms at 5000 trials, so `POKERCPP_SIMS` has room to rise a long
 way if accuracy turns out to matter more than margin. Note the SDK's own
 validator warns above 100 ms and uses 500 ms as its reference ceiling, so
