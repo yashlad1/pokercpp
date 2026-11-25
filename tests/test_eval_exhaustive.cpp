@@ -3,7 +3,7 @@
 // figures. Also cross-checks AdvancedHandEvaluator against fast_eval on a
 // seeded random sample (the advanced evaluator is too slow to enumerate).
 //
-// Run:  ./tests/test_eval_exhaustive     (make test-slow)
+// Run:  ./tests/test_eval_exhaustive     (make test_eval_exhaustive, also part of make test)
 
 #include "../model/advanced_hand_evaluator.h"
 #include "../model/fast_eval.h"
