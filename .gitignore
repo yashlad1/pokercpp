@@ -28,4 +28,5 @@ chipzen.toml
 .chipzen/
 
 .claude/
-
+.vscode/
+.github/

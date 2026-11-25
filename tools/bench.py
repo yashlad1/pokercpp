@@ -278,6 +278,23 @@ class Reference:
         return ("check", 0) if v.to_call == 0 else ("fold", 0)
 
 
+class Bluffer(Reference):
+    """Reference, except a fixed share p of its no-pair postflop hands (chosen per deal) bet
+    0.66 pot on every street and fold to any raise. A bot that cannot beat this folds too
+    much to bluffs that are only some of the time."""
+
+    def __init__(self, p, name):
+        self.p, self.name = p, name
+
+    def _postflop(self, v: View):
+        counts = sorted(Counter(c[0] for c in v.hole + v.board).values(), reverse=True)
+        if counts[0] == 1 and zlib.crc32(f"{v.hole}{v.board[:3]}".encode()) / 2**32 < self.p:
+            if v.to_call == 0 and v.max_raise > 0:
+                return "raise", min(max(int(v.pot * 0.66), v.min_raise), v.max_raise)
+            return ("check", 0) if v.to_call == 0 else ("fold", 0)
+        return super()._postflop(v)
+
+
 class CallingStation:
     """Never folds. A bot that cannot beat this is not bluffing profitably."""
     name = "station"
@@ -488,7 +505,9 @@ def report(label, results, bb, hands_per_pair=2):
 
 OPPONENTS = {"reference": Reference, "station": CallingStation, "nit": Nit,
              "maniac": Maniac, "aggro": Aggro, "switcher": Switcher,
-             "loosepassive": LoosePassive, "random": RandomLegal}
+             "loosepassive": LoosePassive, "random": RandomLegal,
+             "bluff0": lambda: Bluffer(0.0, "bluff0"), "bluff25": lambda: Bluffer(0.25, "bluff25"),
+             "bluff50": lambda: Bluffer(0.5, "bluff50")}
 
 # Only when the September build is next to the current one, so --vs all still
 # works without it.

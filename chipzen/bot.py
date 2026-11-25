@@ -126,7 +126,8 @@ class PokerCppBot(Bot):
             seats = (match_info or {}).get("seats") or []
             logger.info(
                 "match_start seats=%s",
-                [(s.get("seat"), s.get("is_self")) for s in seats if isinstance(s, dict)],
+                [(s.get("seat"), s.get("is_self"), s.get("display_name"), s.get("participant_id"))
+                 for s in seats if isinstance(s, dict)],
             )
         except Exception:
             logger.exception("match_start log failed")
