@@ -327,6 +327,19 @@ class LoosePassive:
         return ("call", 0) if v.to_call <= v.pot - v.to_call else ("fold", 0)
 
 
+class Switcher:
+    """Plays like Nit for 30 hands, then like Maniac for 30, and repeats. A bot that
+    cannot follow this is slow to notice a change of style."""
+    name = "switcher"
+
+    def __init__(self):
+        self.seen, self.nit, self.maniac = set(), Nit(), Maniac()
+
+    def act(self, v: View):
+        self.seen.add(v.hand)
+        return (self.maniac if (len(self.seen) - 1) // 30 % 2 else self.nit).act(v)
+
+
 class RandomLegal:
     """Picks any legal action at random. A bot that cannot beat this has a leak
     somewhere basic. Uses its own RNG, reseeded each decision from its own hole
@@ -470,7 +483,7 @@ def report(label, results, bb, hands_per_pair=2):
 
 
 OPPONENTS = {"reference": Reference, "station": CallingStation, "nit": Nit,
-             "maniac": Maniac, "aggro": Aggro,
+             "maniac": Maniac, "aggro": Aggro, "switcher": Switcher,
              "loosepassive": LoosePassive, "random": RandomLegal}
 
 # Only when the September build is next to the current one, so --vs all still
