@@ -13,9 +13,17 @@ Catalogue: JSON list of {id, file, find, replace, what, expect, why_survives}.
   PY=/path/to/python tools/mutants/run.py [--catalogue P] [--only A,B]
                                           [--tests T,U] [--out DIR]
 Exit 1 if an expected test did not kill, a known survivor was killed, or a
-mutant is STALE.
+mutant is STALE. Exit 2 if the repo state changed during the run.
+
+Known limits (not fixed):
+- A compile error in a `make` test counts as a kill (only the exit code is read).
+- A timeout kills only the direct child, not its descendants.
+- The before/after check compares `git status --short` (untracked files
+  included), so another process creating files mid-run gives a false exit 2.
+  For `git worktree list`, worktrees added by others are tolerated and noted;
+  a vanished one, or a leftover mutant worktree, is fatal.
 """
-import argparse, json, os, shutil, subprocess, sys, tempfile, time
+import argparse, json, os, re, shutil, subprocess, sys, tempfile, time
 
 ROOT = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
 PY = os.environ.get("PY") or sys.exit("set PY to the python with pybind11, pokerkit, chipzen-bot")
@@ -55,6 +63,9 @@ def sh(argv, cwd, env=None, timeout=None):
         return "timeout", ""
 
 
+BASE = "HEAD"  # resolved to a SHA in main()
+
+
 def snapshot():
     return [subprocess.check_output(c, cwd=ROOT, text=True)
             for c in (["git", "status", "--short"], ["git", "worktree", "list"])]
@@ -62,10 +73,14 @@ def snapshot():
 
 def run_mutant(m, tests, tmp):
     """Returns (status, {test: 'killed'|'survived'|'timeout'}, note). status: ok|STALE|BUILD-FAIL."""
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", m["id"]):
+        return "BAD-ID", {}, "id must match [A-Za-z0-9_-]+"
     wt = os.path.join(tmp, "wt-" + m["id"])
-    subprocess.run(["git", "worktree", "add", "--detach", wt, "HEAD"], cwd=ROOT, check=True, capture_output=True)
     try:
-        path = os.path.join(wt, m["file"])
+        subprocess.run(["git", "worktree", "add", "--detach", wt, BASE], cwd=ROOT, check=True, capture_output=True)
+        path = os.path.realpath(os.path.join(wt, m["file"]))
+        if not path.startswith(os.path.realpath(wt) + os.sep):
+            return "BAD-PATH", {}, f"{m['file']} escapes the worktree"
         src = open(path).read() if os.path.exists(path) else ""
         n = src.count(m["find"]) if m["find"] else 0
         if n != 1:
@@ -92,6 +107,7 @@ def run_mutant(m, tests, tmp):
         return "ok", res, ""
     finally:
         subprocess.run(["git", "worktree", "remove", "--force", wt], cwd=ROOT, capture_output=True)
+        subprocess.run(["git", "worktree", "prune"], cwd=ROOT, capture_output=True)
 
 
 def main():
@@ -103,6 +119,9 @@ def main():
     a = ap.parse_args()
 
     print("Local only, never in CI.")
+    global BASE
+    BASE = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    print("base commit", BASE)
     if subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=no"], cwd=ROOT, text=True):
         sys.exit("tracked files are dirty; commit or stash first")
     cat = json.load(open(a.catalogue))
@@ -142,9 +161,10 @@ def main():
             print(f"{m['id']}: {status} killed={sorted(killed)} {'FAIL' if problems else 'ok'}", flush=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)  # only the temp dir this run created
+        subprocess.run(["git", "worktree", "prune"], cwd=ROOT, capture_output=True)
     wall = time.time() - t0
 
-    md = [f"# Mutation matrix (wall {wall:.0f}s)", "", "| mutant | status | " + " | ".join(tests) + " | extra kills |",
+    md = [f"# Mutation matrix (wall {wall:.0f}s, base {BASE[:7]})", "", "| mutant | status | " + " | ".join(tests) + " | extra kills |",
           "|---|---|" + "---|" * (len(tests) + 1)]
     for r in rows:
         md.append(f"| {r['id']} | {r['status']} | " + " | ".join(r["results"].get(t, "-") for t in tests)
@@ -158,9 +178,12 @@ def main():
     print(f"matrix written to {out}")
 
     after = snapshot()
-    if after != before:
+    gone = set(before[1].splitlines()) - set(after[1].splitlines())
+    if after[0] != before[0] or gone or "mutants-wt-" in after[1]:
         print("FATAL: git status / worktree list changed during the run", file=sys.stderr)
         sys.exit(2)
+    if after[1] != before[1]:
+        print("note: another process added worktrees during the run (tolerated)")
     sys.exit(1 if fails else 0)
 
 
