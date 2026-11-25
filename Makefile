@@ -40,6 +40,7 @@ TEST_MC = tests/test_monte_carlo
 TEST_HAND = tests/test_hand_evaluator
 TEST_GAME = tests/test_game_logic
 TEST_EQUITY = tests/test_equity_exact
+TEST_PROPS = tests/test_decide_properties
 
 # Main game target
 $(TARGET): $(SRC)
@@ -64,8 +65,13 @@ test_equity_exact: tests/test_equity_exact.cpp $(LIB_SRC)
 	$(CXX) $(CXXFLAGS) tests/test_equity_exact.cpp $(LIB_SRC) -o $(TEST_EQUITY)
 	./$(TEST_EQUITY)
 
+# Properties of chipzen/decide.h: chip scaling, price and range monotonicity.
+test_decide_properties: tests/test_decide_properties.cpp chipzen/decide.h $(LIB_SRC)
+	$(CXX) $(CXXFLAGS) tests/test_decide_properties.cpp $(LIB_SRC) -o $(TEST_PROPS)
+	./$(TEST_PROPS)
+
 # Run all tests
-test: test_hand_evaluator test_monte_carlo test_game_logic test_equity_exact
+test: test_hand_evaluator test_monte_carlo test_game_logic test_equity_exact test_decide_properties
 	@echo "\n=== All Tests Passed ==="
 
 # Every test binary rebuilt with AddressSanitizer + UndefinedBehaviorSanitizer.
@@ -77,10 +83,12 @@ test-asan:
 	$(CXX) $(CXXFLAGS) $(SANFLAGS) tests/test_hand_evaluator.cpp model/advanced_hand_evaluator.cpp model/card.cpp -o $(ASAN_DIR)/test_hand_evaluator
 	$(CXX) $(CXXFLAGS) $(SANFLAGS) tests/test_monte_carlo.cpp $(LIB_SRC) -o $(ASAN_DIR)/test_monte_carlo
 	$(CXX) $(CXXFLAGS) $(SANFLAGS) tests/test_game_logic.cpp $(LIB_SRC) $(VIEW_SRC) -o $(ASAN_DIR)/test_game_logic
+	$(CXX) $(CXXFLAGS) $(SANFLAGS) tests/test_decide_properties.cpp $(LIB_SRC) -o $(ASAN_DIR)/test_decide_properties
 	@echo "\n--- running under ASan/UBSan ---"
 	./$(ASAN_DIR)/test_hand_evaluator > /dev/null && echo "  hand_evaluator: clean"
 	./$(ASAN_DIR)/test_monte_carlo   > /dev/null && echo "  monte_carlo:    clean"
 	./$(ASAN_DIR)/test_game_logic    > /dev/null && echo "  game_logic:     clean"
+	./$(ASAN_DIR)/test_decide_properties > /dev/null && echo "  decide_props:   clean"
 	@echo "\n=== No sanitizer findings ==="
 
 # Compile-only pass with the noisier warning set.
@@ -91,8 +99,8 @@ strict:
 run: $(TARGET)
 	./$(TARGET)
 
-.PHONY: test test-asan strict run clean
+.PHONY: test test_decide_properties test-asan strict run clean
 
 clean:
-	rm -f $(TARGET) $(TEST_MC) $(TEST_HAND) $(TEST_GAME)
+	rm -f $(TARGET) $(TEST_MC) $(TEST_HAND) $(TEST_GAME) $(TEST_EQUITY) $(TEST_PROPS)
 	rm -rf $(ASAN_DIR)
