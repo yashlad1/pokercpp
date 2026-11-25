@@ -102,6 +102,7 @@ class PokerCppBot(Bot):
     def __init__(self):
         super().__init__()
         self.opponent = Opponent()
+        self.my_seat = None
         self._reset_blinds({})
         self._turns = 0
         self._state_logs = 0
@@ -118,12 +119,16 @@ class PokerCppBot(Bot):
     def on_match_start(self, match_info):
         # One process can play several matches; do not carry one opponent into the next.
         self.opponent = Opponent()
+        self.my_seat = None
         self._reset_blinds(match_info)
         self._state_logs = 0
         self._round_seen, self._round_seq = False, 0
         try:
             logger.info("pokercpp v%s commit=%s", VERSION, os.environ.get("POKERCPP_COMMIT", "unknown"))
             seats = (match_info or {}).get("seats") or []
+            for s in seats:
+                if isinstance(s, dict) and s.get("is_self"):
+                    self.my_seat = s.get("seat")
             logger.info(
                 "match_start seats=%s",
                 [(s.get("seat"), s.get("is_self"), s.get("display_name"), s.get("participant_id"))
@@ -160,6 +165,11 @@ class PokerCppBot(Bot):
                 entries,
             )
             logger.info("ROUND %s", json.dumps({k: v for k, v in res.items() if k != "action_history"}, default=str))
+            n = self.opponent.n
+            self.opponent.learn(res, self.my_seat)
+            if self.opponent.n != n:
+                b, scale = self.opponent.bluff()
+                logger.info("BLUFF n=%s k=%s b=%.3f scale=%.3f", self.opponent.n, self.opponent.k, b, scale)
         except Exception:
             logger.exception("round_result log failed")
         self._turns = 0
@@ -231,6 +241,8 @@ class PokerCppBot(Bot):
         self._log_state(state)
         valid = list(state.valid_actions or ())
         try:
+            if state.your_seat is not None and self.my_seat is None:
+                self.my_seat = state.your_seat
             bb = self._bb(state)
             vr = _villain_raises(state)
             if "raise" in valid:
