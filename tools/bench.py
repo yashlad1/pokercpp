@@ -138,12 +138,13 @@ class Bot:
 
     name = "bot"
 
-    def __init__(self, sb, bb, stack, sims=2000, history="full"):
+    def __init__(self, sb, bb, stack, sims=2000, history="full", hand_number="full"):
         import bot as bot_mod
         from chipzen import GameState
         from chipzen.models import Card
         self.GameState, self.Card = GameState, Card
-        self.history, self.sims = history, sims
+        self.history, self.sims, self.zero = history, sims, hand_number == "zero"
+        self.seen_hand = None
         self.seeder, self.cur = Seeder("pokercpp"), 0
         real = REAL_DECIDE  # never a previous Bot's wrapper
 
@@ -160,6 +161,9 @@ class Bot:
 
     def act(self, v: View):
         self.cur = v.hand
+        if v.hand != self.seen_hand:  # the platform sends round_start per hand
+            self.seen_hand = v.hand
+            self.bot.on_round_start({})
         to_call, stack, n = v.to_call, v.stack, len(v.board)
         can_raise = v.max_raise > 0
         valid = ["fold"] if to_call > 0 else []
@@ -174,7 +178,7 @@ class Bot:
         hist = [e for e in v.history
                 if self.history == "full" or not e["action"].startswith("post_")]
         st = self.GameState(
-            hand_number=v.hand + 1,  # the platform counts from 1; 0 is falsy to bot.py
+            hand_number=0 if self.zero else v.hand + 1,  # platform counts from 1
             phase={0: "preflop", 3: "flop", 4: "turn", 5: "river"}[n],
             hole_cards=[self.Card.from_str(c) for c in v.hole],
             board=[self.Card.from_str(c) for c in v.board],
@@ -510,6 +514,8 @@ if __name__ == "__main__":
                     help="engine: call the C++ engine directly; bot: run chipzen/bot.py")
     ap.add_argument("--history", default="full", choices=["full", "noblinds"],
                     help="with --hero bot: include the blind posts in action_history or omit them")
+    ap.add_argument("--hand-number", default="full", choices=["full", "zero"],
+                    help="with --hero bot: send real hand numbers or hand_number=0")
     ap.add_argument("--dump", metavar="PATH",
                     help="write per-pair results as JSON, for tools/paired.py")
     args = ap.parse_args()
@@ -549,7 +555,7 @@ if __name__ == "__main__":
     print(f"pokercpp ({args.sims} sims/decision) vs opponents, duplicate-dealt, {args.stack} bb deep\n")
     for nm in names:
         # fresh, so memory never carries between opponents
-        hero = (Bot(args.bb // 2, args.bb, args.stack * args.bb, args.sims, args.history)
+        hero = (Bot(args.bb // 2, args.bb, args.stack * args.bb, args.sims, args.history, args.hand_number)
                 if args.hero == "bot" else PokerCpp(sims=args.sims))
         res = duplicate_match(args.hands, hero, OPPONENTS[nm](), blinds=(args.bb // 2, args.bb),
                              stack=args.stack * args.bb, seed0=args.seed0)
