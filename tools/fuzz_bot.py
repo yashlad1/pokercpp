@@ -26,7 +26,7 @@ SETS = [["check", "raise"], ["check"], ["fold", "call"], ["fold", "call", "raise
         ["fold", "call", "raise", "all_in"]]
 rng = random.Random(1)
 b = bot.PokerCppBot()
-exc = illegal = fallback = 0
+exc = illegal = fallback = inverted = 0
 for k in range(5000):
     if k % 200 == 0:
         b.on_match_start(rng.choice([{}, None, {"game_config": {
@@ -43,6 +43,9 @@ for k in range(5000):
         lo = min(lo, hi)
         if rng.random() < .2:
             lo = hi
+        elif rng.random() < .2:  # short stack: min_raise above max_raise (= stack)
+            hi = max(stack, 1)
+            lo = hi + rng.randint(1, 5000)
     else:
         lo = hi = 0
     hist = []
@@ -58,6 +61,7 @@ for k in range(5000):
         pot=pot, your_stack=stack, your_seat=rng.choice([0, 1]),
         dealer_seat=rng.choice([0, 1, None]), to_call=tc, min_raise=lo, max_raise=hi,
         valid_actions=va, action_history=hist)
+    inverted += lo > hi
     if rng.random() < .02:
         b.on_round_start({})
     buf.truncate(0)
@@ -68,7 +72,7 @@ for k in range(5000):
         exc += 1
         continue
     fallback += "ENGINE FAILED" in buf.getvalue()
-    if a.action not in va or (a.action == "raise" and not lo <= a.amount <= hi):
+    if a.action not in va or (a.action == "raise" and not (lo <= a.amount <= hi or (lo > hi and a.amount == hi))):
         illegal += 1
-print(f"exceptions={exc} illegal={illegal} fallbacks={fallback}")
+print(f"exceptions={exc} illegal={illegal} fallbacks={fallback} min_gt_max={inverted}")
 sys.exit(1 if exc or illegal or fallback else 0)

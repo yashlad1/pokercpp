@@ -32,7 +32,7 @@ from opponent import Opponent
 
 logger = logging.getLogger("pokercpp")
 
-VERSION = "4.0.0"
+VERSION = "4.0.1"
 STATE_LOG_LIMIT = 50  # raw GameState lines logged after each match start
 
 # 5000 trials puts the 95% interval near +/-1.4% and costs ~12 ms, against a
@@ -83,6 +83,19 @@ def _current_blinds(state: GameState) -> tuple[int, int]:
         elif action != "post_ante":
             break  # past the synthetic entries
     return sb, bb
+
+
+def _raise_band(state: GameState, valid) -> tuple[int, int]:
+    """The (lo, hi) raise bounds, for the engine and for _to_action alike.
+
+    A stack too short for a full raise is offered as "raise" with min_raise
+    above max_raise (max_raise is the whole stack): the only legal amount is
+    max_raise, so the band collapses to it.
+    """
+    lo, hi = int(state.min_raise or 0), int(state.max_raise or 0)
+    if "raise" in valid and 0 < hi < lo:
+        lo = hi
+    return lo, hi
 
 
 class PokerCppBot(Bot):
@@ -218,7 +231,7 @@ class PokerCppBot(Bot):
             bb = self._bb(state)
             vr = _villain_raises(state)
             if "raise" in valid:
-                lo, hi = int(state.min_raise or 0), int(state.max_raise or 0)
+                lo, hi = _raise_band(state, valid)
             elif "all_in" in valid:
                 # Only a shove is offered: let the engine pick it.
                 lo = hi = int(state.your_stack or 0)
@@ -293,7 +306,7 @@ class PokerCppBot(Bot):
 
         if word == "raise" and "raise" in valid:
             target = int(d["amount"])
-            lo, hi = int(state.min_raise or 0), int(state.max_raise or 0)
+            lo, hi = _raise_band(state, valid)
             if lo > 0 and hi > 0:
                 target = max(lo, min(target, hi))
                 if target >= hi and "all_in" in valid:

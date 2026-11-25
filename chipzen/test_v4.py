@@ -128,7 +128,7 @@ def t7():
     p = subprocess.run([sys.executable, bot.__file__], env=env, capture_output=True,
                        text=True, timeout=60)
     out = p.stdout + p.stderr
-    report("T7", p.returncode == 2 and "pokercpp v4.0.0 commit=abc1234" in out,
+    report("T7", p.returncode == 2 and "pokercpp v4.0.1 commit=abc1234" in out,
            f"rc={p.returncode} out={out[-300:]!r}")
 
 def t8():
@@ -161,7 +161,20 @@ def t9():
     c = b.decide(shove_spot("Ks8h")).action
     report("T9", a == "fold" and c == "call", f"unknown={a} shover={c}")
 
-for name, f in [("T1", t1), ("T2/T3", t2_t3), ("T4", t4), ("T5", t5), ("T6", t6), ("T7", t7), ("T8", t8), ("T9", t9)]:
+def t10():
+    b = newbot(); b.on_match_start({})
+    h = lambda s, a, am, ph="preflop": {"seat":s,"action":a,"amount":am,"phase":ph,"is_timeout":False}
+    hist = [h(0,"post_small_blind",200), h(1,"post_big_blind",400), h(0,"raise",1000),
+            h(1,"raise",1600), h(0,"call",600), h(1,"raise",3115,"flop")]
+    st = gs(hand_number=89, phase="flop", board=cards("Ah","Kd","7c"), hole_cards=cards("As","Ad"),
+            pot=6315, to_call=3115, min_raise=6230, max_raise=3932, your_stack=3932,
+            opponent_stacks=[9753], action_history=hist)
+    a = b.decide(st)
+    print("T10 action=%s amount=%s" % (a.action, a.amount))
+    ok = a.action in st.valid_actions and a.action != "fold" and (a.action != "raise" or a.amount == 3932)
+    report("T10", ok, f"action={a.action} amount={a.amount}")
+
+for name, f in [("T1", t1), ("T2/T3", t2_t3), ("T4", t4), ("T5", t5), ("T6", t6), ("T7", t7), ("T8", t8), ("T9", t9), ("T10", t10)]:
     safe(name, f)
 
 if fails:
