@@ -35,6 +35,17 @@ logger = logging.getLogger("pokercpp")
 SIMS = int(os.environ.get("POKERCPP_SIMS", "5000"))
 
 
+def _hist(state: GameState) -> str:
+    """seat:action:amount per entry; the log line runs outside the try."""
+    try:
+        return ",".join(
+            f"{e.get('seat')}:{e.get('action')}:{e.get('amount')}"
+            for e in (state.action_history or ())
+        ) or "-"
+    except Exception:
+        return "?"
+
+
 def _villain_raises(state: GameState) -> int:
     """Count aggressive actions by anyone other than us in this hand.
 
@@ -149,10 +160,14 @@ class PokerCppBot(Bot):
             action = self._safe_default(valid)
 
         logger.info(
-            "hand=%s phase=%s pot=%s to_call=%s bb=%s hist=%s hole=%s legal=%s "
+            "hand=%s phase=%s pot=%s to_call=%s bb=%s min_raise=%s max_raise=%s "
+            "stack=%s seat=%s dealer=%s opp=%s hist=%s hole=%s legal=%s "
             "range=%s equity=%s realized=%s required=%s -> %s%s",
             state.hand_number, state.phase, state.pot, state.to_call,
-            bb, len(state.action_history or ()),
+            bb, getattr(state, "min_raise", None), getattr(state, "max_raise", None),
+            getattr(state, "your_stack", None), getattr(state, "your_seat", None),
+            getattr(state, "dealer_seat", None), getattr(state, "opponent_stacks", None),
+            _hist(state),
             "".join(str(c) for c in (state.hole_cards or ())) or "NONE",
             ",".join(valid) or "-",
             f"{d['range']:.2f}" if d else "n/a",
