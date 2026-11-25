@@ -37,7 +37,10 @@ STATE_LOG_LIMIT = 50  # raw GameState lines logged after each match start
 
 # 5000 trials puts the 95% interval near +/-1.4% and costs ~12 ms, against a
 # 2000 ms ranked budget. Accuracy is nowhere near the binding constraint.
-SIMS = int(os.environ.get("POKERCPP_SIMS", "5000"))
+try:
+    SIMS = int(os.environ.get("POKERCPP_SIMS", "5000"))
+except ValueError:  # junk or empty value must not crash the bot at import
+    SIMS = 5000
 
 
 def _hist(state: GameState) -> str:
@@ -264,7 +267,7 @@ class PokerCppBot(Bot):
             logger.exception("ENGINE FAILED - falling back to check/fold")
             d = None
             bb = 0
-            action = self._safe_default(valid)
+            action = self._safe_default(state, valid)
 
         logger.info(
             "hand=%s phase=%s pot=%s to_call=%s bb=%s min_raise=%s max_raise=%s "
@@ -288,9 +291,17 @@ class PokerCppBot(Bot):
         return action
 
     @staticmethod
-    def _safe_default(valid: list[str]) -> Action:
-        if "check" in valid:
-            return Action.check()
+    def _safe_default(state: GameState, valid: list[str]) -> Action:
+        """Every fallback lands here: the first legal of check, fold, call, all_in, min raise."""
+        for name, make in (("check", Action.check), ("fold", Action.fold),
+                           ("call", Action.call), ("all_in", Action.all_in)):
+            if name in valid:
+                return make()
+        if "raise" in valid:
+            lo, _ = _raise_band(state, valid)
+            lo = lo or int(state.your_stack or 0)  # no band given: shove the stack
+            if lo > 0:
+                return Action.raise_to(lo)
         return Action.fold()
 
     def _to_action(self, d: dict, state: GameState, valid: list[str]) -> Action:
@@ -301,7 +312,7 @@ class PokerCppBot(Bot):
         turn, so this is the only place legality is enforced.
         """
         if not d:
-            return self._safe_default(valid)
+            return self._safe_default(state, valid)
 
         word = d["action"]
 
@@ -323,18 +334,18 @@ class PokerCppBot(Bot):
             return Action.all_in()  # facing a bet >= stack: the call is offered as all_in
 
         if word == "call":
-            return Action.call() if "call" in valid else self._safe_default(valid)
+            return Action.call() if "call" in valid else self._safe_default(state, valid)
 
         if word == "check":
-            return self._safe_default(valid)
+            return self._safe_default(state, valid)
 
         if word == "fold":
             # Folding for free is strictly worse than checking.
             if state.to_call == 0 and "check" in valid:
                 return Action.check()
-            return Action.fold() if "fold" in valid else self._safe_default(valid)
+            return Action.fold() if "fold" in valid else self._safe_default(state, valid)
 
-        return self._safe_default(valid)
+        return self._safe_default(state, valid)
 
 
 async def _amain() -> None:
