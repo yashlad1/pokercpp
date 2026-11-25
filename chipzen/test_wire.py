@@ -72,7 +72,14 @@ KINDS = ["fold", "check", "call", "raise", "all_in"]
 BOUNDS = [(200, 1000), (400, 300), (0, 0)]
 
 
+def nothing_legal(valid, mn, mx):
+    # raise is only takeable with a band; every other kind is always takeable
+    return set(valid) == {"raise"} and mn == 0 and mx == 0
+
+
 def legal_problem(act, valid, mn, mx):
+    if nothing_legal(valid, mn, mx):
+        return None if act.action == "fold" else "nothing legal: want fold, got %s" % act.action
     if act.action not in valid:
         return "kind %s not in valid" % act.action
     if act.action == "raise":
