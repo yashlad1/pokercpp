@@ -64,6 +64,9 @@ COPY --from=builder /pokercpp_engine*.so /bot/
 # image; it does not rebuild from /bot.
 COPY chipzen/bot.py chipzen/opponent.py chipzen/Dockerfile chipzen/.dockerignore /bot/
 
+ARG GIT_SHA=unknown
+ENV POKERCPP_COMMIT=$GIT_SHA
+
 RUN adduser -D -u 10001 -s /bin/sh bot && chown -R bot:bot /bot
 USER bot
 

@@ -18,6 +18,8 @@ Environment:
 from __future__ import annotations
 
 import asyncio
+import dataclasses
+import json
 import logging
 import os
 import sys
@@ -29,6 +31,9 @@ import pokercpp_engine
 from opponent import Opponent
 
 logger = logging.getLogger("pokercpp")
+
+VERSION = "4.0.0"
+STATE_LOG_LIMIT = 50  # raw GameState lines logged after each match start
 
 # 5000 trials puts the 95% interval near +/-1.4% and costs ~12 ms, against a
 # 2000 ms ranked budget. Accuracy is nowhere near the binding constraint.
@@ -86,17 +91,23 @@ class PokerCppBot(Bot):
         self.opponent = Opponent()
         self._reset_blinds({})
         self._turns = 0
+        self._state_logs = 0
+        self._round_seen, self._round_seq = False, 0
 
     def _reset_blinds(self, match_info):
         cfg = (match_info or {}).get("game_config") or {}
         self.ante = int(cfg.get("ante") or 0)
         self.last_bb = int(cfg.get("big_blind") or 0)  # fallback until a hand shows its own
         self.hand_bb: dict[int, int] = {}
+        self._fixed_bb = None  # bb fixed for the current hand
+        self._last_n = 0  # last nonzero hand_number seen
 
     def on_match_start(self, match_info):
         # One process can play several matches; do not carry one opponent into the next.
         self.opponent = Opponent()
         self._reset_blinds(match_info)
+        self._state_logs = 0
+        self._round_seen, self._round_seq = False, 0
         try:
             seats = (match_info or {}).get("seats") or []
             logger.info(
@@ -105,6 +116,12 @@ class PokerCppBot(Bot):
             )
         except Exception:
             logger.exception("match_start log failed")
+
+    def on_round_start(self, message):
+        self._round_seen = True
+        self._round_seq += 1
+        self._fixed_bb = None  # a new hand: its bb is not fixed yet
+        super().on_round_start(message)
 
     def on_turn_result(self, message):
         self._turns += 1
@@ -132,30 +149,70 @@ class PokerCppBot(Bot):
         self._turns = 0
 
     def _bb(self, state: GameState) -> int:
-        """This hand's big blind.
+        """This hand's big blind, from the first of these that applies:
 
-        The protocol fixture shows blinds are not guaranteed in action_history
-        (preflop it is empty, pot 15 / to_call 5), so history is only the first
-        source. Failing that, back it out of the first preflop decision we see:
-        heads-up the button posts the small blind, so pot + to_call (as SB) or
-        pot - to_call (as BB) is two big blinds once antes are taken out.
+        1. the bb already fixed for this hand;
+        2. the history's post_big_blind amount;
+        3. a value backed out of pot and to_call, on our first preflop
+           decision of the hand only (later, pot and to_call include raises:
+           a 3-bet read as 'pot + to_call' is the 3-bet size, not the bb).
+           Heads-up the button posts the small blind, so pot + to_call (as
+           SB) or pot - to_call (as BB) is two big blinds, antes removed;
+        4. last_bb, which starts as the game_config big blind.
+
+        A hand starts at on_round_start or when a nonzero hand_number
+        changes. Cross-check against min_raise is logged, never applied.
         """
         n = state.hand_number
-        if n and n in self.hand_bb:  # hand 0/missing: one key would freeze the first hand's bb
+        if n and n != self._last_n:
+            self._last_n, self._fixed_bb = n, None
+        if n and n in self.hand_bb:
             return self.hand_bb[n]
-        bb = _current_blinds(state)[1]
-        if not bb and state.phase == "preflop":
-            pot, to_call = int(state.pot or 0) - 2 * self.ante, int(state.to_call or 0)
+        preflop = state.phase == "preflop"
+        first = preflop and not any(
+            e.get("seat") == state.your_seat and not str(e.get("action", "")).startswith("post_")
+            for e in state.action_history or ())
+        # With no hand_number and no round_start there is no hand boundary to
+        # trust, so a fixed bb is reused only after our first preflop decision.
+        if self._fixed_bb and (n or self._round_seen or not first):
+            return self._fixed_bb
+        hist_bb = _current_blinds(state)[1]
+        pot, to_call = int(state.pot or 0) - 2 * self.ante, int(state.to_call or 0)
+        derived = None
+        if first and state.dealer_seat is not None:
             sb_seat = state.your_seat == state.dealer_seat
-            bb = (pot + to_call if sb_seat else pot - to_call) // 2
+            derived = (pot + to_call if sb_seat else pot - to_call) // 2
+        bb = hist_bb or derived or 0
+        if not hist_bb and first and state.dealer_seat is None:
+            logger.warning("dealer_seat missing: cannot derive bb, using last_bb=%s", self.last_bb)
+        if first and "raise" in (state.valid_actions or ()):
+            lo, hi = int(state.min_raise or 0), int(state.max_raise or 0)
+            ref = bb if bb > 0 else self.last_bb
+            if 0 < lo < hi and to_call < ref and lo != 2 * ref:
+                logger.warning(
+                    "BB MISMATCH bb=%s derived=%s history=%s min_raise=%s pot=%s to_call=%s "
+                    "seat=%s dealer=%s last_bb=%s",
+                    ref, derived, hist_bb, lo, state.pot, state.to_call,
+                    state.your_seat, state.dealer_seat, self.last_bb)
         if bb > 0:
             if n:
                 self.hand_bb[n] = bb
-            self.last_bb = bb
+            self._fixed_bb = self.last_bb = bb
             return bb
         return max(self.last_bb, 0)
 
+    def _log_state(self, state: GameState) -> None:
+        if self._state_logs >= STATE_LOG_LIMIT:
+            return
+        self._state_logs += 1
+        try:
+            raw = {f.name: getattr(state, f.name, None) for f in dataclasses.fields(state)}
+            logger.info("STATE %s", json.dumps(raw, default=str))
+        except Exception:
+            logger.exception("state log failed")
+
     def decide(self, state: GameState) -> Action:
+        self._log_state(state)
         valid = list(state.valid_actions or ())
         try:
             bb = self._bb(state)
@@ -167,7 +224,7 @@ class PokerCppBot(Bot):
                 lo = hi = int(state.your_stack or 0)
             else:
                 lo = hi = 0
-            self.opponent.saw(state.hand_number, vr)
+            self.opponent.saw(state.hand_number or self._round_seq, vr)
             d = pokercpp_engine.decide(
                 # Card.__str__ is already the wire's two-char form.
                 hole=[str(c) for c in (state.hole_cards or ())],
@@ -268,6 +325,7 @@ async def _amain() -> None:
         level=os.environ.get("POKERCPP_LOG_LEVEL", "INFO").upper(),
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
+    logger.info("pokercpp v%s commit=%s", VERSION, os.environ.get("POKERCPP_COMMIT", "unknown"))
     ws_url = os.environ.get("CHIPZEN_WS_URL") or os.environ.get("CHIPZEN_URL", "")
     if not ws_url:
         logger.error("CHIPZEN_WS_URL is required")
@@ -279,7 +337,7 @@ async def _amain() -> None:
         token=os.environ.get("CHIPZEN_TOKEN"),
         ticket=os.environ.get("CHIPZEN_TICKET") or None,
         client_name="pokercpp",
-        client_version="1.0.0",
+        client_version=VERSION,
     )
 
 
