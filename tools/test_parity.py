@@ -1,7 +1,7 @@
 """Parity test: the engine hero and the bot.py hero must play identically.
 
-Same seeds, faithful mode (full history, real hand numbers), against reference
-and maniac: per-pair results and every (action, amount) decision must match
+Same seeds, faithful mode (full history, real hand numbers), against reference,
+maniac, aggro and random: per-pair results and every (action, amount) decision must match
 exactly. bench --hero bot minus --hero engine was +0.0 in the v4 release (G2).
 
 Run: PYTHONPATH=chipzen python tools/test_parity.py [--pairs 50] [--sims 200]
@@ -52,7 +52,7 @@ def play(kind, opp):
 
 
 fails = 0
-for opp in ("reference", "maniac"):
+for opp in ("reference", "maniac", "aggro", "random"):
     t = time.time()
     (er, el), (br, bl) = play("engine", opp), play("bot", opp)
     bad_pairs = sum(a != b for a, b in zip(er, br))

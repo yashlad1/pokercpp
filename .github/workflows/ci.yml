@@ -116,3 +116,6 @@ jobs:
 
       - name: Test the wire legality
         run: PYTHONPATH=chipzen python chipzen/test_wire.py
+
+      - name: Test engine-direct against bot.py parity
+        run: PYTHONPATH=chipzen python tools/test_parity.py --pairs 50
