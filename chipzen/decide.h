@@ -144,7 +144,7 @@ inline double cardHash(const std::vector<Card> &hole, const std::vector<Card> &b
 // simulations are fine here - this decides a frequency, not a hand.
 inline double bluffFrequency(const std::vector<Card> &board, double rangeFraction,
                              double valueThreshold, double airThreshold,
-                             int pot, int bet) {
+                             int pot, int bet, unsigned long long seed = 0) {
     const double share = bluffShare(pot, bet);
     if (share <= 0.0 || share >= 1.0) return 0.0;
 
@@ -162,11 +162,13 @@ inline double bluffFrequency(const std::vector<Card> &board, double rangeFractio
     // the same board always yields the same frequency, and 31 is coprime
     // with the suit and rank strides so the walk does not land on one suit.
     int value = 0, air = 0, step = 0;
+    unsigned long long n = 0;  // inner simulation index, for its seed
     for (size_t i = 0; i < deck.size(); ++i) {
         for (size_t j = i + 1; j < deck.size(); ++j) {
             if (step++ % 31 != 0) continue;
             MonteCarloSimulator sim({deck[i], deck[j]}, board, 300);
             sim.setVillainRange(rangeFraction);
+            if (seed) sim.setSeed(seed + 1 + n++);
             sim.runSimulation();
             const double eq = sim.getEquity();
             if (eq >= valueThreshold) ++value;
@@ -190,6 +192,16 @@ struct Decision {
     bool bluff = false;   // true when this bet is made with a hand that cannot win a showdown
 };
 
+#ifndef OPEN_EQ
+#define OPEN_EQ 0.50       // ponytail: fitted; minimum raw equity to open
+#endif
+#ifndef OPEN_SIZE_BB
+#define OPEN_SIZE_BB 2.5   // open size in big blinds
+#endif
+#ifndef OPEN_MAX_BB
+#define OPEN_MAX_BB 1e9    // open only at or under this many big blinds at hand start
+#endif
+
 // `realizationScale` and `bluffEnabled` exist so tools/bench.py can A/B them.
 // Defaults reproduce shipping behaviour exactly.
 inline Decision decideFull(const std::vector<Card> &hole,
@@ -197,7 +209,7 @@ inline Decision decideFull(const std::vector<Card> &hole,
                           int pot, int toCall, int minRaise, int maxRaise,
                           int stack, int bb, int sims, int villainRaises = 0,
                           double realizationScale = 1.0, bool bluffEnabled = true,
-                          double rangeFloor = 0.0) {
+                          double rangeFloor = 0.0, unsigned long long seed = 0) {
     // The SDK passes to_call uncapped. Facing a bet bigger than our stack we
     // can only call the stack; the excess goes back uncalled. Without this,
     // `required` and the range's bet-size read use chips that can never be won or lost.
@@ -207,6 +219,7 @@ inline Decision decideFull(const std::vector<Card> &hole,
 
     MonteCarloSimulator sim(hole, board, sims);
     sim.setVillainRange(d.range);
+    sim.setSeed(seed);
     sim.runSimulation();
     double equity = sim.getEquity();
     d.equity = equity;
@@ -247,8 +260,9 @@ inline Decision decideFull(const std::vector<Card> &hole,
     // open/shove table would replace it.
     // toCall < bb: the blind difference is under one big blind; more than that
     // means a raise we did not count, and this is no longer an open.
-    if (board.empty() && villainRaises == 0 && toCall > 0 && toCall < bb && bb > 0 && equity >= 0.50) {
-        int open = boundedRaise(static_cast<int>(2.5 * bb), minRaise, maxRaise);
+    if (board.empty() && villainRaises == 0 && toCall > 0 && toCall < bb && bb > 0 && equity >= OPEN_EQ &&
+        (stack + bb - toCall) / static_cast<double>(bb) <= OPEN_MAX_BB) {
+        int open = boundedRaise(static_cast<int>(OPEN_SIZE_BB * bb), minRaise, maxRaise);
         if (open > 0) { d.action = "raise"; d.amount = open; return d; }
     }
 
@@ -271,7 +285,7 @@ inline Decision decideFull(const std::vector<Card> &hole,
         // ponytail: the 0.62 and 0.30 bucket edges are fitted. The frequency
         // between them is computed, not fitted.
         if (bluffEnabled && equity < 0.30 && target > 0 && stack > target) {
-            const double freq = bluffFrequency(board, d.range, 0.62, 0.30, pot, target);
+            const double freq = bluffFrequency(board, d.range, 0.62, 0.30, pot, target, seed);
             if (cardHash(hole, board) < freq) {
                 d.action = "raise";
                 d.amount = target;

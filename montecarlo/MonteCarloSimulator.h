@@ -14,6 +14,10 @@ public:
 
     void runSimulation();
 
+    // Fix the generator's seed so a run is repeatable (bench only). 0, the
+    // default, seeds from std::random_device as before.
+    void setSeed(unsigned long long s) { seed = s; }
+
     // Restrict the opponent to the strongest `fraction` of starting hands
     // (1.0 = any two cards, the default). Dealing the opponent a uniformly
     // random hand overstates our equity against anyone who only puts money
@@ -49,6 +53,7 @@ private:
     int tieCount;
     int loseCount;
     double villainRangeFraction;  // 1.0 means unrestricted
+    unsigned long long seed = 0;  // 0 means random_device
 
     std::vector<Card> getRemainingDeck() const;
 

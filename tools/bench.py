@@ -30,11 +30,13 @@ from __future__ import annotations
 
 import argparse
 import itertools
+import json
 import math
 import os
 import random
 import statistics
 import sys
+import zlib
 from collections import Counter
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "chipzen"))
@@ -75,6 +77,25 @@ HAND_IDS = itertools.count()
 # Agents
 # --------------------------------------------------------------------------
 
+class Seeder:
+    """A stable nonzero seed per decision, from the hand id, the agent's own
+    decision count within that hand and a per-agent salt. Seeded this way, an
+    identical spot in two builds draws identical Monte Carlo samples, so the
+    paired difference isolates the change instead of sampling noise."""
+
+    def __init__(self, name):
+        self.salt = zlib.crc32(name.encode())
+        self.count = Counter()
+
+    def next(self, hand):
+        k = self.count[hand]
+        self.count[hand] += 1
+        x = (hand * 0x9E3779B97F4A7C15 + k * 0xC2B2AE3D27D4EB4F + self.salt) & (2**64 - 1)
+        x = ((x ^ (x >> 30)) * 0xBF58476D1CE4E5B9) & (2**64 - 1)
+        x = ((x ^ (x >> 27)) * 0x94D049BB133111EB) & (2**64 - 1)
+        return (x ^ (x >> 31)) or 1
+
+
 class PokerCpp:
     """The real engine, with its knobs exposed so variants can be compared."""
 
@@ -85,6 +106,7 @@ class PokerCpp:
         self.name = name
         self.realization_scale = realization_scale
         self.bluff_enabled = bluff_enabled
+        self.seeder = Seeder(name)
 
     def act(self, v: View):
         floor = 0.0
@@ -97,6 +119,7 @@ class PokerCpp:
             bb=v.bb, sims=self.sims, villain_raises=v.villain_raises,
             realization_scale=self.realization_scale,
             bluff_enabled=self.bluff_enabled, range_floor=floor,
+            seed=self.seeder.next(v.hand),
         )
         return d["action"], d["amount"]
 
@@ -109,12 +132,21 @@ class September:
 
     def __init__(self, sims=2000):
         self.sims = sims
+        self.seeder = Seeder(self.name)
+        try:  # older builds of the module do not take a seed
+            pokercpp_engine_base.decide(hole=["As", "Kd"], board=[], pot=150, to_call=50,
+                                        min_raise=200, max_raise=1000, stack=1000,
+                                        bb=100, sims=10, seed=1)
+            self.seeded = True
+        except TypeError:
+            self.seeded = False
 
     def act(self, v: View):
+        extra = {"seed": self.seeder.next(v.hand)} if self.seeded else {}
         d = pokercpp_engine_base.decide(
             hole=v.hole, board=v.board, pot=v.pot, to_call=v.to_call,
             min_raise=v.min_raise, max_raise=v.max_raise, stack=v.stack,
-            bb=v.bb, sims=self.sims, villain_raises=v.villain_raises,
+            bb=v.bb, sims=self.sims, villain_raises=v.villain_raises, **extra,
         )
         return d["action"], d["amount"]
 
@@ -327,20 +359,26 @@ def duplicate_match(hands: int, hero, villain, blinds=(50, 100), stack=10000, se
     return results
 
 
-def report(label, results, bb, hands_per_pair=2):
+def bb100_ci(results, bb, hands_per_pair=2):
+    """Mean in bb/100 and its 95% interval, from per-pair chip results."""
     n = len(results)
-    if n == 0:
-        print(f"{label}: no hands")
-        return
-    total = sum(results)
     hands = n * hands_per_pair
-    bb100 = (total / bb) / (hands / 100)
+    bb100 = (sum(results) / bb) / (hands / 100)
     if n > 1:
         se_pair = statistics.stdev(results) / math.sqrt(n)
         se_bb100 = (se_pair * n / bb) / (hands / 100)
     else:
         se_bb100 = float("nan")
-    lo, hi = bb100 - 1.96 * se_bb100, bb100 + 1.96 * se_bb100
+    return bb100, bb100 - 1.96 * se_bb100, bb100 + 1.96 * se_bb100
+
+
+def report(label, results, bb, hands_per_pair=2):
+    n = len(results)
+    if n == 0:
+        print(f"{label}: no hands")
+        return
+    hands = n * hands_per_pair
+    bb100, lo, hi = bb100_ci(results, bb, hands_per_pair)
     verdict = "wins" if lo > 0 else ("loses" if hi < 0 else "inconclusive")
     print(f"{label:28s} {bb100:+8.1f} bb/100   95% CI [{lo:+.1f}, {hi:+.1f}]   "
           f"{hands:6d} hands   {verdict}")
@@ -368,7 +406,13 @@ if __name__ == "__main__":
     ap.add_argument("--bb", type=int, default=100)
     ap.add_argument("--stack", type=int, default=100,
                     help="starting stack in big blinds")
+    ap.add_argument("--seed0", type=int, default=1,
+                    help="first deal seed; pair k uses seed0 + k")
+    ap.add_argument("--dump", metavar="PATH",
+                    help="write per-pair results as JSON, for tools/paired.py")
     args = ap.parse_args()
+    if args.dump and (args.ab or args.vs == "all"):
+        ap.error("--dump needs a single opponent: use --vs NAME without --ab")
 
     if args.ab:
         # Every variant faces the same decks, so the comparison between rows
@@ -383,11 +427,20 @@ if __name__ == "__main__":
         ]
         opp = OPPONENTS["reference" if args.vs == "all" else args.vs]()
         print(f"Knob sweep vs {opp.name}, {args.sims} sims/decision, duplicate-dealt, {args.stack} bb deep\n")
+        runs = []
         for label, kw in variants:
             res = duplicate_match(args.hands, PokerCpp(sims=args.sims, **kw), opp,
                                   blinds=(args.bb // 2, args.bb),
-                                  stack=args.stack * args.bb)
+                                  stack=args.stack * args.bb, seed0=args.seed0)
             report(label, res, args.bb)
+            runs.append((label, res))
+        print("\nPaired vs shipping (per-pair difference, same deals):")
+        base = runs[0][1]
+        for label, res in runs[1:]:
+            d = [x - y for x, y in zip(res, base)]
+            bb100, lo, hi = bb100_ci(d, args.bb)
+            verdict = "better" if lo > 0 else ("worse" if hi < 0 else "inconclusive")
+            print(f"{label:28s} {bb100:+8.1f} bb/100   95% CI [{lo:+.1f}, {hi:+.1f}]   {verdict}")
         sys.exit(0)
 
     names = list(OPPONENTS) if args.vs == "all" else [args.vs]
@@ -395,5 +448,9 @@ if __name__ == "__main__":
     for nm in names:
         hero = PokerCpp(sims=args.sims)  # fresh, so memory never carries between opponents
         res = duplicate_match(args.hands, hero, OPPONENTS[nm](), blinds=(args.bb // 2, args.bb),
-                             stack=args.stack * args.bb)
+                             stack=args.stack * args.bb, seed0=args.seed0)
         report(f"vs {nm}", res, args.bb)
+        if args.dump:
+            with open(args.dump, "w") as f:
+                json.dump({"seed0": args.seed0, "bb": args.bb, "stack_bb": args.stack,
+                           "opponent": nm, "results": res}, f)

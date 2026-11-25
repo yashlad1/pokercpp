@@ -68,8 +68,14 @@ void MonteCarloSimulator::runSimulation()
     // Seed once and reuse. Re-seeding a fresh mt19937 from random_device on
     // every iteration is expensive and gains nothing. The deck is built once
     // and re-shuffled in place, since dealing only reads from it.
-    std::random_device rd;
-    std::mt19937 g(rd());
+    std::mt19937 g;
+    if (seed) {
+        std::seed_seq ss{static_cast<unsigned>(seed), static_cast<unsigned>(seed >> 32)};
+        g.seed(ss);
+    } else {
+        std::random_device rd;
+        g.seed(rd());
+    }
     std::vector<Card> deck = getRemainingDeck();
 
     // Only build the combo list when the range is actually restricted. The
