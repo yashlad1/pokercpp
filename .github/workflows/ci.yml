@@ -119,3 +119,6 @@ jobs:
 
       - name: Test engine-direct against bot.py parity
         run: PYTHONPATH=chipzen python tools/test_parity.py --pairs 50
+
+      - name: Test the match blind schedule
+        run: PYTHONPATH=chipzen python tools/test_match.py
