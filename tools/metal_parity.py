@@ -4,12 +4,20 @@ Two checks, each comparing a plain CPU build against a -DUSE_METAL build:
 
 1. Decision parity. About 1,000 fixed, seeded spots go through both builds at
    20,000 sims. The two draw the same distribution from different random
-   streams, so a few decisions near a threshold may flip. Passes when the same
-   action is chosen on more than 99% of spots and every disagreement has a
-   threshold within noise of one of the returned equities.
+   streams, so a few decisions near a threshold may flip. A control (the CPU
+   build again, other engine seeds) shows how often one build flips against itself.
+   The equity difference d = metal - cpu is also averaged per spot.
 2. Bench parity. tools/bench.py plays a paired duplicate-dealt match with each
-   build as hero, same seeds, against each opponent. Passes when the 95%
-   interval of the paired difference contains 0.
+   build as hero, same seeds, against each opponent.
+
+Pass rule (fixed before the fresh-seed run of 2026-11-25; do not tune it).
+Parity passes only if all four hold:
+  (a) flips <= control + 2 SD (SD = sqrt(control)), or more than 99% same action;
+  (b) every disagreement has a threshold within the noise band of an equity;
+  (c) the mean of d is within 4 SE of 0 (SE = stdev(d)/sqrt(n)), overall and on
+      each street (preflop, flop, turn, river);
+  (d) each bench interval (95%, paired difference) contains 0.
+Local only, never in CI; exits 0 when no Metal build exists.
 
 Build both, each into its own directory (the module name is the same, so one
 process cannot hold both; this script runs each build in its own process):
@@ -94,14 +102,14 @@ def metal_active(metal_dir, tmp):
     return on != off
 
 
-def decision_parity(cpu_dir, metal_dir, n, tmp):
-    spots = make_spots(n)
+def decision_parity(cpu_dir, metal_dir, n, tmp, spot_seed=38, eo=0):
+    spots = make_spots(n, spot_seed, eo)
     p = os.path.join(tmp, "spots.json")
     json.dump(spots, open(p, "w"))
     # Control: the CPU build again on the same spots with other engine seeds. It
     # shows how often two honest runs of one implementation flip on this mix.
     p2 = os.path.join(tmp, "spots-control.json")
-    json.dump(make_spots(n, seed_offset=100000), open(p2, "w"))
+    json.dump(make_spots(n, spot_seed, eo + 100000), open(p2, "w"))
     with ThreadPoolExecutor(3) as ex:
         fc = ex.submit(run, "decide", cpu_dir, [p], None, tmp)
         fm = ex.submit(run, "decide", metal_dir, [p], None, tmp)
@@ -120,7 +128,15 @@ def decision_parity(cpu_dir, metal_dir, n, tmp):
         bad.append(dict(spot=s["seed"], cpu=c["action"], metal=g["action"], cpu_eq=c["equity"],
                         metal_eq=g["equity"], gap=min(gaps), ok=min(gaps) <= band,
                         bluff=c["bluff"] or g["bluff"]))
-    return len(spots), same, bad, band, control_flips
+    # Bias check: paired equity difference, overall and per street (by board size).
+    bias = {}
+    for name, keep in (("all", lambda s: True), ("preflop", lambda s: len(s["board"]) == 0),
+                       ("flop", lambda s: len(s["board"]) == 3), ("turn", lambda s: len(s["board"]) == 4),
+                       ("river", lambda s: len(s["board"]) == 5)):
+        d = [g["equity"] - c["equity"] for s, c, g in zip(spots, cpu, gpu) if keep(s)]
+        m, se = statistics.fmean(d), statistics.stdev(d) / math.sqrt(len(d))
+        bias[name] = (len(d), m, se, abs(m) <= 4 * se)
+    return len(spots), same, bad, band, control_flips, bias
 
 
 def bench_parity(cpu_dir, metal_dir, opp, stack, hands, sims, jobs, tmp, seed0=1):
@@ -149,6 +165,9 @@ def main():
     ap.add_argument("--cpu-dir", default=os.path.join(HERE, "..", "chipzen"))
     ap.add_argument("--metal-dir", default=os.path.join(HERE, "..", "build", "metal"))
     ap.add_argument("--spots", type=int, default=1000)
+    ap.add_argument("--spot-seed", type=int, default=38, help="spot RNG seed")
+    ap.add_argument("--engine-seed-offset", type=int, default=0,
+                    help="added to every engine seed (the control adds 100000 more)")
     ap.add_argument("--hands", type=int, default=60000, help="per opponent, per build")
     ap.add_argument("--bench-sims", type=int, default=2000)
     ap.add_argument("--seed0", type=int, default=1, help="first bench deal seed")
@@ -168,7 +187,8 @@ def main():
             print("Metal not available: the build does not reach the GPU, skipping")
             return 0
 
-        n, same, bad, band, control = decision_parity(cpu_dir, metal_dir, a.spots, tmp)
+        n, same, bad, band, control, bias = decision_parity(cpu_dir, metal_dir, a.spots, tmp,
+                                                           a.spot_seed, a.engine_seed_offset)
         print(f"Decision parity at {SIMS} sims: {same}/{n} same action ({100 * same / n:.2f}%), "
               f"{len(bad)} disagree, noise band {band:.4f} equity; "
               f"control, CPU vs CPU with other seeds: {control} disagree")
@@ -180,7 +200,12 @@ def main():
         # a CPU-vs-CPU rerun can miss that too; Metal then passes when it flips no more
         # often than the control plus two standard deviations.
         rate_ok = same / n > 0.99 or len(bad) <= control + 2 * math.sqrt(control)
-        ok = rate_ok and all(b["ok"] for b in bad)
+        print(f"Flip rule: {len(bad)} flips vs limit {control + 2 * math.sqrt(control):.1f} "
+              f"(control {control} + 2 SD) {'ok' if rate_ok else 'FAILS'}")
+        for name, (k, m, se, good) in bias.items():
+            print(f"Equity mean difference (metal - cpu), {name}, n={k}: {m:+.5f} (SE {se:.5f}, "
+                  f"{abs(m) / se:.1f} SE) {'ok' if good else 'BIASED'}")
+        ok = rate_ok and all(b["ok"] for b in bad) and all(v[3] for v in bias.values())
 
         for spec in a.vs:
             opp, stack = spec.split(":")

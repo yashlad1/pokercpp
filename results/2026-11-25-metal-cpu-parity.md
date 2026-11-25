@@ -9,7 +9,7 @@ Issue #38. Compares a plain CPU build of the engine with a `-DUSE_METAL` build (
 - **Explaining a disagreement.** The decision gates are equity against 0.30, 0.50, 0.55, 0.62 and 0.75, and realized against required. A disagreement is explained when the nearest of those is within 4 standard errors of a difference of two 20,000-sim estimates (0.020 equity).
 - **Control.** The CPU build again on the same spots with different engine seeds. It gives the flip rate of one implementation against itself on this mix.
 - **Bench parity.** `tools/bench.py` duplicate-dealt matches, hero `PokerCpp` at 2,000 sims, once per build, same deal seeds, 60,000 hands each, run as 8 processes per build (each process starts with fresh opponent memory; both builds are split the same way). Interval is on the per-pair difference, as in `tools/paired.py`.
-- **Pass rule.** More than 99% same action, or no more disagreements than the control plus two standard deviations; every disagreement explained; each bench interval contains 0.
+- **Pass rule (pre-registered).** Fixed in the commit before the fresh-seed run below; the first run's rule was changed after seeing its data, so this one is written down first. Parity passes only if all four hold: (a) flips <= control + 2 SD, or more than 99% the same action; (b) every disagreement is within the noise band; (c) the mean of d = metal equity minus CPU equity per spot is within 4 SE of 0 (SE = stdev(d)/sqrt(n)), overall and on each street (preflop, flop, turn, river); (d) each bench interval contains 0. Local only, never in CI; exits 0 when no Metal build exists.
 
 ## Decision parity
 
