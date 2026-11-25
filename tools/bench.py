@@ -630,11 +630,21 @@ if __name__ == "__main__":
                     help="with --hero bot: include the blind posts in action_history or omit them")
     ap.add_argument("--hand-number", default="full", choices=["full", "zero"],
                     help="with --hero bot: send real hand numbers or hand_number=0")
+    ap.add_argument("--realization-scale", type=float, default=1.0,
+                    help="engine hero: realization scale (1.0 = shipping)")
+    ap.add_argument("--no-bluff", action="store_true", help="engine hero: bluff_enabled=False")
+    ap.add_argument("--no-memory", action="store_true", help="engine hero: no opponent memory")
     ap.add_argument("--dump", metavar="PATH",
                     help="write per-pair results as JSON, for tools/paired.py")
     args = ap.parse_args()
     if args.dump and (args.ab or args.vs == "all"):
         ap.error("--dump needs a single opponent: use --vs NAME without --ab")
+    knobs = dict(realization_scale=args.realization_scale,
+                 bluff_enabled=not args.no_bluff, memory=not args.no_memory)
+    if args.hero == "bot" and knobs != dict(realization_scale=1.0, bluff_enabled=True, memory=True):
+        ap.error("--realization-scale/--no-bluff/--no-memory need --hero engine: chipzen/bot.py has no such knobs")
+    if args.ab and knobs != dict(realization_scale=1.0, bluff_enabled=True, memory=True):
+        ap.error("the knob flags do not apply to --ab, which sweeps them itself")
 
     if args.ab:
         # Every variant faces the same decks, so the comparison between rows
@@ -670,11 +680,11 @@ if __name__ == "__main__":
     for nm in names:
         # fresh, so memory never carries between opponents
         hero = (Bot(args.bb // 2, args.bb, args.stack * args.bb, args.sims, args.history, args.hand_number)
-                if args.hero == "bot" else PokerCpp(sims=args.sims))
+                if args.hero == "bot" else PokerCpp(sims=args.sims, **knobs))
         res = duplicate_match(args.hands, hero, OPPONENTS[nm](), blinds=(args.bb // 2, args.bb),
                              stack=args.stack * args.bb, seed0=args.seed0)
         report(f"vs {nm}", res, args.bb)
         if args.dump:
             with open(args.dump, "w") as f:
                 json.dump({"seed0": args.seed0, "bb": args.bb, "stack_bb": args.stack,
-                           "opponent": nm, "results": res}, f)
+                           "opponent": nm, "results": res, **knobs}, f)
