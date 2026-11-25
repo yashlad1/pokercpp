@@ -21,6 +21,7 @@ pokercpp.tar.gz
 __pycache__/
 tests/test_equity_exact
 tests/test_decide_properties
+tests/test_eval_exhaustive
 # image tarballs and local secrets
 *.tar.gz
 .env
