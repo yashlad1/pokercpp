@@ -30,9 +30,11 @@ Build the engine first: `PY=$PY tools/build_engine.sh`
 - [ ] `python chipzen/test_preflop_realization.py`
 - [ ] `python tools/test_paired.py`
 - [ ] `PYTHONPATH=chipzen python chipzen/test_bot_sdk.py`
-- [ ] `PYTHONPATH=chipzen python chipzen/test_replay.py` (needs #87)
+- [ ] `PYTHONPATH=chipzen python chipzen/test_replay.py`
+- [ ] `PYTHONPATH=chipzen POKERCPP_SIMS=2000 python chipzen/test_v4.py`
+- [ ] `python chipzen/test_logging.py`
 - [ ] CI green on the PR: the C++ jobs (Build and test, Strict warnings, ASan + UBSan)
-- [ ] CI green on the PR: the bot job (needs #92)
+- [ ] CI green on the PR: the bot job
 
 ## 3. Live play unchanged when a feature is off (flagged features)
 - [ ] Default build against main: the `results` arrays are identical
@@ -50,7 +52,7 @@ Build the engine first: `PY=$PY tools/build_engine.sh`
   - [ ] two seed sets
   - [ ] any significant loss flagged in the PR
 - [ ] `test_bot_sdk.py` on the candidate: 0 illegal actions, worst latency under the limit
-- [ ] Replay of live turn states on the candidate (needs #87)
+- [ ] Replay of live turn states on the candidate
 
 ## 5. Tournament format
 - [ ] `tools/match.py` freezeouts with rising blinds, candidate against main
