@@ -47,4 +47,20 @@ Preflop:
 - **Terms of use:** none were found on the API or in Slumbot's sample client. The repo owner approved this use. Pacing was kept polite.
 - **Known small inaccuracy:** in the Bot agent's history, an all-in call is labelled `call`, not `all_in`. It does not affect the result of any hand here.
 
-Eval log rows R190 and R191 (Runs sheet, unpaired: only the A columns are filled).
+## Rerun (25 Nov 2026, after merging main at 70174d7)
+
+**Local only, never in CI; calls an outside service; results are unpaired.** `tools/slumbot.py` is not in the CI workflow.
+
+Same settings as above (2000 sims, 200 bb deep, 0.2 s between hands, sequential, engine first). A 20-hand smoke first: 0 rejected, 0 mismatches. Latency about 0.11 s per request (p95 about 0.12 s).
+
+| Run | Hands | Chips | bb/100 (95% interval) | VPIP | Preflop raise | Showdown wins | Rejected / mismatches | Wall time |
+|---|---|---|---|---|---|---|---|---|
+| engine, first run | 500 | -72,276 | -144.6 [-306.2, +17.1] | 91.2% (456/500) | 22.0% (110/500) | 47 of 125 (37.6%) | 0 / 0 | 439 s |
+| engine, rerun | 500 | -104,764 | -209.5 [-431.1, +12.0] | 87.4% (437/500) | 22.2% (111/500) | 42 of 112 (37.5%) | 0 / 0 | 329 s |
+| bot, first run | 200 | -79,338 | -396.7 [-761.3, -32.1] | 88.5% (177/200) | 25.0% (50/200) | 15 of 56 (26.8%) | 0 / 0 | 170 s |
+| bot, rerun | 200 | -19,096 | -95.5 [-458.1, +267.1] | 92.5% (185/200) | 23.0% (46/200) | 18 of 39 (46.2%) | 0 / 0 | 137 s |
+
+- **Reading:** the engine rerun overlaps the first run. The bot rerun moved a lot (-396.7 to -95.5), and both bot intervals overlap, so that is sample noise on 200 random hands, not a change in the bot. Both engine reruns still lose; neither bot interval can be told apart from the engine's.
+- **Privacy:** requests carry no identifying data (urllib's default User-Agent, the anonymous session token in the body only). The token is never written to the hand log or to stdout.
+
+Eval log rows (Runs sheet, unpaired: only the A columns are filled): R296 and R297 are the two first runs carried over from the earlier rows R190 and R191 (renumbered after main's R295); R298 is the engine rerun and R299 the bot rerun.
