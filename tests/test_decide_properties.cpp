@@ -8,6 +8,11 @@
 //   range     - the opponent's credited range never widens as raises or bet
 //               size grow. Checked exhaustively, no sampling.
 //
+//   legality  - a free check never folds; a raise lies inside
+//               [min_raise, max_raise] (including the all-in-only band) and
+//               never happens when raising is closed; the nuts on the river
+//               never fold. Checked over a seeded sample of spots.
+//
 // Every engine call is seeded, so the run is deterministic.
 //
 // Run:  ./tests/test_decide_properties
@@ -158,12 +163,94 @@ void testRangeMonotonic() {
     std::printf("  checked %ld (raises, price) pairs\n", n);
 }
 
+// ---- legality --------------------------------------------------------------
+
+// Fixed-seed LCG so the sampled spots are the same on every run and platform.
+struct Lcg {
+    unsigned long long s;
+    int pick(int n) { s = s * 6364136223846793005ULL + 1442695040888963407ULL; return int((s >> 33) % n); }
+};
+
+void testLegality() {
+    std::printf("legality over a seeded sample of spots\n");
+    // No card appears in both a hole and a board.
+    const char *holes[] = {"AhAd", "QhJd", "8h6d", "Th3d", "5h5d", "8c3h", "AcKd", "JhTh"};
+    const char *boards[] = {"", "Ks7d2c", "Ks7d2c9h", "Ks7d2c9h4s"};
+    // Whole-chip values: pot a multiple of 50, price a whole fraction of it.
+    const int pots[] = {150, 500, 1200, 4000};
+    const double fracs[] = {0.0, 0.0, 0.25, 0.5, 1.0, 2.0};  // free checks are over-weighted
+    const int stacks[] = {300, 800, 1000, 5000, 20000};
+    const int bb = 100;
+    Lcg rng{2024};
+    const int N = 600;
+    int freeChecks = 0, raises = 0, shoves = 0, closed = 0;
+    for (int i = 0; i < N; ++i) {
+        const char *h = holes[rng.pick(8)];
+        const char *b = boards[rng.pick(4)];
+        const int before = pots[rng.pick(4)];
+        const int toCall = int(before * fracs[rng.pick(6)]);
+        const int stack = stacks[rng.pick(5)];
+        const int nr = rng.pick(4);
+        int minR = std::max(2 * toCall, bb), maxR = stack;   // open band
+        const int mode = rng.pick(3);
+        if (mode == 1 || minR > maxR) minR = maxR;           // only the all-in is possible
+        if (mode == 2) minR = maxR = 0;                      // raising is closed
+        const bool open = minR > 0 && maxR > 0;
+
+        // Draw a fresh 200-sim estimate; the sample size is irrelevant to legality.
+        Decision d = decideFull(cards(h), cards(b), before + toCall, toCall, minR, maxR, stack, bb,
+                                200, nr, 1.0, true, 0.0, SEED);
+        const std::string n = std::string(h) + " on '" + b + "' pot " + std::to_string(before) +
+                              " toCall " + std::to_string(toCall) + " stack " + std::to_string(stack) +
+                              " band [" + std::to_string(minR) + "," + std::to_string(maxR) + "] raises " +
+                              std::to_string(nr);
+        if (toCall == 0) { ++freeChecks; check(d.action != "fold", "free check never folds: " + n); }
+        if (d.action == "raise") {
+            ++raises;
+            check(open, "no raise when raising is closed: " + n);
+            check(d.amount >= minR && d.amount <= maxR, "raise inside band, got " + std::to_string(d.amount) + ": " + n);
+            if (minR == maxR) ++shoves;
+        }
+        if (!open) ++closed;
+    }
+    std::printf("  %d spots: %d free checks, %d raises (%d into an all-in-only band), %d raising closed\n",
+                N, freeChecks, raises, shoves, closed);
+    check(freeChecks > 100 && raises > 100 && shoves > 0 && closed > 100, "legality sample covers every case");
+}
+
+void testNutsNeverFoldOnRiver() {
+    std::printf("nuts on the river never fold\n");
+    struct Nuts { const char *hole, *board; };
+    // Royal flush, and the best possible quads on a paired-free board.
+    const Nuts NUTS[] = {{"Ts3d", "AsKsQsJs2c"}, {"AsKd", "AdAcAh7s2d"}, {"Ah2d", "KhQhJhTh3c"}};
+    const int pots[] = {150, 1200, 4000};
+    const double fracs[] = {0.0, 0.5, 1.0, 2.0, 10.0};
+    const int stacks[] = {300, 1000, 20000};
+    int n = 0;
+    for (const Nuts &w : NUTS)
+        for (int before : pots)
+            for (double f : fracs)
+                for (int stack : stacks)
+                    for (int nr = 0; nr <= 3; ++nr, ++n) {
+                        const int toCall = int(before * f);
+                        Decision d = run(cards(w.hole), cards(w.board), before + toCall, toCall,
+                                         std::max(2 * toCall, 100), 100000, stack, 100, nr);
+                        check(d.action != "fold", std::string("nuts folded: ") + w.hole + " on " + w.board +
+                                                      " pot " + std::to_string(before) + " toCall " +
+                                                      std::to_string(toCall) + " stack " + std::to_string(stack) +
+                                                      " raises " + std::to_string(nr));
+                    }
+    std::printf("  checked %d river spots\n", n);
+}
+
 } // namespace
 
 int main() {
     testChipScaling();
     testPriceMonotonic();
     testRangeMonotonic();
+    testLegality();
+    testNutsNeverFoldOnRiver();
     if (failures) { std::printf("\n%d check(s) FAILED\n", failures); return 1; }
     std::printf("\nAll decide.h property checks passed\n");
     return 0;
