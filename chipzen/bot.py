@@ -122,6 +122,7 @@ class PokerCppBot(Bot):
         self._state_logs = 0
         self._round_seen, self._round_seq = False, 0
         try:
+            logger.info("pokercpp v%s commit=%s", VERSION, os.environ.get("POKERCPP_COMMIT", "unknown"))
             seats = (match_info or {}).get("seats") or []
             logger.info(
                 "match_start seats=%s",
@@ -157,6 +158,7 @@ class PokerCppBot(Bot):
                 res.get("winner_seats"),
                 entries,
             )
+            logger.info("ROUND %s", json.dumps({k: v for k, v in res.items() if k != "action_history"}, default=str))
         except Exception:
             logger.exception("round_result log failed")
         self._turns = 0
@@ -265,7 +267,7 @@ class PokerCppBot(Bot):
 
         logger.info(
             "hand=%s phase=%s pot=%s to_call=%s bb=%s min_raise=%s max_raise=%s "
-            "stack=%s seat=%s dealer=%s opp=%s hist=%s hole=%s legal=%s "
+            "stack=%s seat=%s dealer=%s opp=%s hist=%s hole=%s board=%s legal=%s "
             "range=%s equity=%s realized=%s required=%s -> %s%s",
             state.hand_number, state.phase, state.pot, state.to_call,
             bb, getattr(state, "min_raise", None), getattr(state, "max_raise", None),
@@ -273,6 +275,7 @@ class PokerCppBot(Bot):
             getattr(state, "dealer_seat", None), getattr(state, "opponent_stacks", None),
             _hist(state),
             "".join(str(c) for c in (state.hole_cards or ())) or "NONE",
+            "".join(str(c) for c in (state.board or ())) or "-",
             ",".join(valid) or "-",
             f"{d['range']:.2f}" if d else "n/a",
             f"{d['equity']:.3f}" if d else "n/a",

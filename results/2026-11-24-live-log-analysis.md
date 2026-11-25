@@ -1,8 +1,8 @@
-# Live log analysis: four external-API matches (24 Nov 2026)
+# Live log analysis: five external-API matches (24 Nov 2026)
 
 Matches 1 and 2 are analysed in full below (stage 2). Stage 1 extracted the facts from the raw logs in `results/live-logs/`: 193 and 117 decisions, 0 illegal actions in either. The lead re-checked these claims against the parsed logs: the five biggest match 1 losses and their total, the hand 59, 65, 71, 89 and 90 decision numbers, 13 of 33 calls within 0.03 of the price, 28 of 30 preflop folds facing the 6.2 bb open, and match 2's 73 opponent folds (63 preflop).
 
-## Matches 3 and 4 (v4.0.1), short notes
+## Matches 3 to 5 (v4.0.1), short notes
 
 - **Match 3** (`2026-11-24_224546-live3.log`): won in 22 hands. The v4.0.1 short-stack fix fired once (hand 11: min_raise 9014 > max_raise 5851; the bot raised to 5851, accepted).
 - **Match 4** (`2026-11-24_224952-live-20261124-224952.log`): lost in 13 hands, 21 decisions, 0 errors.
@@ -10,9 +10,16 @@ Matches 1 and 2 are analysed in full below (stage 2). Stage 1 extracted the fact
   - **Why it fits H2/H4:** the range is "top 7% of preflop hands", which ignores what three streets of aggression on a four-to-a-straight board mean.
   - **Limps:** the opponent raised all 3 of our small-blind limps, and we folded each, as against match 1's opponent (section 4).
 
+- **Match 5** (`2026-11-24_225205-live-20261124-225205.log`): won in 121 hands, 162 decisions, 0 errors.
+  - **Opponent:** nit-like, like match 2's. It folded 51 of 60 times as small blind and 80 of 121 hands preflop. We won 99 hands, lost 20 and split 2.
+  - **Biggest loss, hand 77 (-4207):** we raised the turn with 9h8c (equity 0.763) and were called, then bet the river with the range still at 0.45 (equity 0.652) and were called. The H2 pattern again.
+  - **Wire facts:**
+    - The blinds keep rising every 20 hands: bb 600 from hand 101, 800 from hand 121.
+    - A short stack posts a partial all-in blind (`post_big_blind` 506 and 712), and the bot reads that as the bb. This is harmless: the poster is all-in, so we are left with only fold or call, and neither depends on bb.
+
 ## Correction to the data limits below
 
-The server does send opponent hole cards. The `round_result` payload carries `showdown` (each seat's `hole_cards`, `hand_rank` and `best_hand`), `stacks`, `payouts` and `deck_reveal`; the SDK's `on_round_result` docstring and conformance fixtures list them. Our logging hook logged only the length of `showdown` (`showdown=2`), so the cards were dropped by us, not withheld. Logging them closes limits (1) and (2).
+The server does send opponent hole cards. The `round_result` payload carries `showdown` (each seat's `hole_cards`, `hand_rank` and `best_hand`), `stacks`, `payouts` and `deck_reveal`; the SDK's `on_round_result` docstring and conformance fixtures list them. Our logging hook logged only the length of `showdown` (`showdown=2`), so the cards were dropped by us, not withheld. Logging them closes limits (1) and (2). From 23:05 ET bot.py logs the whole result (minus the history, which is already on the `round_result` line) as a `ROUND` json line, the board on every decision line, and the version and commit at match start; `chipzen/test_logging.py` checks all three.
 
 ---
 

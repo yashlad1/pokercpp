@@ -22,6 +22,9 @@ git -C "$REPO" check-ignore -q "$CONF/chipzen.toml" || { echo "refusing to run: 
 command -v "$SDK" >/dev/null 2>&1 || { echo "chipzen-sdk not found at $SDK: set CHIPZEN_SDK"; exit 1; }
 
 mkdir -p "$LOGDIR"
+POKERCPP_COMMIT="$(git -C "$REPO" rev-parse --short HEAD)"
+git -C "$REPO" diff --quiet HEAD -- chipzen/ || POKERCPP_COMMIT="$POKERCPP_COMMIT-dirty"
+export POKERCPP_COMMIT
 log="$LOGDIR/live-$(date +%Y%m%d-%H%M%S).log"
 echo "log: $log"
 # Run from .chipzen/: the SDK finds ./chipzen.toml there, and it is not the
