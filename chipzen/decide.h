@@ -77,6 +77,8 @@ inline double villainRangeFraction(int villainRaises, int toCall, int pot) {
     return std::max(0.05, std::min(1.0, f));
 }
 
+constexpr double kPreflopRealization = 0.75;
+
 // Share of raw equity a hand can expect to actually collect.
 //
 // Monte Carlo equity assumes every hand runs to showdown for free. It does
@@ -88,9 +90,9 @@ inline double villainRangeFraction(int villainRaises, int toCall, int pot) {
 // ponytail: depends only on the street, not on position, stack depth or
 // whether the hand is the kind that flops well. Those are the next terms if
 // this proves to matter.
-inline double equityRealization(size_t boardSize) {
+inline double equityRealization(size_t boardSize, double preflop = kPreflopRealization) {
     switch (boardSize) {
-        case 0:  return 0.75;   // preflop: three streets to navigate
+        case 0:  return preflop;   // preflop: three streets to navigate (default 0.75)
         case 3:  return 0.82;   // flop
         case 4:  return 0.90;   // turn
         default: return 1.00;   // river: showdown next, nothing left to lose
@@ -217,14 +219,15 @@ struct Decision {
 #define OPEN_MAX_BB 1e9    // open only at or under this many big blinds at hand start
 #endif
 
-// `realizationScale` and `bluffEnabled` exist so tools/bench.py can A/B them.
+// `realizationScale`, `bluffEnabled` and `preflopRealization` exist so tools/bench.py can A/B them.
 // Defaults reproduce shipping behaviour exactly.
 inline Decision decideFull(const std::vector<Card> &hole,
                           const std::vector<Card> &board,
                           int pot, int toCall, int minRaise, int maxRaise,
                           int stack, int bb, int sims, int villainRaises = 0,
                           double realizationScale = 1.0, bool bluffEnabled = true,
-                          double rangeFloor = 0.0, unsigned long long seed = 0) {
+                          double rangeFloor = 0.0, unsigned long long seed = 0,
+                          double preflopRealization = kPreflopRealization) {
     // The SDK passes to_call uncapped. Facing a bet bigger than our stack we
     // can only call the stack; the excess goes back uncalled. Without this,
     // `required` and the range's bet-size read use chips that can never be won or lost.
@@ -249,7 +252,7 @@ inline Decision decideFull(const std::vector<Card> &hole,
     // ends the betting (all-in, or raising closed): nothing is left to lose.
     const bool callEndsBetting = toCall >= stack || maxRaise <= 0;
     const double shaded = (toCall > 0 && !callEndsBetting)
-        ? equity * std::min(1.0, equityRealization(board.size()) * realizationScale)
+        ? equity * std::min(1.0, equityRealization(board.size(), preflopRealization) * realizationScale)
         : equity;
     d.realized = shaded;
 
