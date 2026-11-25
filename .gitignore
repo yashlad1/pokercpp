@@ -23,6 +23,9 @@ tests/test_equity_exact
 # image tarballs and local secrets
 *.tar.gz
 .env
+# Chipzen API token: never commit
+chipzen.toml
+.chipzen/
 
 .claude/
 
