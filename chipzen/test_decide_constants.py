@@ -116,6 +116,23 @@ def test_short_stack_weak_hand_does_not_shove():
     assert not (d["action"] == "raise" and d["amount"] == 800), d
 
 
+def _boundary(stack):
+    # 2h Qs on K-7-2: raw equity 0.59, checked to, so only the shove rule can fire
+    return decide(["2h", "Qs"], FLOP, 200, 0, min_raise=100, max_raise=stack,
+                  stack=stack, bb=100)
+
+
+def test_short_stack_boundary_shoves_at_exactly_10bb():
+    d = _boundary(1000)
+    assert 0.55 <= d["equity"] < 0.62, d
+    assert d["action"] == "raise" and d["amount"] == 1000, d
+
+
+def test_short_stack_boundary_no_shove_at_10_5bb():
+    d = _boundary(1050)
+    assert not (d["action"] == "raise" and d["amount"] == 1050), d
+
+
 def run():
     failed = 0
     for name, fn in sorted(globals().items()):
