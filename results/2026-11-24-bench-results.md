@@ -341,3 +341,25 @@ Match-mode baseline for v3 (400 matches each, assumed schedule): reference 99.2%
   - the open-on vs open-off question will be settled on fresh seeds (seed0 = 100001), 5,000+ pairs, with seeded Monte Carlo, scored by the paired per-seed difference;
   - the A-only vs A+B comparison above also used one seed set and unseeded Monte Carlo, so B's bench evidence is weak either way. B was kept as a logic fix: the bet size really was read on the wrong scale.
 - Also noted: the opponent memory's floor counts postflop bets as raises. It held a credited re-raise range near 0.41 where the step function gives 0.18. This goes with the planned raises-in-the-pot keying.
+
+## i. Fix 3's open, on vs off: fresh seeds, 5,000 pairs, paired
+
+Seeded engine builds (Monte Carlo seeded per decision, so reruns are identical), seed0 = 100001 (not the reused 1-1000), 5,000 pairs = 10,000 hands per row. "Open" = current main (small blind opens 2.5 bb at equity >= 0.50); "off" = the same build with the open disabled. The last column is the paired per-pair difference, open - off, in bb/100.
+
+| Opponent, depth | Open | Off | Open - off (95%) | Verdict |
+|---|---|---|---|---|
+| september, 100 bb | -16.0 [-31.9, -0.1] | -9.1 [-18.6, +0.3] | -6.9 [-22.9, +9.2] | inconclusive |
+| september, 15 bb | +5.8 [+0.5, +11.1] | +1.7 [-1.4, +4.9] | +4.1 [-1.1, +9.2] | inconclusive |
+| station, 100 bb | +263.9 [+248.6, +279.3] | +167.4 [+157.4, +177.5] | +96.5 [+86.9, +106.1] | open better |
+| loosepassive, 100 bb | +263.9 [+248.6, +279.3] | +167.4 [+157.4, +177.5] | +96.5 [+86.9, +106.1] | open better |
+| reference, 15 bb | +52.9 [+50.6, +55.3] | +38.5 [+35.4, +41.6] | +14.4 [+12.1, +16.7] | open better |
+| reference, 100 bb | +53.1 [+48.7, +57.6] | +39.5 [+34.3, +44.6] | +13.7 [+10.3, +17.0] | open better |
+| nit, 100 bb | +60.2 [+53.8, +66.6] | +50.7 [+45.1, +56.3] | +9.4 [+7.1, +11.8] | open better |
+| aggro, 15 bb | +24.0 [+10.3, +37.7] | -9.5 [-21.8, +2.7] | +33.5 [+24.3, +42.8] | open better |
+| maniac, 15 bb | +83.0 [+69.0, +97.1] | +82.1 [+68.0, +96.1] | +1.0 [+0.1, +1.8] | open better (barely) |
+
+Match mode vs september (200 pairs, seed0 100001, assumed schedule): open 199/400 = 49.8% [44.9%, 54.6%]; off 201/400 = 50.2% [45.4%, 55.1%].
+
+The station and loosepassive rows are identical to the digit. This is not a mix-up: each chunk's dump carries its own opponent label. With seeded Monte Carlo, and a bot that never bets more than about 2/3 pot at 100 bb, the two opponents act identically (loosepassive only folds to bets above pot).
+
+Verdict: the open clearly helps against six scripted opponents and makes no detectable difference against the September build, in chips or matches. Fix 3 stays; no tuning of the open.
