@@ -77,6 +77,8 @@ inline double villainRangeFraction(int villainRaises, int toCall, int pot) {
     return std::max(0.05, std::min(1.0, f));
 }
 
+constexpr double kPreflopRealization = 0.75;
+
 // Share of raw equity a hand can expect to actually collect.
 //
 // Monte Carlo equity assumes every hand runs to showdown for free. It does
@@ -88,8 +90,6 @@ inline double villainRangeFraction(int villainRaises, int toCall, int pot) {
 // ponytail: depends only on the street, not on position, stack depth or
 // whether the hand is the kind that flops well. Those are the next terms if
 // this proves to matter.
-constexpr double kPreflopRealization = 0.75;
-
 inline double equityRealization(size_t boardSize, double preflop = kPreflopRealization) {
     switch (boardSize) {
         case 0:  return preflop;   // preflop: three streets to navigate (default 0.75)

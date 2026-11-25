@@ -103,7 +103,8 @@ class PokerCpp:
     """The real engine, with its knobs exposed so variants can be compared."""
 
     def __init__(self, sims=2000, name="pokercpp", realization_scale=1.0,
-                 bluff_enabled=True, memory=True):
+                 bluff_enabled=True, memory=True, preflop_realization=None):
+        self.preflop_realization = preflop_realization
         self.memory = Opponent() if memory else None
         self.sims = sims
         self.name = name
@@ -123,6 +124,8 @@ class PokerCpp:
             realization_scale=self.realization_scale,
             bluff_enabled=self.bluff_enabled, range_floor=floor,
             seed=self.seeder.next(v.hand),
+            **({} if self.preflop_realization is None
+               else {"preflop_realization": self.preflop_realization}),
         )
         return d["action"], d["amount"]
 
@@ -632,6 +635,8 @@ if __name__ == "__main__":
                     help="with --hero bot: send real hand numbers or hand_number=0")
     ap.add_argument("--realization-scale", type=float, default=1.0,
                     help="engine hero: realization scale (1.0 = shipping)")
+    ap.add_argument("--preflop-realization", type=float, default=None,
+                    help="engine hero: preflop realization (unset = shipping 0.75)")
     ap.add_argument("--no-bluff", action="store_true", help="engine hero: bluff_enabled=False")
     ap.add_argument("--no-memory", action="store_true", help="engine hero: no opponent memory")
     ap.add_argument("--dump", metavar="PATH",
@@ -640,10 +645,12 @@ if __name__ == "__main__":
     if args.dump and (args.ab or args.vs == "all"):
         ap.error("--dump needs a single opponent: use --vs NAME without --ab")
     knobs = dict(realization_scale=args.realization_scale,
-                 bluff_enabled=not args.no_bluff, memory=not args.no_memory)
-    if args.hero == "bot" and knobs != dict(realization_scale=1.0, bluff_enabled=True, memory=True):
-        ap.error("--realization-scale/--no-bluff/--no-memory need --hero engine: chipzen/bot.py has no such knobs")
-    if args.ab and knobs != dict(realization_scale=1.0, bluff_enabled=True, memory=True):
+                 bluff_enabled=not args.no_bluff, memory=not args.no_memory,
+                 preflop_realization=args.preflop_realization)
+    defaults = dict(realization_scale=1.0, bluff_enabled=True, memory=True, preflop_realization=None)
+    if args.hero == "bot" and knobs != defaults:
+        ap.error("--realization-scale/--preflop-realization/--no-bluff/--no-memory need --hero engine: chipzen/bot.py has no such knobs")
+    if args.ab and knobs != defaults:
         ap.error("the knob flags do not apply to --ab, which sweeps them itself")
 
     if args.ab:

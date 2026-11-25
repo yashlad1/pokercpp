@@ -20,4 +20,23 @@ In live match 1, 28 of 30 preflop folds faced a 6.2 bb open. Does a smaller pref
     python tools/paired.py <baseline.json> <variant.json>
 
 ## Results
-(Filled in after the runs.)
+Gain is variant minus 0.75 on the same deals. `tools/paired.py` prints baseline minus variant, so its sign is flipped here.
+
+| Opponent | Seed | Variant | bb/100 [95% CI] | Gain vs 0.75, bb/100 [95% CI] |
+|---|---|---|---|---|
+| aggro | 700001 | 0.75 | +19.4 [-2.1, +40.8] | baseline |
+| aggro | 700001 | 0.85 | +43.4 [+20.3, +66.6] | +24.1 [+7.7, +40.5] |
+| aggro | 700001 | 0.95 | +49.4 [+27.3, +71.6] | +30.1 [+9.2, +51.0] |
+| aggro | 710001 | 0.75 | +14.4 [-7.5, +36.4] | baseline |
+| aggro | 710001 | 0.85 | +52.0 [+29.2, +74.8] | +37.5 [+20.7, +54.4] |
+| aggro | 710001 | 0.95 | +47.7 [+25.3, +70.0] | +33.2 [+12.4, +54.1] |
+| reference | 700001 | 0.75 | +53.9 [+50.1, +57.8] | baseline |
+| reference | 700001 | 0.85 | +54.6 [+50.2, +59.0] | +0.7 [-1.5, +2.9] |
+| reference | 700001 | 0.95 | +54.4 [+49.8, +59.1] | +0.5 [-2.3, +3.4] |
+| reference | 710001 | 0.75 | +54.1 [+50.3, +57.9] | baseline |
+| reference | 710001 | 0.85 | +54.7 [+50.5, +59.0] | +0.6 [-1.3, +2.6] |
+| reference | 710001 | 0.95 | +56.2 [+51.6, +60.7] | +2.1 [-0.7, +4.8] |
+
+**Verdict:** 0.85 and 0.95 both pass the rule (aggro gain interval above 0 on both seed sets; reference gain at or above 0 on both). 0.95's aggro gain is larger on seed 700001 (+30.1 against +24.1) but not on 710001 (+33.2 against +37.5), so the tie-break picks 0.85: **adopted 0.85** (recommended only; the live bot is unchanged).
+
+Run time: each run took 14 to 20 seconds, with 8 to 12 runs going in parallel.
