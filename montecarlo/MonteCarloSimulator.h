@@ -4,6 +4,9 @@
 #include "../model/card.h"
 #include <vector>
 #include <utility>  // for std::pair
+#ifdef USE_METAL
+#include "metal/MetalEquity.h"
+#endif
 
 class MonteCarloSimulator
 {
@@ -13,6 +16,11 @@ public:
                         int simulations = 10000);
 
     void runSimulation();
+
+#ifdef USE_METAL
+    // This simulation as a GPU job (range, seed and trial count included).
+    EquityJob metalJob() const;
+#endif
 
     // Fix the generator's seed so a run is repeatable (bench only). 0, the
     // default, seeds from std::random_device as before.

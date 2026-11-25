@@ -61,9 +61,35 @@ std::vector<std::pair<Card, Card>> MonteCarloSimulator::villainCombos(
     return combos;
 }
 
+#ifdef USE_METAL
+EquityJob MonteCarloSimulator::metalJob() const
+{
+    std::vector<Card> deck = getRemainingDeck();
+    std::vector<std::pair<Card, Card>> combos;
+    if (villainRangeFraction < 1.0) combos = villainCombos(deck);
+    if (combos.empty()) {  // range 1.0, or a range emptied by our own cards
+        for (size_t i = 0; i < deck.size(); ++i)
+            for (size_t j = i + 1; j < deck.size(); ++j)
+                combos.emplace_back(deck[i], deck[j]);
+    }
+    return EquityJob{{playerHand[0], playerHand[1]}, communityCards, std::move(combos),
+                     numSimulations, seed};
+}
+#endif
+
 void MonteCarloSimulator::runSimulation()
 {
     winCount = tieCount = loseCount = 0;
+
+#ifdef USE_METAL
+    if (numSimulations > 0 && playerHand.size() == 2 && metalAvailable()) {
+        EquityResult r = metalEquityBatch({metalJob()})[0];
+        winCount = r.wins;
+        tieCount = r.ties;
+        loseCount = r.trials - r.wins - r.ties;
+        return;
+    }
+#endif
 
     // Seed once and reuse. Re-seeding a fresh mt19937 from random_device on
     // every iteration is expensive and gains nothing. The deck is built once
