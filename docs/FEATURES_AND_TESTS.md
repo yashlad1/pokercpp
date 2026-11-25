@@ -2,15 +2,14 @@
 
 This is the per-feature map of the Chipzen bot: what each behaviour is, which test covers it, what could break without a test failing, and which tests to add.
 
-`docs/TESTING_CHECKLIST.md` (branch `docs/testing-checklist`, PR #100) is the per-change process: what to run before a change merges. This file is the other axis: given a feature, what protects it. Use the checklist to ship a change and this file to find holes.
+`docs/TESTING_CHECKLIST.md` (PR #100) is the per-change process: what to run before a change merges. This file is the other axis: given a feature, what protects it. Use the checklist to ship a change and this file to find holes.
 
-Read it as of origin/main at c3a887b (2026-11-25). Line numbers are for that commit.
+Read it as of origin/main at c3a887b (2026-11-25). Line numbers are for that commit. PR #100 (838976d) changed only `ci.yml` and the checklist after it.
 
 ## Conventions
 
 - **Added**: the first commit that introduced the identifier (`git log -S`), or the PR/issue. A star means added on 2026-11-25: preflop-only realization (#97, PR #98), `--preflop-realization`, the CI bot job (#92) and its tests, the replay test (#87), the decide-properties test.
-- **CI?** is read from `.github/workflows/ci.yml` on origin/main. Jobs: `test` (`make test`), `strict`, `sanitizers` (`make test-asan`), `bot` (solver, SDK, v4, logging, engine seed, replay).
-- **Not in CI on main**: `chipzen/test_preflop_realization.py` and `tools/test_paired.py`. PR #100 (commit 5e00d2c) adds them to the bot job.
+- **CI?** is read from `.github/workflows/ci.yml` on origin/main. Jobs: `test` (`make test`), `strict`, `sanitizers` (`make test-asan`), `bot` (solver, SDK, v4, logging, engine seed, replay, preflop realization, paired). PR #100 added the last two.
 - Files in the table headers: `decide.h` = `chipzen/decide.h`, `bot.py` = `chipzen/bot.py`, `solver` = `chipzen/test_solver.py`, `sdk` = `test_bot_sdk.py`, `v4` = `test_v4.py`, `props` = `tests/test_decide_properties.cpp`.
 - Test cost: **cheap** = under a minute, runs in CI. **bench** / **match** = needs bench or match time, not CI.
 - On main, every existing test passed when run for this document (see the end).
@@ -21,8 +20,8 @@ Read it as of origin/main at c3a887b (2026-11-25). Line numbers are for that com
 |---|---|---|---|---|---|---|
 | D1 | Opponent range by raise count: 100% / 45% / 18% / 8%, floor 5% | decide.h:60-77 | 39ae255 | solver loose vs tight, props range monotonic (yes) | Exact cut values and the 0.05 floor not pinned | Cheap unit: `villainRangeFraction(0..3,0,0)` equals 1.0/.45/.18/.08; huge raises gives 0.05 |
 | D2 | Bet-size factor: bet over 75% of the pot-before x0.7, under 35% x1.3 | decide.h:71-75 | e1d32bd | solver pot-size case, props price band (yes) | The 0.35 and 0.75 edges and 1.3 factor untested | Cheap unit: bet 0.34/0.35/0.75/0.76 of pot gives expected factor |
-| D3 | Realization by street: preflop 0.75, flop 0.82, turn 0.90, river 1.0 | decide.h:93-100 | 39ae255 | preflop test: flop 0.82, preflop 0.75 (preflop test not in CI) | Turn 0.90 and river 1.0 never asserted | Cheap unit: `realized/equity` ratio on turn and river spots; add to the CI bot job |
-| D4 | Preflop-only realization setting, default 0.75 (`kPreflopRealization`) | decide.h:80,230 | * #97, PR #98 | `test_preflop_realization.py`: default equals 0.75, ratio, flop ignores it, TT fold flips (not in CI on main; PR #100 adds) | Not run by CI on main | Cheap: merge PR #100. Bench-paired 0.75 vs 0.95 at 15bb for strength |
+| D3 | Realization by street: preflop 0.75, flop 0.82, turn 0.90, river 1.0 | decide.h:93-100 | 39ae255 | preflop test: flop 0.82, preflop 0.75 (yes) | Turn 0.90 and river 1.0 never asserted | Cheap unit: `realized/equity` ratio on turn and river spots; add to the CI bot job |
+| D4 | Preflop-only realization setting, default 0.75 (`kPreflopRealization`) | decide.h:80,230 | * #97, PR #98 | `test_preflop_realization.py`: default equals 0.75, ratio, flop ignores it, TT fold flips (yes) | Live bot never passes it, so only the default matters live (W18) | None beyond D3; strength measured in #81/#82 |
 | D5 | Realization scale and bluff on/off knobs, defaults match shipping | decide.h:228-229 | 42d8d18 | props and solver use defaults only (yes) | Non-default knobs only used by bench; default equal to omitted not tested | Cheap unit: explicit defaults equal omitted args on 5 spots |
 | D6 | Call that ends the betting uses raw equity (to_call >= stack or max_raise <= 0) | decide.h:253-258 | 50b3d53 | solver ENDS (all-in call, closed raise, control that folds) (yes) | Boundary `toCall == stack` exactly, and `max_raise == 0` with stack deep | Cheap unit: to_call = stack and stack+1 give same action; max_raise 0 vs 1 differ |
 | D7 | Cap to_call at our stack, cut pot by the excess | decide.h:234 | 4e686ba | solver CAP: over-report equals capped (yes) | `stack == 0` skips the cap; negative to_call not tried | Cheap property: random to_call above stack gives identical Decision |
@@ -92,15 +91,15 @@ Read it as of origin/main at c3a887b (2026-11-25). Line numbers are for that com
 | T1 | `bench.py`: duplicate-dealt bench over pokerkit, bb/100 with 95% CI | tools/bench.py:467-600 | c057f40 | none direct; `--hero bot` exercises the adapter (no) | Engine game rules (min raise after all-in, side pots) trusted | Cheap: tiny pokerkit hand with known result; bench 20 hands smoke |
 | T2 | Bench knobs: `--hands --sims --vs --ab --bb --stack --seed0 --hero --history --hand-number --realization-scale --no-bluff --no-memory --dump` | tools/bench.py:618-648 | c057f40, 42d8d18 | none (no) | Flag misuse rejected only by argparse checks | Cheap: `--dump` with `--vs all` errors; `--hero bot` with knobs errors |
 | T3 | `--preflop-realization` flag | tools/bench.py:638 | * 64b9342 (#97, #81) | none (no) | Flag value reaching the engine unchecked | Cheap: 4-hand run with 0.75 equals no flag; bench-paired 0.75 vs 0.95 |
-| T4 | `paired.py`: per-pair difference of two dumps with 95% CI | tools/paired.py | 42d8d18 | `tools/test_paired.py` (not in CI on main; PR #100 adds) | Not run in CI | Cheap: merge PR #100 |
+| T4 | `paired.py`: per-pair difference of two dumps with 95% CI | tools/paired.py | 42d8d18 | `tools/test_paired.py` (yes) | None | None |
 | T5 | `match.py`: freezeout matches, rising blinds, scored by wins | tools/match.py | c080980 | none (no) | Assumed blind schedule, not Chipzen's | Match: 20-pair smoke vs nit; check winner count and hand cap |
 | T6 | `evlog.py`: xlsx eval log appender | tools/evlog.py | 46b763b | none (no) | Wrong row or CI maths goes into the permanent log | Cheap: append a known dump pair to a temp xlsx, read back |
 | T7 | `build_engine.sh` (default, native, `--metal`) | tools/build_engine.sh | d350b5f | CI runs it with `PY=python` (yes) | `native` and `--metal` modes not run in CI | Cheap local: run `native` once per release |
 | T8 | `docker_local.sh`: arm64 image plus sdk and v4 tests | tools/docker_local.sh | d350b5f | none (no) | Runs only on the owner's Mac | Image, manual before each upload |
 | T9 | `fuzz_bot.py`, `import_logs.py`, `play_match.sh`, `run_live.sh` | tools/ | 0ec5741, 41c0881, ca65053, 8e53764 | none (no) | Fuzz script is the only crash test of `decide` and is manual | Cheap: run `fuzz_bot.py` in CI for 200 states |
 | T10 | Replay test on logged live states | chipzen/test_replay.py, fixtures | * #87, 58316a8 | `test_replay.py`: legal action, raise in band, bb matches, no ENGINE FAILED, under 100ms (yes) | One fixture day, 325 states, 96% same action (informational) | Cheap: add a fixture per match day, esp. one with antes and short stacks |
-| T11 | CI bot job | .github/workflows/ci.yml:52-100 | * #92 | self (yes) | Not run on image; two tests missing until PR #100 | Cheap: merge PR #100 |
-| T12 | Testing checklist | docs/TESTING_CHECKLIST.md | * PR #100, pending | n/a | Process only | None |
+| T11 | CI bot job | .github/workflows/ci.yml:52-100 | * #92 | self (yes) | Not run on the image | Image: see P1 |
+| T12 | Testing checklist | docs/TESTING_CHECKLIST.md | * PR #100 | n/a | Process only | None |
 | T13 | Decide properties: x10 chip scaling, price monotone, range monotone | tests/test_decide_properties.cpp | * 93aaad0 (#66) | `make test`, `make test-asan` (yes) | Properties cover decide.h only, not bot.py | Cheap: add a property for `_to_action` legality |
 
 ## Priority gaps
@@ -113,8 +112,7 @@ Read it as of origin/main at c3a887b (2026-11-25). Line numbers are for that com
 6. **Big-blind read (W3) under antes and escalating blinds.** One live fixture day. `self.ante` subtraction and the 3rd-step derivation have no ante test. A wrong bb moves the short-stack shove zone and the 2.5bb open.
 7. **Opponent memory (O1, O2) has no direct unit test.** One test (v4 T9) covers it through the bot. `PRIOR_HANDS=3`, the max-per-hand rule and the reset between matches can change without a failure.
 8. **Decision constants are unpinned (D1-D3, D10, D13).** The 0.62 value bet, 0.66 sizing, 0.75 raise equity, and the turn 0.90 and river 1.00 realization could change with no test failing. Only a bench would notice. Add exact-value unit tests.
-9. **Two existing tests are not in CI on main (D4, T4).** `test_preflop_realization.py` and `tools/test_paired.py` run only when someone runs them. PR #100 fixes this.
-10. **`POKERCPP_SIMS` with a non-number crashes at import (W16).** That would fail before the first hand. Decide the behaviour and test it.
+9. **`POKERCPP_SIMS` with a non-number crashes at import (W16).** That would fail before the first hand. Decide the behaviour and test it.
 
 ## Test run on main
 
