@@ -97,4 +97,10 @@ jobs:
           PYTEST_ADDOPTS: chipzen/test_engine_seed.py
 
       - name: Test replay
-        run: '[ ! -f chipzen/test_replay.py ] || PYTHONPATH=chipzen python chipzen/test_replay.py'
+        run: PYTHONPATH=chipzen python chipzen/test_replay.py
+
+      - name: Test the preflop realization
+        run: python chipzen/test_preflop_realization.py
+
+      - name: Test the paired comparison
+        run: python tools/test_paired.py
