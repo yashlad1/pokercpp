@@ -299,7 +299,6 @@ class PokerCppBot(Bot):
                 return make()
         if "raise" in valid:
             lo, _ = _raise_band(state, valid)
-            lo = lo or int(state.your_stack or 0)  # no band given: shove the stack
             if lo > 0:
                 return Action.raise_to(lo)
         return Action.fold()
