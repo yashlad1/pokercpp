@@ -41,6 +41,7 @@ TEST_HAND = tests/test_hand_evaluator
 TEST_GAME = tests/test_game_logic
 TEST_EQUITY = tests/test_equity_exact
 TEST_PROPS = tests/test_decide_properties
+TEST_EXHAUSTIVE = tests/test_eval_exhaustive
 
 # Main game target
 $(TARGET): $(SRC)
@@ -70,8 +71,14 @@ test_decide_properties: tests/test_decide_properties.cpp chipzen/decide.h $(LIB_
 	$(CXX) $(CXXFLAGS) tests/test_decide_properties.cpp $(LIB_SRC) -o $(TEST_PROPS)
 	./$(TEST_PROPS)
 
+# Counts all 133,784,560 seven-card hands against the published category totals.
+# Built with -O2: ~2.5s optimised, ~19s without.
+test_eval_exhaustive: tests/test_eval_exhaustive.cpp model/fast_eval.h model/advanced_hand_evaluator.cpp model/card.cpp
+	$(CXX) $(CXXFLAGS) -O2 tests/test_eval_exhaustive.cpp model/advanced_hand_evaluator.cpp model/card.cpp -o $(TEST_EXHAUSTIVE)
+	./$(TEST_EXHAUSTIVE)
+
 # Run all tests
-test: test_hand_evaluator test_monte_carlo test_game_logic test_equity_exact test_decide_properties
+test: test_hand_evaluator test_monte_carlo test_game_logic test_equity_exact test_decide_properties test_eval_exhaustive
 	@echo "\n=== All Tests Passed ==="
 
 # Every test binary rebuilt with AddressSanitizer + UndefinedBehaviorSanitizer.
@@ -99,8 +106,8 @@ strict:
 run: $(TARGET)
 	./$(TARGET)
 
-.PHONY: test test_decide_properties test-asan strict run clean
+.PHONY: test test_decide_properties test_eval_exhaustive test-asan strict run clean
 
 clean:
-	rm -f $(TARGET) $(TEST_MC) $(TEST_HAND) $(TEST_GAME) $(TEST_EQUITY) $(TEST_PROPS)
+	rm -f $(TARGET) $(TEST_MC) $(TEST_HAND) $(TEST_GAME) $(TEST_EQUITY) $(TEST_PROPS) $(TEST_EXHAUSTIVE)
 	rm -rf $(ASAN_DIR)
