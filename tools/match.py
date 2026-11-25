@@ -1,7 +1,8 @@
 """Match mode: full freezeout matches with rising blinds, scored by match wins.
 
-ASSUMED SCHEDULE: Chipzen's rules say blinds escalate on a fixed schedule but give
-neither the schedule nor the starting stack, so the values below are placeholders.
+Default schedule = the live Chipzen one (observed in 7 matches, issue #13): 100 bb
+stack, the big blind steps every 20 hands 100/150/200/300/400/600/800. --double-every N
+selects the old doubling-from-the-start-bb schedule instead.
 
 Each match is played twice with the same per-hand seeds and the seats swapped
 (the other agent holds the button first), so card luck cancels within a pair.
@@ -15,11 +16,16 @@ import sys
 
 from bench import OPPONENTS, Bot, PokerCpp, play_hand
 
-START_BB, FIRST_BB, DOUBLE_EVERY = 100, 100, 25  # stack in bb, big blind, hands per level
+START_BB, FIRST_BB, DOUBLE_EVERY = 100, 100, None  # stack in bb, big blind, hands per doubling (None = live steps)
 
 
 def blinds_for(hand_no):
-    bb = FIRST_BB * 2 ** ((hand_no - 1) // DOUBLE_EVERY)
+    if DOUBLE_EVERY:
+        bb = FIRST_BB * 2 ** ((hand_no - 1) // DOUBLE_EVERY)
+    else:
+        # ponytail: levels past 140 (index 7+) are extrapolated (each pair doubles), never observed live
+        k = (hand_no - 1) // 20
+        bb = FIRST_BB * 2 ** (k // 2) * (3 if k % 2 else 2) // 2
     return (bb // 2, bb)
 
 
@@ -81,9 +87,12 @@ if __name__ == "__main__":
     ap.add_argument("--seed0", type=int, default=1)
     ap.add_argument("--hero", default="engine", choices=["engine", "bot"],
                     help="engine: call the C++ engine directly; bot: run chipzen/bot.py")
+    ap.add_argument("--start-bb", type=int, default=FIRST_BB, help="first big blind (stack is 100 of them)")
+    ap.add_argument("--double-every", type=int, help="double the bb every N hands (default: live Chipzen steps)")
     a = ap.parse_args()
-    print(f"ASSUMED SCHEDULE: {START_BB} bb start, blinds {blinds_for(1)[0]}/{blinds_for(1)[1]} "
-          f"doubling every {DOUBLE_EVERY} hands, no antes, hand cap {a.hand_cap}", flush=True)
+    FIRST_BB, DOUBLE_EVERY = a.start_bb, a.double_every
+    sched = f"doubling every {DOUBLE_EVERY} hands" if DOUBLE_EVERY else "live Chipzen steps every 20 hands"
+    print(f"Schedule: {START_BB} bb start, bb {FIRST_BB}, {sched}, no antes, hand cap {a.hand_cap}", flush=True)
     for nm in (list(OPPONENTS) if a.vs == "all" else [a.vs]):
         run(nm, a.matches, a.hand_cap, a.sims, a.seed0, a.hero)
         sys.stdout.flush()
