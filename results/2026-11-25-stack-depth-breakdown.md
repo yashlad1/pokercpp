@@ -2,7 +2,7 @@
 
 **Question:** how does today's bot do at 10, 15, 25, 50 and 100 bb against each bench opponent? (#80, parent #17.)
 
-**Method:** engine hero (matches `--hero bot` per the parity test), `tools/bench.py --stack N`, 2000 sims, 2000 hands (1000 seat-swapped pairs) per cell, seed0 700001, one dump per run. Apple M4, CPU Monte Carlo, 4 runs in parallel; each run took 5 to 26 s, all 40 runs 121 s wall. Build is origin/main at dec4c2b. Eval log rows R190 to R229, experiment "stack-depth breakdown", logged as single runs.
+**Method:** engine hero (matches `--hero bot` per the parity test), `tools/bench.py --stack N`, 2000 sims, 2000 hands (1000 seat-swapped pairs) per cell, seed0 700001, one dump per run. Apple M4, CPU Monte Carlo, 4 runs in parallel; each run took 5 to 26 s, all 40 runs 121 s wall. Build is origin/main at dec4c2b. Eval log rows R256 to R295, experiment "stack-depth breakdown", logged as single runs.
 
 bb/100 with 95% interval:
 
@@ -22,4 +22,4 @@ bb/100 with 95% interval:
 - **50 bb:** the gap closes against aggro (+232) and maniac (+349); the weakest cells are the loose bluffers (+37 to +38), and reference is flat near +54.
 - **100 bb:** the gap against aggro and maniac is largest in absolute terms (+608, +750) but also the widest intervals; the weakest cells are again the loose bluffers (+40) and reference (+55).
 - **Pattern:** against reference and nit the result is flat across depth (about +50 to +70). Against the loose-aggressive types it climbs steeply with depth, so short stacks are where the bot is least ahead.
-- **Check before relying on it:** station and loosepassive give identical numbers at 15, 25, 50 and 100 bb (and station is identical at 50 and 100 bb), which looks like the two opponents act the same against this bot on these deals; not investigated here.
+- **Identical cells (checked, real):** station and loosepassive differ only when the opponent faces a bet larger than the pot (loosepassive folds, station calls). From 15 bb up the bot never bet more than the pot against station (largest bet faced about 0.9 of the pot at 15 bb, 0.75 at 50 and 100 bb), so the two opponents played the same hands and the per-pair results are identical, array for array; at 10 bb shoves exceed the pot and they differ. Station at 50 and 100 bb is identical for the same reason: the largest bet the bot made was 17.75 bb at both depths, never all-in, so the deeper stack was never reached. Reruns of station 15/50/100 and loosepassive 15 reproduced the table exactly.
