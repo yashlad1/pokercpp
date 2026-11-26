@@ -16,8 +16,8 @@
  {
   "id": "M2",
   "file": "chipzen/bot.py",
-  "find": "(\"raise\", \"bet\", \"all_in\")",
-  "replace": "(\"raise\", \"bet\")",
+  "find": "if entry.get(\"action\") in (\"raise\", \"bet\", \"all_in\")",
+  "replace": "if entry.get(\"action\") in (\"raise\", \"bet\")",
   "what": "villain raises count only raise/bet",
   "expect": [
    "parity",
@@ -28,8 +28,8 @@
  {
   "id": "M3",
   "file": "chipzen/bot.py",
-  "find": "    return n\n",
-  "replace": "    return min(n, 1)\n",
+  "find": "\"all_in\"):\n            n += 1\n    return n\n",
+  "replace": "\"all_in\"):\n            n += 1\n    return min(n, 1)\n",
   "what": "villain raises capped at 1",
   "expect": [
    "parity",
