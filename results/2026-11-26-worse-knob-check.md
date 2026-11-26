@@ -55,6 +55,10 @@ vs aggro: discordant A-only 0, B-only 244, p=0.0000 (McNemar exact), 400 matches
 
 Default won 275 and 246 of 400; the knob won 1 and 2 of 400. Here the knob has no discordant wins and 274 and 244 discordant losses.
 
+## Confirmatory run, pre-stated after the reference run saturated
+
+Confirmatory, pre-stated after the reference run saturated: vs aggro, seeds 870001 and 880001, 200 pairs per build and seed, --hero engine, the same two builds. Expect the knob's discordant losses (B-only) to far exceed its wins (A-only), with McNemar p < 0.05 on both seeds.
+
 ## Conclusion
 
 - **Chips report: passes.** `paired.py` prints `worse` on both seeds, -21.1 and -22.3 bb/100 with intervals clear of zero.
