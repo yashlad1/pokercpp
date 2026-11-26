@@ -47,6 +47,7 @@ TESTS = {
     "wire": (["{py}", "chipzen/test_wire.py"], {"PYTHONPATH": "chipzen"}, 600),
     "parity": (["{py}", "tools/test_parity.py", "--pairs", "50"], {"PYTHONPATH": "chipzen"}, 1200),
     "match": (["{py}", "tools/test_match.py"], {"PYTHONPATH": "chipzen"}, 600),
+    "wire_default": (["{py}", "tools/test_wire_default.py"], {"PYTHONPATH": "chipzen"}, 600),
     "decide_properties": (["make", "test_decide_properties"], {}, 900),
     "eval_exhaustive": (["make", "test_eval_exhaustive"], {}, 900),
     "eval_order": (["make", "test_eval_order"], {}, 900),
