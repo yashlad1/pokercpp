@@ -4,6 +4,7 @@ Same seeds, faithful mode (full history, real hand numbers), against reference,
 maniac, aggro and random: per-pair results and every (action, amount) decision must match
 exactly. bench --hero bot minus --hero engine was +0.0 in the v4 release (G2).
 
+Runs in both wire modes: "bench" (today's shape) and "live" (what the live server sends).
 Run: PYTHONPATH=chipzen python tools/test_parity.py [--pairs 50] [--sims 200]
      BOT_PY=/path/to/bot_copy.py ... tests a patched copy of chipzen/bot.py.
      --pairs 1000 is the record run.
@@ -32,10 +33,10 @@ if os.environ.get("BOT_PY"):  # Bot does `import bot`, so seat the copy in sys.m
 BB, STACK = 100, 100
 
 
-def play(kind, opp):
+def play(kind, opp, wire):
     bench.HAND_IDS = itertools.count()  # same hand ids, so the same engine seeds
     bench.pokercpp_engine.decide = bench.REAL_DECIDE  # Bot() leaves its wrapper behind
-    hero = (bench.Bot(BB // 2, BB, STACK * BB, args.sims, "full", "full")
+    hero = (bench.Bot(BB // 2, BB, STACK * BB, args.sims, "full", "full", wire=wire)
             if kind == "bot" else bench.PokerCpp(sims=args.sims))
     log, act = [], hero.act
 
@@ -52,13 +53,19 @@ def play(kind, opp):
 
 
 fails = 0
-for opp in ("reference", "maniac", "aggro", "random"):
-    t = time.time()
-    (er, el), (br, bl) = play("engine", opp), play("bot", opp)
-    bad_pairs = sum(a != b for a, b in zip(er, br))
-    bad_acts = sum(a != b for a, b in zip(el, bl)) + abs(len(el) - len(bl))
-    ok = er == br and el == bl
-    fails += not ok
-    print(f"{'PASS' if ok else 'FAIL'}: {opp}: {len(er)} pairs, {len(el)} decisions, "
-          f"{bad_pairs} pair mismatches, {bad_acts} action mismatches ({time.time() - t:.1f}s)")
+for wire in ("bench", "live"):
+    for opp in ("reference", "maniac", "aggro", "random"):
+        t = time.time()
+        try:
+            (er, el), (br, bl) = play("engine", opp, wire), play("bot", opp, wire)
+        except Exception as e:  # e.g. Bot has no wire keyword yet: count as a failure
+            fails += 1
+            print(f"FAIL: wire={wire}: {opp}: {type(e).__name__}: {e}")
+            continue
+        bad_pairs = sum(a != b for a, b in zip(er, br))
+        bad_acts = sum(a != b for a, b in zip(el, bl)) + abs(len(el) - len(bl))
+        ok = er == br and el == bl
+        fails += not ok
+        print(f"{'PASS' if ok else 'FAIL'}: wire={wire}: {opp}: {len(er)} pairs, {len(el)} decisions, "
+              f"{bad_pairs} pair mismatches, {bad_acts} action mismatches ({time.time() - t:.1f}s)")
 sys.exit(1 if fails else 0)
