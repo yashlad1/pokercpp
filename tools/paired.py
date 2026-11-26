@@ -40,6 +40,8 @@ def main():
         for k in ("sims", "hero", "history", "hand_number", "impl"):
             if ma[k] != mb[k]:
                 sys.exit(f"cannot pair: meta.{k} differs ({ma[k]!r} vs {mb[k]!r})")
+        if ma.get("wire", "bench") != mb.get("wire", "bench"):
+            sys.exit(f"cannot pair: meta.wire differs ({ma.get('wire', 'bench')!r} vs {mb.get('wire', 'bench')!r})")
         print(f"commits: A {ma['commit']}, B {mb['commit']}")
         if ma["knobs"] != mb["knobs"]:
             print(f"knobs differ: A {ma['knobs']}, B {mb['knobs']}")

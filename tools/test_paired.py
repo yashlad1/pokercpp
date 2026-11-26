@@ -163,6 +163,42 @@ def test_bench_dump_has_meta(tmp):
     assert isinstance(meta.get("commit"), str) and meta["commit"], meta
 
 
+def test_meta_wire_mismatch(tmp):
+    r = run(tmp, with_meta(wire="bench"), with_meta(wire="live"))
+    out = r.stdout + r.stderr
+    assert r.returncode != 0, "expected nonzero exit\n" + out
+    assert "cannot pair: meta.wire differs" in out, out
+
+
+def test_meta_no_wire_pairs_with_bench(tmp):
+    r = run(tmp, with_meta(), with_meta(wire="bench"))
+    assert r.returncode == 0, r.stdout + r.stderr
+    r = run(tmp, with_meta(wire="bench"), with_meta())
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_meta_no_wire_vs_live_refused(tmp):
+    for a, b in ((with_meta(), with_meta(wire="live")), (with_meta(wire="live"), with_meta())):
+        r = run(tmp, a, b)
+        out = r.stdout + r.stderr
+        assert r.returncode != 0, "expected nonzero exit\n" + out
+        assert "cannot pair" in out and "meta.wire" in out, out
+
+
+def test_bench_dump_wire_default_bench(tmp):
+    root = os.path.dirname(HERE)
+    out = os.path.join(tmp, "X.json")
+    env = dict(os.environ, PYTHONPATH="chipzen")
+    r = subprocess.run(
+        [sys.executable, os.path.join(HERE, "bench.py"), "--vs", "reference", "--stack", "15",
+         "--hands", "20", "--seed0", "1", "--dump", out],
+        capture_output=True, text=True, cwd=root, env=env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    with open(out) as f:
+        meta = json.load(f).get("meta")
+    assert meta is not None and meta.get("wire") == "bench", meta
+
+
 def main():
     import tempfile as tf
 
@@ -180,6 +216,10 @@ def main():
         test_meta_commit_knobs_may_differ,
         test_missing_meta_pairs_with_note,
         test_bench_dump_has_meta,
+        test_meta_wire_mismatch,
+        test_meta_no_wire_pairs_with_bench,
+        test_meta_no_wire_vs_live_refused,
+        test_bench_dump_wire_default_bench,
     ]
     failed = 0
     for t in tests:

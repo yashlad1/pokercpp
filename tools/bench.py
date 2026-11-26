@@ -66,11 +66,11 @@ class View:
 
     __slots__ = ("hole", "board", "pot", "to_call", "min_raise", "max_raise",
                  "stack", "bb", "villain_raises", "hand",
-                 "history", "seat", "dealer_seat", "opp_stack")
+                 "history", "seat", "dealer_seat", "opp_stack", "live_history")
 
     def __init__(self, **kw):
         for k in self.__slots__:
-            setattr(self, k, kw[k])
+            setattr(self, k, kw.get(k) if k == "live_history" else kw[k])  # optional: live labels
 
 
 # A unique id per play_hand call: the two seat-swapped plays of one seed are
@@ -111,9 +111,12 @@ def engine_impl():
 
 def git_commit():
     try:
-        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True,
-                                       cwd=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."),
-                                       stderr=subprocess.DEVNULL).strip()
+        cwd = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+        sha = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True,
+                                      cwd=cwd, stderr=subprocess.DEVNULL).strip()
+        dirty = subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=no"],
+                                        text=True, cwd=cwd, stderr=subprocess.DEVNULL).strip()
+        return sha + ("+dirty" if dirty else "")
     except Exception:
         return "unknown"
 
@@ -162,13 +165,14 @@ class Bot:
 
     name = "bot"
 
-    def __init__(self, sb, bb, stack, sims=2000, history="full", hand_number="full"):
+    def __init__(self, sb, bb, stack, sims=2000, history="full", hand_number="full", wire="bench"):
         import bot as bot_mod
         from chipzen import GameState
         from chipzen.models import Card
         self.GameState, self.Card = GameState, Card
         self.history, self.sims, self.zero = history, sims, hand_number == "zero"
         self.seen_hand = None
+        self.live = wire == "live"  # the live server's view: no all_in, live history labels
         self.seeder, self.cur = Seeder("pokercpp"), 0
         real = REAL_DECIDE  # never a previous Bot's wrapper
 
@@ -197,9 +201,12 @@ class Bot:
             valid.append("call")
         if can_raise:
             valid.append("raise")
-        if can_raise or (0 < stack <= to_call):
+        if self.live:
+            if 0 < stack <= to_call:
+                valid = ["fold", "call"]  # live offers an all-in call as a plain call
+        elif can_raise or (0 < stack <= to_call):
             valid.append("all_in")
-        hist = [e for e in v.history
+        hist = [e for e in ([{**e, "is_timeout": False} for e in v.live_history] if self.live else v.history)
                 if self.history == "full" or not e["action"].startswith("post_")]
         st = self.GameState(
             hand_number=0 if self.zero else v.hand + 1,  # platform counts from 1
@@ -532,6 +539,7 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
             villain_raises=aggression[1 - i],
             hand=hand,
             history=list(history), seat=i, dealer_seat=sb, opp_stack=st.stacks[1 - i],
+            live_history=list(live),
         )
         phase = phases.get(len(view.board), "river")
 
@@ -648,6 +656,8 @@ if __name__ == "__main__":
                     help="first deal seed; pair k uses seed0 + k")
     ap.add_argument("--hero", default="engine", choices=["engine", "bot"],
                     help="engine: call the C++ engine directly; bot: run chipzen/bot.py")
+    ap.add_argument("--wire", default="bench", choices=["bench", "live"],
+                    help="with --hero bot: bench view (today) or the live server's (no all_in, live labels)")
     ap.add_argument("--history", default="full", choices=["full", "noblinds"],
                     help="with --hero bot: include the blind posts in action_history or omit them")
     ap.add_argument("--hand-number", default="full", choices=["full", "zero"],
@@ -705,7 +715,7 @@ if __name__ == "__main__":
     print(f"pokercpp ({args.sims} sims/decision) vs opponents, duplicate-dealt, {args.stack} bb deep\n")
     for nm in names:
         # fresh, so memory never carries between opponents
-        hero = (Bot(args.bb // 2, args.bb, args.stack * args.bb, args.sims, args.history, args.hand_number)
+        hero = (Bot(args.bb // 2, args.bb, args.stack * args.bb, args.sims, args.history, args.hand_number, wire=args.wire)
                 if args.hero == "bot" else PokerCpp(sims=args.sims, **knobs))
         res = duplicate_match(args.hands, hero, OPPONENTS[nm](), blinds=(args.bb // 2, args.bb),
                              stack=args.stack * args.bb, seed0=args.seed0)
@@ -715,5 +725,5 @@ if __name__ == "__main__":
                 json.dump({"seed0": args.seed0, "bb": args.bb, "stack_bb": args.stack,
                            "opponent": nm, "results": res, **knobs,
                            "meta": dict(sims=args.sims, hero=args.hero, history=args.history,
-                                        hand_number=args.hand_number, impl=engine_impl(),
+                                        hand_number=args.hand_number, wire=args.wire, impl=engine_impl(),
                                         commit=git_commit(), knobs=knobs)}, f)
