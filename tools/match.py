@@ -95,9 +95,9 @@ def compare(path_a, path_b):
               f"{2 * len(keys)} matches")
 
 
-def run(opp_name, matches, hand_cap, sims, seed0, hero="engine", dump=None):
+def run(opp_name, matches, hand_cap, sims, seed0, hero="engine", dump=None, wire="bench"):
     # bot: a fresh chipzen/bot.py per match, so its memory starts empty every match
-    new_hero = ((lambda: Bot(FIRST_BB // 2, FIRST_BB, START_BB * FIRST_BB, sims)) if hero == "bot"
+    new_hero = ((lambda: Bot(FIRST_BB // 2, FIRST_BB, START_BB * FIRST_BB, sims, wire=wire)) if hero == "bot"
                 else (lambda: PokerCpp(sims=sims)))
     pair = [0, 0, 0]  # lost both, split, won both
     wins = hands = 0
@@ -129,6 +129,8 @@ if __name__ == "__main__":
     ap.add_argument("--seed0", type=int, default=1)
     ap.add_argument("--hero", default="engine", choices=["engine", "bot"],
                     help="engine: call the C++ engine directly; bot: run chipzen/bot.py")
+    ap.add_argument("--wire", default="bench", choices=["bench", "live"],
+                    help="bot hero only: live = the live server's view (no all_in, live history labels)")
     ap.add_argument("--start-bb", type=int, default=FIRST_BB, help="first big blind (stack is 100 of them)")
     ap.add_argument("--double-every", type=int, help="double the bb every N hands (default: live Chipzen steps)")
     ap.add_argument("--dump", help="write one JSON line per match pair to this file")
@@ -145,11 +147,11 @@ if __name__ == "__main__":
     dump = open(a.dump, "w") if a.dump else None
     if dump:
         import bench
-        meta = {"sims": a.sims, "hero": a.hero, "hand_cap": a.hand_cap, "start_bb": FIRST_BB,
+        meta = {"sims": a.sims, "hero": a.hero, "hand_cap": a.hand_cap, "start_bb": FIRST_BB, "wire": a.wire,
                 "double_every": DOUBLE_EVERY, "impl": bench.engine_impl(), "commit": bench.git_commit()}
         dump.write(json.dumps({"meta": meta}) + "\n")
     for nm in (list(OPPONENTS) if a.vs == "all" else [a.vs]):
-        run(nm, a.matches, a.hand_cap, a.sims, a.seed0, a.hero, dump)
+        run(nm, a.matches, a.hand_cap, a.sims, a.seed0, a.hero, dump, a.wire)
         sys.stdout.flush()
         if dump:
             dump.flush()

@@ -115,9 +115,32 @@ def c5():
         assert r.returncode == 0, r.stdout + r.stderr
 
 
+def c6():
+    base = {"sims": 200, "hero": "bot", "hand_cap": 60, "start_bb": 100,
+            "double_every": None, "impl": "x", "commit": "aaa", "wire": "bench"}
+    with tempfile.TemporaryDirectory() as d:
+        ps = []
+        for name, w in (("a", "bench"), ("b", "live")):
+            p = os.path.join(d, name)
+            write(p, [(1, [True, False])])
+            body = open(p).read()
+            open(p, "w").write(json.dumps({"meta": dict(base, wire=w)}) + "\n" + body)
+            ps.append(p)
+        r = run("--compare", *ps)
+        assert r.returncode != 0 and "meta.wire" in r.stdout + r.stderr, r.stdout + r.stderr
+        for name, extra, want in (("l", ["--wire", "live"], "live"), ("d", [], "bench")):
+            p = os.path.join(d, name)
+            r = run("--matches", "2", "--vs", "nit", "--hand-cap", "60", "--sims", "200",
+                    "--hero", "bot", *extra, "--seed0", "1", "--dump", p)
+            assert r.returncode == 0, r.stderr[-300:]
+            meta = json.loads(open(p).readline()).get("meta", {})
+            assert meta.get("wire") == want, (want, meta)
+
+
 case("1 mcnemar values", c1)
 case("2 compare 2/1", c2)
 case("3 mismatched seeds", c3)
 case("5 meta mismatch", c5)
+case("6 wire", c6)
 case("4 A/A run", c4)
 sys.exit(1 if fails else 0)
