@@ -42,6 +42,10 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - T3 / match: MEASURED. A4 (h=20)
 - T4 / match: MEASURED. A4 (h=1 TypeError)
 - T5: known survivor, expect []. equals the real code at the default FIRST_BB 100; see #111
+- CN1 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
+- CN2 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
+- CN3 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
+- CN4 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
 
 ## Out of scope
 - Metal bias mutants: +0.03 equity and +0.002 equity in the Metal path (A5, PR #96). They need Metal builds.

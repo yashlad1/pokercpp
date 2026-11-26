@@ -265,5 +265,49 @@
   "what": "play_match stack hard-wired",
   "expect": [],
   "why_survives": "equals the real code at the default FIRST_BB 100; see #111"
+ },
+ {
+  "id": "CN1",
+  "file": "chipzen/bot.py",
+  "find": "elif action == \"call\" and bet and entry.get(\"seat\") != state.your_seat:",
+  "replace": "elif action == \"call\" and entry.get(\"seat\") != state.your_seat:",
+  "what": "a limp counts as a villain call",
+  "expect": [
+   "call_narrow"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "CN2",
+  "file": "chipzen/bot.py",
+  "find": "elif action == \"call\" and bet and entry.get(\"seat\") != state.your_seat:",
+  "replace": "elif action == \"call\" and bet:",
+  "what": "our own calls count as villain calls",
+  "expect": [
+   "call_narrow"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "CN3",
+  "file": "chipzen/decide.h",
+  "find": "base = std::max(0.05, base * std::pow(callNarrow, villainCalls));",
+  "replace": "base = base * std::pow(callNarrow, villainCalls);",
+  "what": "no 0.05 minimum on the narrowed range",
+  "expect": [
+   "call_narrow"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "CN4",
+  "file": "chipzen/decide.h",
+  "find": "std::pow(callNarrow, villainCalls)",
+  "replace": "callNarrow",
+  "what": "narrowing ignores the call count (one factor however many calls)",
+  "expect": [
+   "call_narrow"
+  ],
+  "why_survives": ""
  }
 ]
