@@ -106,6 +106,9 @@ jobs:
       - name: Test the villain raise counting
         run: PYTHONPATH=chipzen python chipzen/test_villain_raises.py
 
+      - name: Test the call narrowing
+        run: PYTHONPATH=chipzen python chipzen/test_call_narrow.py
+
       - name: Test the wire legality
         run: PYTHONPATH=chipzen python chipzen/test_wire.py
 

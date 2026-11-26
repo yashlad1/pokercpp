@@ -31,7 +31,7 @@ static py::dict decide(const std::vector<std::string> &hole,
                        int stack, int bb, int sims, int villainRaises,
                        double realizationScale, bool bluffEnabled,
                        double rangeFloor, unsigned long long seed,
-                       double preflopRealization) {
+                       double preflopRealization, int villainCalls, double callNarrow) {
     if (hole.size() != 2) {
         throw std::invalid_argument("need exactly 2 hole cards");
     }
@@ -45,7 +45,7 @@ static py::dict decide(const std::vector<std::string> &hole,
         py::gil_scoped_release release;
         d = chipzen::decideFull(h, b, pot, toCall, minRaise, maxRaise, stack, bb,
                                 sims, villainRaises, realizationScale, bluffEnabled,
-                                rangeFloor, seed, preflopRealization);
+                                rangeFloor, seed, preflopRealization, villainCalls, callNarrow);
     }
 
     py::dict out;
@@ -68,5 +68,6 @@ PYBIND11_MODULE(pokercpp_engine, m) {
           py::arg("realization_scale") = 1.0, py::arg("bluff_enabled") = true,
           py::arg("range_floor") = 0.0, py::arg("seed") = 0ULL,
           py::arg("preflop_realization") = chipzen::kPreflopRealization,
+          py::arg("villain_calls") = 0, py::arg("call_narrow") = chipzen::kCallNarrow,
           "Return 'fold', 'check', 'call' or 'raise <total>' for the given spot.");
 }

@@ -47,6 +47,7 @@ TESTS = {
     "opponent": (["{py}", "chipzen/test_opponent.py"], {"PYTHONPATH": "chipzen"}, 600),
     "decide_constants": (["{py}", "chipzen/test_decide_constants.py"], {"PYTHONPATH": "chipzen"}, 600),
     "villain_raises": (["{py}", "chipzen/test_villain_raises.py"], {"PYTHONPATH": "chipzen"}, 600),
+    "call_narrow": (["{py}", "chipzen/test_call_narrow.py"], {"PYTHONPATH": "chipzen"}, 600),
     "wire": (["{py}", "chipzen/test_wire.py"], {"PYTHONPATH": "chipzen"}, 600),
     "parity": (["{py}", "tools/test_parity.py", "--pairs", "50"], {"PYTHONPATH": "chipzen"}, 1200),
     "match": (["{py}", "tools/test_match.py"], {"PYTHONPATH": "chipzen"}, 600),

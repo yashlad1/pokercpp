@@ -43,6 +43,10 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - T4 / wire_default: MEASURED. #141 full mutant run
 - B1 / bench_coerced: MEASURED. run.py --only B1 (the counter adds 0, so the coerced-count test fails); no other test kills it
 - T5 / match: MEASURED. run.py --only T5 (a match at a 50 first big blind starts at 5,000 chips, the mutant gives 10,000; #111)
+- CN1 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
+- CN2 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
+- CN3 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
+- CN4 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
 - I1 / import_logs: MEASURED. full run.py (the running-process check is off, so the refuse-while-running and whole-call-refusal tests fail); no other test kills it
 
 ## Out of scope
