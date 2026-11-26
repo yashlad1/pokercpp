@@ -264,8 +264,10 @@
   "find": "stacks = [START_BB * FIRST_BB] * 2",
   "replace": "stacks = [START_BB * 100] * 2",
   "what": "play_match stack hard-wired",
-  "expect": [],
-  "why_survives": "equals the real code at the default FIRST_BB 100; see #111"
+  "expect": [
+   "match"
+  ],
+  "why_survives": ""
  },
  {
   "id": "B1",
