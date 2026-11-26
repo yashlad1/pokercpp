@@ -14,7 +14,7 @@ import argparse
 import math
 import sys
 
-from bench import OPPONENTS, Bot, PokerCpp, play_hand
+from bench import OPPONENTS, Bot, PokerCpp, play_hand, split_roles
 
 START_BB, FIRST_BB, DOUBLE_EVERY = 100, 100, None  # stack in bb, big blind, hands per doubling (None = live steps)
 
@@ -31,6 +31,7 @@ def blinds_for(hand_no):
 
 def play_match(match_seed, agents, hand_cap=1000):
     """agents[0] has the button on hand 1. Returns (index of winner, hands)."""
+    split_roles(*agents)
     stacks = [START_BB * FIRST_BB] * 2
     hand_no = 0
     while min(stacks) > 0 and hand_no < hand_cap:
