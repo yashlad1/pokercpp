@@ -44,7 +44,7 @@ Date: 2026-11-26. Issue #85 (child of #53, option built in #84). The rules, seed
   - The option itself (PR #139, off by default) is not merged. Whether to keep it as groundwork for #37 is the owner's call.
   - A second factor value would be a new look and need fresh seeds.
 - **Design lesson for future pre-registrations.** Nit was untestable as a target, because the rule never fired against it (IDENTICAL on both seeds). A cheap pre-check of how often the rule fires per opponent, before choosing targets, would have caught that.
-- **Live relevance (fact).** In live match 1 the opponent called 16 of 22 of our 2.5 bb opens (73%), which is station-like (`results/2026-11-24-live-log-analysis.md`). A blanket factor would likely have cost there too.
+- **Live relevance (fact).** In live match 1 the opponent called 16 of 22 of our opens (73%, station-like preflop) but folded about half of our postflop bets (fit-or-fold), so a blanket factor's effect there is mixed and unmeasured.
 - **Direction for #37.** Make narrowing depend on what the opponent's calls are worth, that is, its observed rate of calling our bets: narrow nothing against a station-like caller and some against a selective one. That needs call stats in the opponent memory, the parked stage-1 stats work on branch `research/opp-stats`. The shared counter `bot._villain_calls` (#139) is reusable.
 
 ## All 24 paired lines
