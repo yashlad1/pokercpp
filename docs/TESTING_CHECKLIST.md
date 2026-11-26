@@ -86,7 +86,7 @@ PY=$PY tools/build_engine.sh
 make test
 make test-asan CXX=clang++
 make strict CXX=clang++
-g++ -std=c++17 -O2 -o /tmp/solver chipzen/solver.cpp montecarlo/MonteCarloSimulator.cpp model/advanced_hand_evaluator.cpp model/card.cpp model/deck.cpp
+g++ -std=c++17 -O2 -o /tmp/solver chipzen/solver.cpp montecarlo/MonteCarloSimulator.cpp model/advanced_hand_evaluator.cpp model/card.cpp
 python chipzen/test_solver.py /tmp/solver
 python chipzen/test_engine_seed.py
 python chipzen/test_preflop_realization.py
@@ -95,7 +95,7 @@ PYTHONPATH=chipzen python chipzen/test_bot_sdk.py
 PYTHONPATH=chipzen POKERCPP_SIMS=2000 python chipzen/test_v4.py
 python chipzen/test_logging.py
 PYTHONPATH=chipzen python chipzen/test_replay.py
-$PY tools/bench.py --hero bot --vs all --stack 15 --hands 4000 --seed0 700001 --dump out.json
+$PY tools/bench.py --hero bot --vs reference --stack 15 --hands 4000 --seed0 700001 --dump out.json
 $PY tools/bench.py --vs aggro --stack 100 --hands 1000 --seed0 710001 --dump out.json
 $PY tools/paired.py A.json B.json
 $PY tools/match.py --matches 200 --vs maniac --hero bot --seed0 1

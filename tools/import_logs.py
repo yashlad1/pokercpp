@@ -34,7 +34,7 @@ def main(paths):
             continue
         for rx, sub in SCRUB:
             text = rx.sub(sub, text)
-        stamp = text[:19].replace(" ", "_").replace(":", "")  # first log timestamp
+        stamp = text[:19].replace(" ", "_").replace(":", "")
         dest = OUT / f"{stamp}-{p.stem}.log"
         if dest.exists() and dest.read_text() == text:
             print(f"already imported: {dest.name}")

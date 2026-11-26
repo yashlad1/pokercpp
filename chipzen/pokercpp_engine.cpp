@@ -1,10 +1,5 @@
-// Python extension wrapping the C++ decision engine.
-//
-// The platform sandbox blocks both `subprocess` and `ctypes`, so a Python
-// bot cannot shell out to a binary or dlopen one. A compiled extension is
-// the supported route — the SDK's own starter ships its strategy the same
-// way, as a Cython .so — and it is faster than a subprocess besides: no
-// process spawn, no pipe, no timeout supervision.
+// Python extension wrapping the C++ decision engine. The platform sandbox blocks subprocess and ctypes,
+// so a compiled extension is the supported route.
 
 #include "decide.h"
 
@@ -46,17 +41,13 @@ static py::dict decide(const std::vector<std::string> &hole,
 
     chipzen::Decision d;
     {
-        // The simulation touches no Python objects, so drop the GIL for it.
-        // The SDK calls decide() from an async loop; holding the GIL through
-        // a 12 ms simulation would stall the WebSocket heartbeat.
+        // No Python objects are touched: release the GIL so the WebSocket heartbeat keeps running.
         py::gil_scoped_release release;
         d = chipzen::decideFull(h, b, pot, toCall, minRaise, maxRaise, stack, bb,
                                 sims, villainRaises, realizationScale, bluffEnabled,
                                 rangeFloor, seed, preflopRealization);
     }
 
-    // The numbers come back with the choice so a fold can be explained from
-    // the match log instead of guessed at.
     py::dict out;
     out["action"] = d.action;
     out["amount"] = d.amount;

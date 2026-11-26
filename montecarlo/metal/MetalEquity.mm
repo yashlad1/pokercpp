@@ -1,5 +1,3 @@
-// Metal implementation. Kernels are compiled at runtime from the raw string
-// below (no offline `metal` tool needed).
 #import <Metal/Metal.h>
 #import <Foundation/Foundation.h>
 
@@ -25,13 +23,11 @@ inline uint topN(uint x, int n) {
     for (int i = 0; i < n; ++i) { int h = hb(x); r = (r << 4) | (uint)h; x &= ~(1u << h); }
     return r;
 }
-// Top rank index of the best straight in a 13-bit mask, or -1. Ace plays low.
 inline int straightTop(uint m) {
     uint x = (m << 1) | (m >> 12);
     uint y = x & (x >> 1) & (x >> 2) & (x >> 3) & (x >> 4);
     return y ? hb(y) + 3 : -1;
 }
-// Score = category<<20 | up to five 4-bit rank nibbles. Only ordering matters.
 inline uint evalMask(ulong m) {
     uint s0 = (uint)(m & 0x1FFF), s1 = (uint)((m >> 13) & 0x1FFF);
     uint s2 = (uint)((m >> 26) & 0x1FFF), s3 = (uint)((m >> 39) & 0x1FFF);
@@ -106,7 +102,7 @@ kernel void equityKernel(const device GJob *jobs [[buffer(0)]],
         ulong vm = (1UL << (c & 0xFF)) | (1UL << (c >> 8));
         ulong used = j.heroMask | j.boardMask | vm, board = j.boardMask;
         for (uint k = 0; k < j.need; ++k) {
-            while (true) {  // rejection sampling against the used-card mask
+            while (true) {
                 uint card = (uint)(((ulong)nextU(r) * 52) >> 32);
                 ulong b = 1UL << card;
                 if (!(used & b)) { used |= b; board |= b; break; }
@@ -186,7 +182,7 @@ void run(id<MTLComputePipelineState> p, NSUInteger w, NSUInteger h, NSUInteger t
     [cb commit];
     [cb waitUntilCompleted];
 }
-}  // namespace
+}
 
 bool metalAvailable() { return ctx().ok; }
 
@@ -214,7 +210,7 @@ std::vector<EquityResult> metalEquityBatch(const std::vector<EquityJob> &jobs) {
                 if (bit(p.first) & known || bit(p.second) & known || p.first == p.second) continue;
                 combos.push_back(static_cast<uint16_t>(cardIdx(p.first) | cardIdx(p.second) << 8));
             }
-            if (combos.size() == g.comboOff) {  // empty range: any two other cards
+            if (combos.size() == g.comboOff) {
                 for (int a = 0; a < 52; ++a)
                     for (int b = a + 1; b < 52; ++b)
                         if (!((1ULL << a | 1ULL << b) & known))

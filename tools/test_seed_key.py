@@ -76,8 +76,6 @@ def same_name_salt():
 
 
 def seat_order():
-    # same agent, same deal, seats swapped: the seeds must differ.
-    # Some deals end before the hero decides in one seat, so scan a few deals.
     ref = bench.OPPONENTS["reference"]
     compared = 0
     for d in range(1, 11):
@@ -108,8 +106,6 @@ def names_differ():
 
 
 def aa_duplicate():
-    # H and V share a name; H's seat-0 seeds (play 1) must differ from V's
-    # seat-0 seeds (play 2, swapped).
     compared = 0
     for d in range(1, 11):
         h, v = bench.PokerCpp(sims=SIMS), bench.PokerCpp(sims=SIMS)

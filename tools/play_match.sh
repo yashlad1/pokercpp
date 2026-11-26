@@ -27,9 +27,8 @@ git -C "$REPO" diff --quiet HEAD -- chipzen/ || POKERCPP_COMMIT="$POKERCPP_COMMI
 export POKERCPP_COMMIT
 log="$LOGDIR/live-$(date +%Y%m%d-%H%M%S).log"
 echo "log: $log"
-# Run from .chipzen/: the SDK finds ./chipzen.toml there, and it is not the
-# repo root, where 'import chipzen' would find the repo's chipzen/ folder
-# instead of the SDK.
+# Run from the conf dir: the SDK finds ./chipzen.toml there, and from the repo root 'import chipzen' would find
+# # the repo's chipzen/ folder instead of the SDK.
 cd "$CONF" || exit 1
 PYTHONPATH="$REPO/chipzen" caffeinate -i "$SDK" run-external "$REPO/chipzen/bot.py" \
   --max-matches "$MATCHES" --log-level INFO 2>&1 | tee "$log"

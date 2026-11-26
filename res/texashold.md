@@ -1,6 +1,6 @@
 # ♠️ How to Play Texas Hold'em Poker
 
-This document is part of the **CLI Poker Game in C++** and is meant to help you learn **how to play poker** while understanding the logic behind the code you're writing.
+This document explains **how to play poker**.
 
 ---
 

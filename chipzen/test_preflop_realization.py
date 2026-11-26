@@ -10,7 +10,7 @@ import sys
 MODULE_DIR = sys.argv[1] if len(sys.argv) > 1 else "chipzen"
 sys.path.insert(0, MODULE_DIR)
 
-import pokercpp_engine  # noqa: E402
+import pokercpp_engine
 
 SEED = 4242
 
@@ -29,8 +29,7 @@ PREFLOP = dict(hole=["Qh", "Jd"], board=[], pot=300, to_call=200,
 FLOP = dict(hole=["Qh", "Jd"], board=["Ks", "7c", "2d"], pot=200,
             to_call=100, min_raise=200, max_raise=9000, stack=9000, bb=100)
 
-# 15 bb effective, facing an open. Found by scanning all 169 hands against the
-# new module for fold at 0.75 and non-fold at 0.95; TT was one of the hits.
+# 15 bb effective, facing an open. TT folds at realization 0.75 and not at 0.95 (found by scanning all 169 hands).
 SHORT = dict(hole=["Th", "Td"], board=[], pot=150, to_call=200,
              min_raise=400, max_raise=1500, stack=1500, bb=100)
 

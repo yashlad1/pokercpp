@@ -32,14 +32,14 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-import bench  # noqa: E402  (also puts chipzen/ on sys.path)
-import pokercpp_engine  # noqa: E402
-from pokerkit import StandardHighHand  # noqa: E402
+import bench  # also puts chipzen/ on sys.path
+import pokercpp_engine
+from pokerkit import StandardHighHand
 
 HOST = "https://slumbot.com/slumbot/api"
 SB, BB, STACK = 50, 100, 20000
 PHASES = {0: "preflop", 1: "flop", 2: "turn", 3: "river"}
-LAT = []  # per-request seconds
+LAT = []
 
 
 class Stop(Exception):
@@ -51,7 +51,7 @@ def post(path, data):
     err = None
     for attempt in range(3):
         if attempt:
-            time.sleep(attempt)  # 1 s, then 2 s
+            time.sleep(attempt)
         t = time.time()
         try:
             req = urllib.request.Request(
@@ -60,11 +60,11 @@ def post(path, data):
                 out = json.load(r)
             LAT.append(time.time() - t)
             if "error_msg" in out:
-                raise Stop(f"rejected: {out['error_msg']}")  # not retried
+                raise Stop(f"rejected: {out['error_msg']}")
             return out
         except Stop:
             raise
-        except Exception as e:  # network, HTTP status, bad JSON
+        except Exception as e:
             err = e
     raise Stop(f"request failed after retries: {err!r}")
 
@@ -105,7 +105,7 @@ def replay(action):
             events.append((actor, "c", amt, street, cap))
             last = 0
             if bets[actor] >= cap:
-                over = "showdown"  # call of an all-in: the rest is run out
+                over = "showdown"
             elif ends:
                 end_street()
             else:
@@ -164,7 +164,7 @@ def to_incr(action, amount, v):
         return f"b{min(max(int(amount), v.min_raise), v.max_raise)}"
     if action == "fold" and v.to_call > 0:
         return "f"
-    return "c" if v.to_call > 0 else "k"  # call/check, and any illegal ask
+    return "c" if v.to_call > 0 else "k"
 
 
 def expected_winnings(r, p, me):
@@ -233,7 +233,7 @@ def main():
     hero = bench.PokerCpp(sims=a.sims) if a.hero == "engine" else bench.Bot(SB, BB, STACK, sims=a.sims)
     rec, inner = {}, pokercpp_engine.decide
 
-    def tap(**kw):  # records the engine's equity/range for the log
+    def tap(**kw):
         out = inner(**kw)
         rec.clear()
         rec.update(out)

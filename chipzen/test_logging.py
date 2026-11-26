@@ -4,7 +4,7 @@ import os, sys, json, logging, importlib.util
 os.environ["POKERCPP_SIMS"] = "2000"
 os.environ["POKERCPP_COMMIT"] = "abc1234"
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)  # engine .so and siblings
+sys.path.insert(0, HERE)
 _spec = importlib.util.spec_from_file_location("bot", os.environ.get("BOT_PY", os.path.join(HERE, "bot.py")))
 bot = importlib.util.module_from_spec(_spec)
 sys.modules["bot"] = bot

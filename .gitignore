@@ -1,8 +1,6 @@
 # Build output
-poker
 tests/test_hand_evaluator
 tests/test_monte_carlo
-tests/test_game_logic
 *.o
 *.dSYM/
 
@@ -22,6 +20,7 @@ __pycache__/
 tests/test_equity_exact
 tests/test_decide_properties
 tests/test_eval_exhaustive
+tests/test_eval_order
 # image tarballs and local secrets
 *.tar.gz
 .env
@@ -31,4 +30,3 @@ chipzen.toml
 
 .claude/
 .vscode/
-.github/

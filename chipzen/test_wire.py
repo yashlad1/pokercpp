@@ -6,6 +6,7 @@ Run from the repo root:  PYTHONPATH=chipzen python chipzen/test_wire.py
 import itertools, os, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from testutil import run
 os.environ["POKERCPP_SIMS"] = "2000"
 
 from chipzen import GameState
@@ -30,7 +31,6 @@ def state(valid, hist=(), your_seat=1, to_call=100, min_raise=200,
                      max_raise=max_raise, your_stack=stack, valid_actions=list(valid))
 
 
-# ---- gap 1: decide never raises, always legal --------------------------------
 VALID_SETS = [
     ["fold", "call", "raise"], ["check", "raise"], ["check"], ["fold", "call"],
     ["call", "raise"], ["call"], ["all_in"], ["fold", "all_in"],
@@ -53,7 +53,7 @@ def test_decide_survives_engine_failure():
                        to_call=tc, min_raise=mn, max_raise=mx)
             try:
                 act = botmod.PokerCppBot().decide(st)
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 bad.append("%s raised %s: %s" % (valid, type(e).__name__, e))
                 continue
             if act.action not in valid:
@@ -63,7 +63,6 @@ def test_decide_survives_engine_failure():
         botmod.pokercpp_engine.decide = real
 
 
-# ---- gap 5: _to_action legality ----------------------------------------------
 ENGINE = {"fold": {"action": "fold"}, "check": {"action": "check"},
           "call": {"action": "call"},
           "raise 300": {"action": "raise", "amount": 300},
@@ -73,7 +72,6 @@ BOUNDS = [(200, 1000), (400, 300), (0, 0)]
 
 
 def nothing_legal(valid, mn, mx):
-    # raise is only takeable with a band; every other kind is always takeable
     return set(valid) == {"raise"} and mn == 0 and mx == 0
 
 
@@ -106,7 +104,7 @@ def test_to_action_is_always_legal():
                         try:
                             act = botmod.PokerCppBot()._to_action(dict(d), st, valid)
                             why = legal_problem(act, valid, mn, mx)
-                        except Exception as e:  # noqa: BLE001
+                        except Exception as e:
                             why = "raised %s: %s" % (type(e).__name__, e)
                         if why:
                             fails.append("reply=%r valid=%s bounds=(%d,%d) to_call=%d: %s"
@@ -115,7 +113,6 @@ def test_to_action_is_always_legal():
         len(fails), total, " | ".join(fails[:3]))
 
 
-# ---- gap 9: POKERCPP_SIMS -----------------------------------------------------
 def sims_after_import(value):
     env = dict(os.environ, PYTHONPATH=HERE, POKERCPP_SIMS=value)
     return subprocess.run([sys.executable, "-c", "import bot; print(bot.SIMS)"],
@@ -142,21 +139,5 @@ def test_sims_numeric_still_works():
     assert r.stdout.strip() == "2000", r.stdout
 
 
-def run():
-    failed = 0
-    for name, fn in sorted(globals().items()):
-        if name.startswith("test_") and callable(fn):
-            try:
-                fn()
-                print("PASS", name)
-            except BaseException as e:  # noqa: BLE001
-                failed += 1
-                print("FAIL", name, "-", type(e).__name__, e)
-    if failed:
-        print(failed, "failed")
-        sys.exit(1)
-    print("all passed")
-
-
 if __name__ == "__main__":
-    run()
+    run(globals())

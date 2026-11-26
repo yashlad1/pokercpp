@@ -32,13 +32,17 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - D5 / decide_properties: MEASURED. A2 (29 checks)
 - D6 / decide_properties: MEASURED. A2 (146 checks)
 - E1 / eval_exhaustive: MEASURED. A1 (9,197 disagreements)
-- E2 / eval_exhaustive: PREDICTED. one-edit variant of the reviewer's measured swap; SF hands would count as flushes, so the SF and flush totals must mismatch
-- E3: known survivor, expect []. M-1 open in #104 (the test compares categories only)
+- E2 / eval_exhaustive: MEASURED. #130 full mutant run killed E2 with eval_exhaustive (SF hands counted as flushes, so the SF and flush totals mismatch)
+- E1 / eval_order: MEASURED. #134 (run.py --only E1,E2)
+- E2 / eval_order: MEASURED. #134 (run.py --only E1,E2)
+- E3 / eval_order: MEASURED. M-1 (#104): the new test fails on E3 (score does not rise with the reference key); eval_exhaustive still passes it
 - T1 / match: MEASURED. A4 (h=21)
 - T2 / match: MEASURED. A4 (h=1)
 - T3 / match: MEASURED. A4 (h=20)
 - T4 / match: MEASURED. A4 (h=1 TypeError)
-- T5: known survivor, expect []. equals the real code at the default FIRST_BB 100; see #111
+- T4 / wire_default: MEASURED. #141 full mutant run
+- B1 / bench_coerced: MEASURED. run.py --only B1 (the counter adds 0, so the coerced-count test fails); no other test kills it
+- T5 / match: MEASURED. run.py --only T5 (a match at a 50 first big blind starts at 5,000 chips, the mutant gives 10,000; #111)
 
 ## Out of scope
 - Metal bias mutants: +0.03 equity and +0.002 equity in the Metal path (A5, PR #96). They need Metal builds.

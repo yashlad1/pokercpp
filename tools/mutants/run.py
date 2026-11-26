@@ -29,10 +29,9 @@ import argparse, json, os, re, shutil, subprocess, sys, tempfile, time
 ROOT = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
 PY = os.environ.get("PY") or sys.exit("set PY to the python with pybind11, pokerkit, chipzen-bot")
 SOLVER_SRC = ["chipzen/solver.cpp", "montecarlo/MonteCarloSimulator.cpp",
-              "model/advanced_hand_evaluator.cpp", "model/card.cpp", "model/deck.cpp"]
+              "model/advanced_hand_evaluator.cpp", "model/card.cpp"]
 
 # name -> (argv with {py} and {solver}, extra env, timeout seconds). Mirrors .github/workflows/ci.yml.
-# Anything not in the build-free group below needs the engine built first.
 TESTS = {
     "solver": (["{py}", "chipzen/test_solver.py", "{solver}"], {}, 600),
     "sdk": (["{py}", "chipzen/test_bot_sdk.py"], {"PYTHONPATH": "chipzen"}, 600),
@@ -41,17 +40,24 @@ TESTS = {
     "engine_seed": (["{py}", "-m", "pytest"], {"PYTEST_ADDOPTS": "chipzen/test_engine_seed.py"}, 600),
     "replay": (["{py}", "chipzen/test_replay.py"], {"PYTHONPATH": "chipzen"}, 600),
     "preflop_realization": (["{py}", "chipzen/test_preflop_realization.py"], {}, 600),
+    "suit_relabel": (["{py}", "chipzen/test_suit_relabel.py"], {}, 600),
     "paired": (["{py}", "tools/test_paired.py"], {}, 600),
+    "bench_coerced": (["{py}", "tools/test_bench_coerced.py"], {"PYTHONPATH": "chipzen"}, 600),
+    "bench_opponents": (["{py}", "tools/test_bench_opponents.py"], {"PYTHONPATH": "chipzen"}, 600),
+    "bench_pushfold": (["{py}", "tools/test_bench_pushfold.py"], {"PYTHONPATH": "chipzen"}, 600),
     "opponent": (["{py}", "chipzen/test_opponent.py"], {"PYTHONPATH": "chipzen"}, 600),
     "decide_constants": (["{py}", "chipzen/test_decide_constants.py"], {"PYTHONPATH": "chipzen"}, 600),
     "villain_raises": (["{py}", "chipzen/test_villain_raises.py"], {"PYTHONPATH": "chipzen"}, 600),
     "wire": (["{py}", "chipzen/test_wire.py"], {"PYTHONPATH": "chipzen"}, 600),
     "parity": (["{py}", "tools/test_parity.py", "--pairs", "50"], {"PYTHONPATH": "chipzen"}, 1200),
     "match": (["{py}", "tools/test_match.py"], {"PYTHONPATH": "chipzen"}, 600),
+    "wire_default": (["{py}", "tools/test_wire_default.py"], {"PYTHONPATH": "chipzen"}, 600),
+    "aa_seeded": (["{py}", "tools/test_aa_seeded.py"], {"PYTHONPATH": "chipzen"}, 600),
     "decide_properties": (["make", "test_decide_properties"], {}, 900),
     "eval_exhaustive": (["make", "test_eval_exhaustive"], {}, 900),
+    "eval_order": (["make", "test_eval_order"], {}, 900),
 }
-MAKE_TESTS = {"decide_properties", "eval_exhaustive"}  # build and run themselves, no engine needed
+MAKE_TESTS = {"decide_properties", "eval_exhaustive", "eval_order"}  # build and run themselves, no engine needed
 
 
 def sh(argv, cwd, env=None, timeout=None):
@@ -64,7 +70,7 @@ def sh(argv, cwd, env=None, timeout=None):
         return "timeout", ""
 
 
-BASE = "HEAD"  # resolved to a SHA in main()
+BASE = "HEAD"
 
 
 def snapshot():
@@ -177,7 +183,7 @@ def main():
                          "results": res, "expect": sorted(expect), "extra_kills": extra, "problems": problems})
             print(f"{m['id']}: {status} killed={sorted(killed)} {'FAIL' if problems else 'ok'}", flush=True)
     finally:
-        shutil.rmtree(tmp, ignore_errors=True)  # only the temp dir this run created
+        shutil.rmtree(tmp, ignore_errors=True)
         subprocess.run(["git", "worktree", "prune"], cwd=ROOT, capture_output=True)
     wall = time.time() - t0
 

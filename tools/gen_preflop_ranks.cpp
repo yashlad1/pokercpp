@@ -9,7 +9,7 @@
 #include <string>
 //   g++ -std=c++17 -O2 -o gen tools/gen_preflop_ranks.cpp \
 //       montecarlo/MonteCarloSimulator.cpp model/advanced_hand_evaluator.cpp \
-//       model/card.cpp model/deck.cpp
+//       model/card.cpp
 //   ./gen 50000 > montecarlo/preflop_ranks.h
 int main(int argc, char** argv) {
     int sims = argc > 1 ? atoi(argv[1]) : 50000;

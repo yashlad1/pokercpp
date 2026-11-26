@@ -53,8 +53,8 @@
  {
   "id": "M4b",
   "file": "chipzen/opponent.py",
-  "find": "self.raises[hand] = max(self.raises.get(hand, 0), villain_raises)",
-  "replace": "self.raises[0] = max(self.raises.get(0, 0), villain_raises)",
+  "find": "self.max_raises_by_hand[hand] = max(self.max_raises_by_hand.get(hand, 0), villain_raises)",
+  "replace": "self.max_raises_by_hand[0] = max(self.max_raises_by_hand.get(0, 0), villain_raises)",
   "what": "memory key constant (opponent.py side; extra, not in the table)",
   "expect": [
    "opponent"
@@ -184,7 +184,8 @@
   "replace": "uint32_t x = m << 1;",
   "what": "wheel removed from straightTop",
   "expect": [
-   "eval_exhaustive"
+   "eval_exhaustive",
+   "eval_order"
   ],
   "why_survives": ""
  },
@@ -195,7 +196,8 @@
   "replace": "return (5u << 20) | (uint32_t)sf;",
   "what": "straight-flush code set to the flush code (one-edit form of the swap)",
   "expect": [
-   "eval_exhaustive"
+   "eval_exhaustive",
+   "eval_order"
   ],
   "why_survives": ""
  },
@@ -205,8 +207,10 @@
   "find": "return topN(all, 5);",
   "replace": "{ uint32_t t = topN(all, 5), r = 0; for (int i = 0; i < 5; ++i) { r = (r << 4) | (t & 0xF); t >>= 4; } return r; }",
   "what": "kicker order reversed inside high card",
-  "expect": [],
-  "why_survives": "M-1 open in #104 (the test compares categories only)"
+  "expect": [
+   "eval_order"
+  ],
+  "why_survives": ""
  },
  {
   "id": "T1",
@@ -248,7 +252,8 @@
   "replace": "if not DOUBLE_EVERY:",
   "what": "blinds_for: DOUBLE_EVERY inverted",
   "expect": [
-   "match"
+   "match",
+   "wire_default"
   ],
   "why_survives": ""
  },
@@ -258,7 +263,20 @@
   "find": "stacks = [START_BB * FIRST_BB] * 2",
   "replace": "stacks = [START_BB * 100] * 2",
   "what": "play_match stack hard-wired",
-  "expect": [],
-  "why_survives": "equals the real code at the default FIRST_BB 100; see #111"
+  "expect": [
+   "match"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "B1",
+  "file": "tools/bench.py",
+  "find": "agents[i].coerced += action not in offered or (",
+  "replace": "agents[i].coerced += False and (",
+  "what": "bench coerced counter adds 0",
+  "expect": [
+   "bench_coerced"
+  ],
+  "why_survives": ""
  }
 ]

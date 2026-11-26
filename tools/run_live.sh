@@ -10,7 +10,7 @@
 set -u
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-DELAY=30  # seconds between sessions, so a broken setup doesn't hammer the server
+DELAY=30  # seconds between sessions, so a broken setup does not hammer the server
 trap 'echo "stopped"; exit 0' INT TERM
 
 while true; do

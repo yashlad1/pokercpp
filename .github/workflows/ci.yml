@@ -16,9 +16,6 @@ jobs:
       - name: Show compiler version
         run: clang++ --version
 
-      - name: Build the game
-        run: make CXX=clang++
-
       - name: Run the test suite
         run: make test CXX=clang++
 
@@ -28,9 +25,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Compiles with -Wshadow -Wconversion -Wsign-conversion and friends.
-      # These are kept out of the default build so everyday compiles stay
-      # quiet, but a regression here should still fail the pipeline.
       - name: Compile with the strict warning set
         run: make strict CXX=clang++
 
@@ -40,13 +34,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Several real defects in this codebase were out-of-bounds reads caused
-      # by unsigned loop bounds underflowing. They compiled and ran without
-      # complaint; only a sanitizer caught them.
+      # Real defects here were out-of-bounds reads from unsigned loop bounds underflowing; only a sanitizer caught them.
       - name: Run the tests under AddressSanitizer and UBSan
         run: make test-asan CXX=clang++
         env:
-          ASAN_OPTIONS: detect_leaks=0
+          ASAN_OPTIONS: detect_leaks=1
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
 
   bot:
@@ -61,8 +53,6 @@ jobs:
           cache: pip
           cache-dependency-path: .github/workflows/ci.yml
 
-      # chipzen-bot is the version the Docker image is validated with.
-      # pokerkit 0.7.8 is what the local bench venv runs (no pin in the repo).
       - name: Install Python dependencies
         run: pip install chipzen-bot==0.7.1 pybind11 pokerkit==0.7.8 pytest
 
@@ -70,7 +60,7 @@ jobs:
         run: |
           g++ -std=c++17 -O2 -o /tmp/solver chipzen/solver.cpp \
             montecarlo/MonteCarloSimulator.cpp model/advanced_hand_evaluator.cpp \
-            model/card.cpp model/deck.cpp
+            model/card.cpp
 
       - name: Build the engine module
         run: tools/build_engine.sh
@@ -90,8 +80,7 @@ jobs:
         run: python chipzen/test_logging.py
 
       - name: Test the engine seed
-        # The test reads sys.argv[1] as a module dir, so the file goes in
-        # PYTEST_ADDOPTS to keep it off the command line.
+        # The test reads sys.argv[1] as a module dir, so the file goes in PYTEST_ADDOPTS.
         run: python -m pytest
         env:
           PYTEST_ADDOPTS: chipzen/test_engine_seed.py
@@ -101,6 +90,9 @@ jobs:
 
       - name: Test the preflop realization
         run: python chipzen/test_preflop_realization.py
+
+      - name: Test that suit relabelling keeps the decision
+        run: python chipzen/test_suit_relabel.py
 
       - name: Test the paired comparison
         run: python tools/test_paired.py
@@ -123,8 +115,26 @@ jobs:
       - name: Test the match blind schedule
         run: PYTHONPATH=chipzen python tools/test_match.py
 
+      - name: Test the default wire of the bench tools
+        run: PYTHONPATH=chipzen python tools/test_wire_default.py
+
+      - name: Test that a seeded A/A bench run pairs to exactly 0.0
+        run: PYTHONPATH=chipzen python tools/test_aa_seeded.py
+
       - name: Test the Monte Carlo seed key
         run: PYTHONPATH=chipzen python tools/test_seed_key.py
 
       - name: Test the paired McNemar comparison
         run: PYTHONPATH=chipzen python tools/test_mcnemar.py
+
+      - name: Test the bench smoke for the bot adapter
+        run: PYTHONPATH=chipzen python tools/test_bench_smoke.py
+
+      - name: Test that the bench counts coerced hero answers
+        run: PYTHONPATH=chipzen python tools/test_bench_coerced.py
+
+      - name: Test the threebet and sizer bench opponents
+        run: PYTHONPATH=chipzen python tools/test_bench_opponents.py
+
+      - name: Test the pushfold bench opponent
+        run: PYTHONPATH=chipzen python tools/test_bench_pushfold.py
