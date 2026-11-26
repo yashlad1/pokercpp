@@ -29,7 +29,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import itertools
 import json
 import math
 import os
@@ -73,31 +72,37 @@ class View:
             setattr(self, k, kw.get(k) if k == "live_history" else kw[k])  # optional: live labels
 
 
-# A unique id per play_hand call: the two seat-swapped plays of one seed are
-# different hands as far as an opponent model is concerned.
-HAND_IDS = itertools.count()
-
 # --------------------------------------------------------------------------
 # Agents
 # --------------------------------------------------------------------------
 
 class Seeder:
-    """A stable nonzero seed per decision, from the hand id, the agent's own
-    decision count within that hand and a per-agent salt. Seeded this way, an
+    """A stable nonzero seed per decision, from the hand id (deal seed and the
+    agent's own seat, see play_hand), the agent's own decision count within
+    that hand and a per-agent salt. Seeded this way, an
     identical spot in two builds draws identical Monte Carlo samples, so the
     paired difference isolates the change instead of sampling noise."""
 
     def __init__(self, name):
         self.salt = zlib.crc32(name.encode())
         self.count = Counter()
+        self.role = 0  # 1 for the villain when it shares the hero's salt, see split_roles
 
     def next(self, hand):
         k = self.count[hand]
         self.count[hand] += 1
-        x = (hand * 0x9E3779B97F4A7C15 + k * 0xC2B2AE3D27D4EB4F + self.salt) & (2**64 - 1)
+        x = (hand * 0x9E3779B97F4A7C15 + k * 0xC2B2AE3D27D4EB4F + self.salt + self.role) & (2**64 - 1)
         x = ((x ^ (x >> 30)) * 0xBF58476D1CE4E5B9) & (2**64 - 1)
         x = ((x ^ (x >> 27)) * 0x94D049BB133111EB) & (2**64 - 1)
         return (x ^ (x >> 31)) or 1
+
+
+def split_roles(hero, villain):
+    """Two agents with the same salt (an A/A run) must not draw the same seeds
+    when the swap puts each in the other's seat. Set, never toggled."""
+    h, v = getattr(hero, "seeder", None), getattr(villain, "seeder", None)
+    if h and v:
+        h.role, v.role = 0, int(h.salt == v.salt)
 
 
 def engine_impl():
@@ -497,7 +502,6 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
     the same cards to the same seats - which is what makes the pairing in
     `duplicate_match` cancel the luck instead of merely averaging it.
     """
-    hand = next(HAND_IDS)
     start = (stack, stack) if stacks is None else tuple(stacks)
     random.seed(seed)
     st = NoLimitTexasHoldem.create_state(
@@ -537,7 +541,7 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
             stack=st.stacks[i],
             bb=blinds[1],
             villain_raises=aggression[1 - i],
-            hand=hand,
+            hand=seed * 2 + i,  # deal seed + own seat: unique per play, no global counter
             history=list(history), seat=i, dealer_seat=sb, opp_stack=st.stacks[1 - i],
             live_history=list(live),
         )
@@ -576,10 +580,10 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
         live.append({"seat": i, "action": live_label, "amount": entry[1], "phase": phase})
 
     if any(hasattr(a, "hand_over") for a in agents):
-        res = round_result(st, hand, live, holes)
+        res = round_result(st, seed, live, holes)
         for k, a in enumerate(agents):
             if hasattr(a, "hand_over"):
-                a.hand_over(res, k)
+                a.hand_over(dict(res, hand_number=seed * 2 + k + 1), k)  # as the turn states carry
 
     return [st.stacks[k] - start[k] for k in range(2)]
 
@@ -591,6 +595,7 @@ def duplicate_match(hands: int, hero, villain, blinds=(50, 100), stack=10000, se
     luck differenced out, so their mean is a far tighter estimate of the edge
     than the same number of independent hands would give.
     """
+    split_roles(hero, villain)
     results = []
     for k in range(hands // 2):
         s = seed0 + k

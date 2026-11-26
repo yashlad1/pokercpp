@@ -122,3 +122,6 @@ jobs:
 
       - name: Test the match blind schedule
         run: PYTHONPATH=chipzen python tools/test_match.py
+
+      - name: Test the Monte Carlo seed key
+        run: PYTHONPATH=chipzen python tools/test_seed_key.py
