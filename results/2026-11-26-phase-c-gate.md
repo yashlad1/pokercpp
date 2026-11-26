@@ -39,6 +39,7 @@ Date: 2026-11-26. Phase C, steps C3 (bench and match gate) and C4 (image gate). 
 1. **Park.** This is the pre-stated outcome, since rule 3 did not replicate.
 2. **Confirm.** If the owner wants to act on the post-hoc pattern below, write a new pre-registered confirmatory gate on fresh seeds 830001 and 840001, with a broader benefit target (for example aggro at 15 and 100 bb plus a loose bluffer).
 - Never ship on the post-hoc rows.
+- 26 Nov 2026: the owner shipped 0.85 (#129, merged as eb4f96a) on harm-free but unreplicated-benefit evidence, against the pre-stated park.
 
 ## All 90 paired lines
 Verbatim `A - B` lines from `tools/paired.py`, candidate minus baseline, bb/100, unadjusted 95% intervals.
