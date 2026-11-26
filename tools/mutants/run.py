@@ -40,6 +40,7 @@ TESTS = {
     "engine_seed": (["{py}", "-m", "pytest"], {"PYTEST_ADDOPTS": "chipzen/test_engine_seed.py"}, 600),
     "replay": (["{py}", "chipzen/test_replay.py"], {"PYTHONPATH": "chipzen"}, 600),
     "preflop_realization": (["{py}", "chipzen/test_preflop_realization.py"], {}, 600),
+    "suit_relabel": (["{py}", "chipzen/test_suit_relabel.py"], {}, 600),
     "paired": (["{py}", "tools/test_paired.py"], {}, 600),
     "opponent": (["{py}", "chipzen/test_opponent.py"], {"PYTHONPATH": "chipzen"}, 600),
     "decide_constants": (["{py}", "chipzen/test_decide_constants.py"], {"PYTHONPATH": "chipzen"}, 600),
