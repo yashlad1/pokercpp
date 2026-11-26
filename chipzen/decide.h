@@ -77,7 +77,7 @@ inline double villainRangeFraction(int villainRaises, int toCall, int pot) {
     return std::max(0.05, std::min(1.0, f));
 }
 
-constexpr double kPreflopRealization = 0.75;
+constexpr double kPreflopRealization = 0.85;
 
 // Share of raw equity a hand can expect to actually collect.
 //
@@ -92,7 +92,7 @@ constexpr double kPreflopRealization = 0.75;
 // this proves to matter.
 inline double equityRealization(size_t boardSize, double preflop = kPreflopRealization) {
     switch (boardSize) {
-        case 0:  return preflop;   // preflop: three streets to navigate (default 0.75)
+        case 0:  return preflop;   // preflop: three streets to navigate (default 0.85)
         case 3:  return 0.82;   // flop
         case 4:  return 0.90;   // turn
         default: return 1.00;   // river: showdown next, nothing left to lose
