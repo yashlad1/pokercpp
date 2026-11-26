@@ -17,6 +17,7 @@ Every check below is tagged:
 
 import subprocess
 import sys
+import zlib
 
 SOLVER = sys.argv[1] if len(sys.argv) > 1 else "/tmp/solver_check"
 
@@ -28,6 +29,8 @@ def ask(hole, board, pot, to_call, min_raise, max_raise, stack, bb, sims=3000,
         str(pot), str(to_call), str(min_raise), str(max_raise),
         str(stack), str(bb), str(sims), str(villain_raises),
     ])
+    # fixed nonzero seed per spot, derived from the spot so every run is identical
+    line += " " + str(zlib.crc32(line.encode()) % 2147483646 + 1)
     out = subprocess.run([SOLVER], input=line + "\n", text=True,
                          capture_output=True, timeout=30)
     return out.stdout.strip()
