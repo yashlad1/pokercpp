@@ -80,4 +80,4 @@ Gain is variant minus 0.75 on the same deals. `tools/paired.py` prints baseline 
 
 **Flags:** none. No opponent has a 0.85 gain interval entirely below 0. The largest gains are against random on 710001 (+16.5 [+7.6, +25.4]) and the loosebluff opponents (+3.6 to +8.3, intervals above 0 on all six). Station and loosepassive give identical numbers.
 
-Run time: each run took 13 to 70 seconds, with 8 running in parallel. Eval log rows R202-R217 (25 and 100 bb) and R218-R241 (other opponents).
+Run time: each run took 13 to 70 seconds, with 8 running in parallel. Eval log rows R392-R407 (25 and 100 bb) and R408-R431 (other opponents); renumbered when moved to main; the side-branch IDs collided.
