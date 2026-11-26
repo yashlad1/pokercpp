@@ -19,7 +19,7 @@ The 0.85 sample is matches 2 to 4: 69 hands, 2 wins and 1 loss.
 
 - 0 illegal actions and 0 error lines in all four matches (our own check: chosen action outside `legal=`, or a raise outside the min/max raise).
 - Decisions: 148, 25, 75 and 78.
-- The log's commit stamp is the checkout's HEAD, not necessarily the engine build. The match 1 build was inferred from the numbers: preflop realized/equity on every preflop decision facing a bet is **0.85 in all 63 decisions of the 0eff667 matches (7, 20, 36) and 0.75 in all 23 decisions of the qwentom match**. `measure.py` prints this (section 4).
+- The log's commit stamp is the checkout's HEAD, not necessarily the engine build. The match 1 build was inferred from the numbers: preflop realized/equity on every preflop decision facing a bet is **0.85 in all 63 decisions of the 0eff667 matches (7, 20, 36) and 0.75 in all 23 decisions of the opp-A match**. `measure.py` prints this (section 4).
 
 ### Opponent profiles (the 47fcb67 counts, n shown)
 
@@ -52,8 +52,8 @@ Every hand in all logs where the showdown shows the opponent's cards (n = 59 won
 | group | lost, inside (chips) | lost, outside (chips) | split, inside | won, inside (chips) | won, outside (chips) |
 |---|---|---|---|---|---|
 | opp-A (n=19) | 4 (-2,071) | 2 (-3,744) | 2 | 9 (+13,802) | 2 (+800) |
-| Poet match 2 (n=4) | 1 (-100) | 0 | 0 | 0 | 3 (+10,020) |
-| Poet match 3 (n=6) | 2 (-2,362) | 1 (-1,224) | 0 | 1 (+7,904) | 2 (+4,412) |
+| opp-B match 2 (n=4) | 1 (-100) | 0 | 0 | 0 | 3 (+10,020) |
+| opp-B match 3 (n=6) | 2 (-2,362) | 1 (-1,224) | 0 | 1 (+7,904) | 2 (+4,412) |
 | opp-C (n=5) | 0 | 2 (-13,529) | 1 | 0 | 2 (+1,830) |
 | 0.85 pooled (n=15) | 3 (-2,462) | 3 (-14,753) | 1 | 1 (+7,904) | 7 (+16,262) |
 | all logs (n=59) | 13 (-17,142) | 10 (-24,963) | 4 | 20 (+53,794) | 12 (+23,475) |
@@ -75,8 +75,8 @@ Selection bias: only hands that reach showdown count.
 |---|---|---|---|---|
 | 24 Nov, 8 logs | 1 (0%) | 112 (47%) | 126 (53%) | 239 |
 | 26 Nov opp-A | 0 | 12 (60%) | 8 (40%) | 20 |
-| 26 Nov Poet, match 2 | 0 | 3 (75%) | 1 (25%) | 4 |
-| 26 Nov Poet, match 3 | 0 | 6 (55%) | 5 (45%) | 11 |
+| 26 Nov opp-B, match 2 | 0 | 3 (75%) | 1 (25%) | 4 |
+| 26 Nov opp-B, match 3 | 0 | 6 (55%) | 5 (45%) | 11 |
 | 26 Nov opp-C | 0 | 8 (38%) | 13 (62%) | 21 |
 | all | 1 (0%) | 141 (48%) | 153 (52%) | 295 |
 
