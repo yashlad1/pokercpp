@@ -185,7 +185,8 @@
   "replace": "uint32_t x = m << 1;",
   "what": "wheel removed from straightTop",
   "expect": [
-   "eval_exhaustive"
+   "eval_exhaustive",
+   "eval_order"
   ],
   "why_survives": ""
  },
@@ -196,7 +197,8 @@
   "replace": "return (5u << 20) | (uint32_t)sf;",
   "what": "straight-flush code set to the flush code (one-edit form of the swap)",
   "expect": [
-   "eval_exhaustive"
+   "eval_exhaustive",
+   "eval_order"
   ],
   "why_survives": ""
  },
