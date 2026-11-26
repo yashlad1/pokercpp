@@ -115,9 +115,58 @@ def c5():
         assert r.returncode == 0, r.stdout + r.stderr
 
 
+def c6():
+    base = {"sims": 200, "hero": "bot", "hand_cap": 60, "start_bb": 100,
+            "double_every": None, "impl": "x", "commit": "aaa", "wire": "bench"}
+    with tempfile.TemporaryDirectory() as d:
+        ps = []
+        for name, w in (("a", "bench"), ("b", "live")):
+            p = os.path.join(d, name)
+            write(p, [(1, [True, False])])
+            body = open(p).read()
+            open(p, "w").write(json.dumps({"meta": dict(base, wire=w)}) + "\n" + body)
+            ps.append(p)
+        r = run("--compare", *ps)
+        assert r.returncode != 0 and "meta.wire" in r.stdout + r.stderr, r.stdout + r.stderr
+        for name, extra, want in (("l", ["--wire", "live"], "live"), ("d", [], "bench")):
+            p = os.path.join(d, name)
+            r = run("--matches", "2", "--vs", "nit", "--hand-cap", "60", "--sims", "200",
+                    "--hero", "bot", *extra, "--seed0", "1", "--dump", p)
+            assert r.returncode == 0, r.stderr[-300:]
+            meta = json.loads(open(p).readline()).get("meta", {})
+            assert meta.get("wire") == want, (want, meta)
+
+
+def c7():
+    # what the bot receives, not how match builds it: --wire live must hide all_in
+    import bot
+    import match
+    real = bot.PokerCppBot.decide
+
+    def offered(wire):
+        seen = []
+
+        def spy(self, state):
+            seen.append(list(state.valid_actions))
+            return real(self, state)
+        bot.PokerCppBot.decide = spy
+        try:
+            match.run("nit", 1, 60, 200, 1, hero="bot", wire=wire)
+        finally:
+            bot.PokerCppBot.decide = real
+        return seen
+
+    live, bench = offered("live"), offered("bench")
+    assert live, "live: bot never asked to decide"
+    assert not any("all_in" in v for v in live), "live wire offered all_in"
+    assert any("all_in" in v for v in bench), "bench wire never offered all_in"
+
+
 case("1 mcnemar values", c1)
 case("2 compare 2/1", c2)
 case("3 mismatched seeds", c3)
 case("5 meta mismatch", c5)
+case("6 wire", c6)
 case("4 A/A run", c4)
+case("7 wire reaches the bot", c7)
 sys.exit(1 if fails else 0)
