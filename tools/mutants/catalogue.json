@@ -129,6 +129,7 @@
   "replace": "constexpr double kPreflopRealization = 0.85;",
   "what": "preflop realization 0.75 to 0.85",
   "expect": [
+   "solver",
    "preflop_realization"
   ],
   "why_survives": ""
