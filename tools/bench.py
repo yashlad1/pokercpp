@@ -739,7 +739,7 @@ if __name__ == "__main__":
     ap.add_argument("--realization-scale", type=float, default=1.0,
                     help="engine hero: realization scale (1.0 = shipping)")
     ap.add_argument("--preflop-realization", type=float, default=None,
-                    help="engine hero: preflop realization (unset = shipping 0.75)")
+                    help="engine hero: preflop realization (unset = shipping 0.85)")
     ap.add_argument("--no-bluff", action="store_true", help="engine hero: bluff_enabled=False")
     ap.add_argument("--no-memory", action="store_true", help="engine hero: no opponent memory")
     ap.add_argument("--dump", metavar="PATH",

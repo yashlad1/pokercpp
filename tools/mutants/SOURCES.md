@@ -25,9 +25,8 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - M8 / parity: MEASURED in B2 (#115): live-wire parity fails (aggro 3, random 3 pair mismatches)
 - D1 / sdk: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
 - D1 / solver: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
-- D2 / solver: MEASURED. review table (2026-11-25-review-pr91-pr92.md) (245e3a9, d0c8bdf)
-- D2 / solver: solver kills D2 deterministically since #120 (seeded test: 15/15 fail under D2).
-- D2 / preflop_realization: MEASURED. review table (2026-11-25-review-pr91-pr92.md) (d0c8bdf)
+- D2 / preflop_realization: MEASURED on the 0.85 candidate (C2), macOS: tools/mutants/run.py --only D2 kills it. D2 now mutates 0.85 to 0.75; the solver test no longer kills it because its fold pins hold at 0.75 too.
+- Solver test seeds: its seeded shuffle order differs between libc++ (macOS) and libstdc++ (Linux CI), so a seeded kill is deterministic per platform. D2's kill was measured on macOS, where run.py runs.
 - D3 / decide_properties: MEASURED. A2 (159 checks)
 - D4 / decide_properties: MEASURED. A2 (2 checks)
 - D5 / decide_properties: MEASURED. A2 (29 checks)
