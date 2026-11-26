@@ -59,11 +59,21 @@ Default won 275 and 246 of 400; the knob won 1 and 2 of 400. Here the knob has n
 
 Confirmatory, pre-stated after the reference run saturated: vs aggro, seeds 870001 and 880001, 200 pairs per build and seed, --hero engine, the same two builds. Expect the knob's discordant losses (B-only) to far exceed its wins (A-only), with McNemar p < 0.05 on both seeds.
 
+Run as pre-stated: same two builds, `--hero engine`, 2000 sims, 200 pairs per build and seed.
+
+```
+seed 870001: vs aggro: discordant A-only 2, B-only 254, p=0.0000 (McNemar exact), 400 matches
+seed 880001: vs aggro: discordant A-only 0, B-only 257, p=0.0000 (McNemar exact), 400 matches
+```
+
+Per build vs aggro: default won 255 and 258 of 400; the knob won 3 and 1 of 400. A-only is the knob's wins, B-only its losses: 2 against 254, and 0 against 257, p < 0.0001 on both seeds. The expectation held.
+
 ## Conclusion
 
 - **Chips report: passes.** `paired.py` prints `worse` on both seeds, -21.1 and -22.3 bb/100 with intervals clear of zero.
 - **Match report vs reference: does not read negative, and this is not tuned away.** The knob scored 400/400 against the default's 398/400. The tool reported that correctly; the test opponent cannot discriminate, because the default already wins nearly every match and the knob wins every one.
 - **Match report vs aggro: reads clearly negative on both seeds** (0 wins against 274 and 244 losses, p < 0.0001). So the McNemar tool does detect a clearly worse build when the opponent leaves room.
-- Reading for #7: the chips half of the done-when is met as written. The match half is met only with an opponent that is not saturated; the pre-stated reference run alone does not show it. Whether that satisfies the issue is the owner's call, so this record refers to #7 and does not close it.
+- **Confirmatory run vs aggro (870001, 880001): reads clearly negative on both seeds, as pre-stated.** The pre-stated reference choice failed because reference is saturated (the default wins about 99%); the aggro run on 850001/860001 was post-hoc, the 870001/880001 run was pre-stated.
+- Reading for #7: the chips half is met as written, and the match half is met by the pre-stated confirmatory run vs aggro. The reference result stays on record as a failed first choice for the reason above. This closes #7.
 
-Eval log: experiment `worse-knob-check-7`, Runs R522 to R523 (chips) and Matches M043 to M050 (reference and aggro, knob and default, both seeds). The match rows have no seed0 column value because `evlog.py match --dump` reads bench dumps, not match dumps; the seed is in the Schedule text.
+Eval log: experiment `worse-knob-check-7`; row IDs are added after the eval-log merge, see the PR.
