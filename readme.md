@@ -43,3 +43,9 @@ make strict      # compile the engine with the noisier warning set
 ```
 
 The rules of the game are in `res/texashold.md`.
+
+---
+
+## License
+
+PolyForm Noncommercial 1.0.0 (SPDX: PolyForm-Noncommercial-1.0.0). Noncommercial use and sharing are allowed; entering the code or a derivative in a prize competition is not licensed. See LICENSE.md.
