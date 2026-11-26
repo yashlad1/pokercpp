@@ -10,7 +10,7 @@ Every check below is tagged:
   [invariant]  a rule that must hold whatever the constants are: legality,
                determinism, monotonicity, the stack cap.
   [pin]        pins fitted behaviour. It passes because of current constants
-               (range steps, 0.75/0.82/0.90 realization, 0.50 open, 0.55 shove,
+               (range steps, 0.85/0.82/0.90 realization, 0.50 open, 0.55 shove,
                0.62/0.30 bet edges). When a constant changes, a pin may need
                new numbers. That is expected, not a regression.
 """
@@ -126,7 +126,7 @@ if r.startswith("raise"):
 
 
 # A call that ends the betting has no later street to lose the pot on, so raw equity is the number against
-# the price: 66 is ~52% raw, ~39% discounted, and the price is 45%.
+# the price: 66 is ~52% raw, ~44% discounted, and the price is 45% in the all-in pin and 47.5% in the other two.
 ENDS = dict(board=[], bb=100, villain_raises=1, sims=5000)
 
 # [pin]
@@ -134,11 +134,11 @@ r = ask(["6s", "6d"], pot=1100, to_call=900, min_raise=0, max_raise=0, stack=900
 assert r == "call", f"all-in call with equity over the price should call, got {r!r}"
 
 # [pin]
-r = ask(["6s", "6d"], pot=900, to_call=700, min_raise=0, max_raise=0, stack=1900, **ENDS)
+r = ask(["6s", "6d"], pot=840, to_call=760, min_raise=0, max_raise=0, stack=1900, **ENDS)
 assert r == "call", f"call vs an all-in with equity over the price should call, got {r!r}"
 
 # [pin]
-r = ask(["6s", "6d"], pot=900, to_call=700, min_raise=1400, max_raise=1900, stack=1900, **ENDS)
+r = ask(["6s", "6d"], pot=840, to_call=760, min_raise=1400, max_raise=1900, stack=1900, **ENDS)
 assert r == "fold", f"discount must still apply while betting continues, got {r!r}"
 
 

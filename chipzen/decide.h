@@ -66,7 +66,7 @@ inline double villainRangeFraction(int villainRaises, int toCall, int pot) {
     return std::max(0.05, std::min(1.0, f));
 }
 
-constexpr double kPreflopRealization = 0.75;
+constexpr double kPreflopRealization = 0.85;
 
 // ponytail: depends only on the street, not on position, stack depth or
 // whether the hand is the kind that flops well. Those are the next terms if
