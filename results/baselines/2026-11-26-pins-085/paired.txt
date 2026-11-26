@@ -1,0 +1,6 @@
+commits: A unknown, B unknown
+knobs differ: A {'realization_scale': 1.0, 'bluff_enabled': True, 'memory': True, 'preflop_realization': None}, B {'realization_scale': 1.0, 'bluff_enabled': True, 'memory': False, 'preflop_realization': None}
+vs aggro, 25 bb deep, seed0 700001, 400 hands each
+  A: +0.3 bb/100   95% CI [-108.4, +109.0]
+  B: -58.4 bb/100   95% CI [-139.8, +23.1]
+A - B: +58.6 bb/100   95% CI [-44.0, +161.3]   inconclusive
