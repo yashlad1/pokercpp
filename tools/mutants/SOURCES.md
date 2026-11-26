@@ -42,6 +42,7 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - T3 / match: MEASURED. A4 (h=20)
 - T4 / match: MEASURED. A4 (h=1 TypeError)
 - T4 / wire_default: MEASURED. #141 full mutant run
+- B1 / bench_coerced: MEASURED. run.py --only B1 (the counter adds 0, so the coerced-count test fails); no other test kills it
 - T5: known survivor, expect []. equals the real code at the default FIRST_BB 100; see #111
 
 ## Out of scope

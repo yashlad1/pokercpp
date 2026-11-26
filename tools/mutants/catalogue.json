@@ -266,5 +266,16 @@
   "what": "play_match stack hard-wired",
   "expect": [],
   "why_survives": "equals the real code at the default FIRST_BB 100; see #111"
+ },
+ {
+  "id": "B1",
+  "file": "tools/bench.py",
+  "find": "agents[i].coerced += action not in offered or (",
+  "replace": "agents[i].coerced += False and (",
+  "what": "bench coerced counter adds 0",
+  "expect": [
+   "bench_coerced"
+  ],
+  "why_survives": ""
  }
 ]
