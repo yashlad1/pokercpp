@@ -583,7 +583,7 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
         res = round_result(st, seed, live, holes)
         for k, a in enumerate(agents):
             if hasattr(a, "hand_over"):
-                a.hand_over(res, k)
+                a.hand_over(dict(res, hand_number=seed * 2 + k + 1), k)  # as the turn states carry
 
     return [st.stacks[k] - start[k] for k in range(2)]
 

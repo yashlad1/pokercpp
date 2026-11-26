@@ -11,7 +11,6 @@ Run: PYTHONPATH=chipzen python tools/test_parity.py [--pairs 50] [--sims 200]
 """
 import argparse
 import importlib.util
-import itertools
 import os
 import sys
 import time
@@ -34,7 +33,6 @@ BB, STACK = 100, 100
 
 
 def play(kind, opp, wire):
-    bench.HAND_IDS = itertools.count()  # same hand ids, so the same engine seeds
     bench.pokercpp_engine.decide = bench.REAL_DECIDE  # Bot() leaves its wrapper behind
     hero = (bench.Bot(BB // 2, BB, STACK * BB, args.sims, "full", "full", wire=wire)
             if kind == "bot" else bench.PokerCpp(sims=args.sims))

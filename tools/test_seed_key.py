@@ -139,6 +139,34 @@ def aa_duplicate():
     return compared > 0
 
 
+def bot_hand_numbers():
+    hero = bench.Bot(50, 100, 10000, sims=SIMS)
+    ev = []
+    od, orr = hero.bot.decide, hero.bot.on_round_result
+
+    def dec(state, *a, **kw):
+        ev.append(("d", state.hand_number))
+        return od(state, *a, **kw)
+
+    def rr(msg, *a, **kw):
+        ev.append(("r", msg["result"]["hand_number"]))
+        return orr(msg, *a, **kw)
+
+    hero.bot.decide, hero.bot.on_round_result = dec, rr
+    bench.duplicate_match(40, hero, bench.OPPONENTS["nit"](), seed0=1)
+    pending, rnums, no_decide = [], [], 0
+    for kind, n in ev:
+        if kind == "d":
+            pending.append(n)
+        else:
+            if any(p != n for p in pending):
+                return False
+            no_decide += not pending
+            rnums.append(n)
+            pending = []
+    return bool(rnums) and len(set(rnums)) == len(rnums) and no_decide > 0
+
+
 case("1a insert one hand (reference)", inserted_hand("reference"))
 case("1b insert one hand (station)", inserted_hand("station"))
 case("2 run to run, memory on", run_to_run)
@@ -147,4 +175,5 @@ case("4 same-name salt", same_name_salt)
 case("5 seat order changes seed", seat_order)
 case("6 different names, same seat", names_differ)
 case("7 A/A duplicate play", aa_duplicate)
+case("8 Bot hand numbers agree", bot_hand_numbers)
 sys.exit(1 if fails else 0)
