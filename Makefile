@@ -42,6 +42,7 @@ TEST_GAME = tests/test_game_logic
 TEST_EQUITY = tests/test_equity_exact
 TEST_PROPS = tests/test_decide_properties
 TEST_EXHAUSTIVE = tests/test_eval_exhaustive
+TEST_ORDER = tests/test_eval_order
 
 # Main game target
 $(TARGET): $(SRC)
@@ -77,8 +78,13 @@ test_eval_exhaustive: tests/test_eval_exhaustive.cpp model/fast_eval.h model/adv
 	$(CXX) $(CXXFLAGS) -O2 tests/test_eval_exhaustive.cpp model/advanced_hand_evaluator.cpp model/card.cpp -o $(TEST_EXHAUSTIVE)
 	./$(TEST_EXHAUSTIVE)
 
+# Score order over all 2,598,960 five-card hands against a rules-built key, plus 7 vs best-of-5.
+test_eval_order: tests/test_eval_order.cpp model/fast_eval.h model/advanced_hand_evaluator.cpp model/card.cpp
+	$(CXX) $(CXXFLAGS) -O2 tests/test_eval_order.cpp model/advanced_hand_evaluator.cpp model/card.cpp -o $(TEST_ORDER)
+	./$(TEST_ORDER)
+
 # Run all tests
-test: test_hand_evaluator test_monte_carlo test_game_logic test_equity_exact test_decide_properties test_eval_exhaustive
+test: test_hand_evaluator test_monte_carlo test_game_logic test_equity_exact test_decide_properties test_eval_exhaustive test_eval_order
 	@echo "\n=== All Tests Passed ==="
 
 # Every test binary rebuilt with AddressSanitizer + UndefinedBehaviorSanitizer.
@@ -106,8 +112,8 @@ strict:
 run: $(TARGET)
 	./$(TARGET)
 
-.PHONY: test test_decide_properties test_eval_exhaustive test-asan strict run clean
+.PHONY: test test_decide_properties test_eval_exhaustive test_eval_order test-asan strict run clean
 
 clean:
-	rm -f $(TARGET) $(TEST_MC) $(TEST_HAND) $(TEST_GAME) $(TEST_EQUITY) $(TEST_PROPS) $(TEST_EXHAUSTIVE)
+	rm -f $(TARGET) $(TEST_MC) $(TEST_HAND) $(TEST_GAME) $(TEST_EQUITY) $(TEST_PROPS) $(TEST_EXHAUSTIVE) $(TEST_ORDER)
 	rm -rf $(ASAN_DIR)
