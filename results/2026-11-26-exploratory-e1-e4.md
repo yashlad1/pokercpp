@@ -18,7 +18,9 @@ Records only. Nothing here ships and nothing was merged. Eval-log rows R348-R391
 | postflop (31%) | +61.2 [+40.1,+82.3] | +64.0 [+42.8,+85.3] |
 | preflop all-in (2%) | +13.5 [+7.0,+20.0] | +16.1 [+9.1,+23.1] |
 
-There is no loss to find at 15 bb vs aggro. The seat split is noise (all intervals cross 0). The cost sits in preflop folds; postflop play pays it back.
+There is no loss to find at 15 bb vs aggro. The seat split is noise (all intervals cross 0). 2/3 of hands end in a preflop fold vs aggro. The fold bucket is negative by construction (every fold gives up the posted blind), and splitting by how the hand ended selects on the bot's own action, so it shows the fold rate, not that folding is wrong. Whether calling more pays is what Phase C's paired gate tests.
+
+Base vs aggro at 15 bb is about 0 here (--hero bot --wire live), against +19/+14 in #81 (engine hero, bench wire). The setup changes the result, which is why the C3 gate uses the live setup.
 
 ## E2: 20000 vs 5000 sims (candidate = base build, 20000 sims; B = base at 5000)
 | opp, stack | diff s1 | diff s2 |
@@ -85,5 +87,5 @@ E1 and E2 used a local instrumented wrapper of the bench loop (per-hand end type
 
 ## Leads
 - **shove-15 on non-aggro opponents** is a new hypothesis: it needs its own pre-registered gate on fresh seeds, plus match mode, before anything ships. Tracked in a new issue (see #52).
-- **E1** supports the Phase C preflop candidate: the cost at 15 bb is in preflop folds (-74.8 bb/100), not in postflop play.
+- **E1** shows the fold rate (2/3 of hands end in a preflop fold vs aggro), not that folding is wrong. Whether calling more pays is what Phase C's paired gate tests.
 - **E2 and E4** park on this evidence (#54).
