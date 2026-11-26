@@ -91,7 +91,7 @@ def run_values(a, b, **f):
            "A bb/100": r(am), "A CI low": r(alo), "A CI high": r(ahi),
            "B bb/100": r(bm), "B CI low": r(blo), "B CI high": r(bhi),
            "A-B bb/100": r(dm), "CI low": r(dlo), "CI high": r(dhi),
-           "Verdict": verdict(r(dlo), r(dhi)), "A vs opponent": vs_opponent(r(alo), r(ahi))}
+           "Verdict": verdict(dlo, dhi), "A vs opponent": vs_opponent(alo, ahi)}
     row.update(f)
     return row
 
