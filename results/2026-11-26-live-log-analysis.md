@@ -100,12 +100,12 @@ One log file, three matches, all commit 0eff667 (the log version line still says
 | 6 | PluriBot | 0.85 bot, commit 0eff667 | won | 29 | 52 |
 | 7 | BOTV8 | 0.85 bot, commit 0eff667 | lost | 42 | 91 |
 
-The 0.85 sample is now matches 2 to 7: 6 matches, 150 hands, 3 wins and 3 losses.
+The 0.85 sample is now matches 2 to 7. **Day total at 0.85: 6 matches, 3 won and 3 lost, 150 hands; too small to compare against 0.75.**
 
 ### Wire facts
 
 - 0 illegal actions and 0 error lines in all three matches.
-- Preflop realized/equity on decisions facing a bet: 0.85 in 84 of 85 decisions (9, 34, 41 per match). The one exception is match 5 hand 5: we faced an all-in bigger than our stack (to_call 18,507, stack 1,293), where realization is 1.0 because no further betting is possible. The same 1.0 case appears in the 24 Nov logs.
+- Preflop realized/equity on decisions facing a bet: 0.85 in 84 of 85 decisions (9, 34, 41 per match). The one exception is match 5 hand 5: we faced an all-in bigger than our stack (to_call 18,507, stack 1,293), where realization is 1.0 by design: the all-in ends the betting, so there is no further street to discount (the bot folded). The same 1.0 case appears in the 24 Nov logs.
 
 ### Opponent profiles (n shown)
 
@@ -119,10 +119,11 @@ The 0.85 sample is now matches 2 to 7: 6 matches, 150 hands, 3 wins and 3 losses
 
 All samples are small.
 
-### The two busts
+### The biggest losses
 
-- **Match 5, hand 1 (-8,007, match over on hand 10).** JdJc, 3 streets of calls and a river shove. We credited range 0.25; they held 7c8h on 6c 8c 5d 5c 8d (a full house), percentile 65%, outside.
-- **Match 7, hand 42 (-5,248).** Qd4h on Th 8c 3d Qc; we raised the turn, they reraised, we called with range 0.18. They held 3cQs (two pair), percentile 55%, outside.
+- **Match 5, hand 1 (-8,007, match over on hand 10).** JdJc on 6c 8c 5d 5c 8d, against 7c8h. Preflop raise (equity 0.788). Called the flop (range 0.45, equity 0.732) and the turn (range 0.25, equity 0.730), then raised the river to 6,638 (range 0.25, equity 0.803) and was called. They held 7c8h, a full house, percentile 65%, outside the 0.25 range.
+- **Match 5, hand 10 (-2,139).** KsAs on Tc Ad 7c Js Td, against 8c9d. We raised the flop, turn and river at range 0.77 (equity 0.820, 0.795, 0.806). They held 89o (percentile 56%, inside 0.77): a straight draw on the flop that made a jack-high straight (7-8-9-T-J) on the turn. They called all three bets.
+- **Match 7, hand 42 (-5,248).** Qd4h on Th 8c 3d Qc, against 3cQs. Flop raise at equity 0.260 (the below-0.30 bluff branch, range 0.62). Turn: we raised to 1,531 with a pair of queens (range 0.62, equity 0.725); they reraised to 5,382; we called at range 0.18 (equity 0.685). They held Q3 (two pair), percentile 55%, outside 0.18.
 
 ### Our response to the opponent's flop c-bet, and small blind first action
 
