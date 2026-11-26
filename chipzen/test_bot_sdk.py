@@ -12,7 +12,7 @@ Needs the SDK and the compiled engine:
     pip install chipzen-bot pybind11
     g++ -std=c++17 -O2 -shared -fPIC $(python -m pybind11 --includes) \
         chipzen/pokercpp_engine.cpp montecarlo/MonteCarloSimulator.cpp \
-        model/advanced_hand_evaluator.cpp model/card.cpp model/deck.cpp \
+        model/advanced_hand_evaluator.cpp model/card.cpp \
         -o chipzen/pokercpp_engine$(python3-config --extension-suffix)
     PYTHONPATH=chipzen python chipzen/test_bot_sdk.py
 """

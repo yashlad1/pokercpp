@@ -29,7 +29,7 @@ import argparse, json, os, re, shutil, subprocess, sys, tempfile, time
 ROOT = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
 PY = os.environ.get("PY") or sys.exit("set PY to the python with pybind11, pokerkit, chipzen-bot")
 SOLVER_SRC = ["chipzen/solver.cpp", "montecarlo/MonteCarloSimulator.cpp",
-              "model/advanced_hand_evaluator.cpp", "model/card.cpp", "model/deck.cpp"]
+              "model/advanced_hand_evaluator.cpp", "model/card.cpp"]
 
 # name -> (argv with {py} and {solver}, extra env, timeout seconds). Mirrors .github/workflows/ci.yml.
 # Anything not in the build-free group below needs the engine built first.

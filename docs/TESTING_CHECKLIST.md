@@ -86,7 +86,7 @@ PY=$PY tools/build_engine.sh
 make test
 make test-asan CXX=clang++
 make strict CXX=clang++
-g++ -std=c++17 -O2 -o /tmp/solver chipzen/solver.cpp montecarlo/MonteCarloSimulator.cpp model/advanced_hand_evaluator.cpp model/card.cpp model/deck.cpp
+g++ -std=c++17 -O2 -o /tmp/solver chipzen/solver.cpp montecarlo/MonteCarloSimulator.cpp model/advanced_hand_evaluator.cpp model/card.cpp
 python chipzen/test_solver.py /tmp/solver
 python chipzen/test_engine_seed.py
 python chipzen/test_preflop_realization.py

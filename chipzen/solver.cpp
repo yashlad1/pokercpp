@@ -64,17 +64,10 @@ int main() {
         }
 
         if (sims <= 0) sims = 5000;
-        if (seed) {
-            chipzen::Decision d = chipzen::decideFull(hole, board, pot, toCall, minRaise,
-                                                      maxRaise, stack, bb, sims, villainRaises,
-                                                      1.0, true, 0.0, seed);
-            std::cout << (d.action == "raise" ? d.action + " " + std::to_string(d.amount)
-                                              : d.action)
-                      << std::endl;
-            continue;
-        }
-        std::cout << chipzen::decide(hole, board, pot, toCall, minRaise, maxRaise,
-                                     stack, bb, sims, villainRaises)
+        chipzen::Decision d = chipzen::decideFull(hole, board, pot, toCall, minRaise, maxRaise,
+                                                  stack, bb, sims, villainRaises,
+                                                  1.0, true, 0.0, seed);
+        std::cout << (d.action == "raise" ? d.action + " " + std::to_string(d.amount) : d.action)
                   << std::endl;
     }
     return 0;

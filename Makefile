@@ -11,7 +11,7 @@ SANFLAGS = -fsanitize=address,undefined -fno-omit-frame-pointer -g
 
 # The sources the Chipzen engine compiles (tools/build_engine.sh adds only the
 # Python wrapper). Tests that need more than the evaluator link all of them.
-ENGINE_SRC = model/card.cpp model/deck.cpp \
+ENGINE_SRC = model/card.cpp \
              model/advanced_hand_evaluator.cpp \
              montecarlo/MonteCarloSimulator.cpp
 

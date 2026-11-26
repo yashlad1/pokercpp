@@ -1,7 +1,7 @@
 // Speed and agreement: CPU MonteCarloSimulator vs the Metal path.
 // clang++ -std=c++17 -O2 -DUSE_METAL -fobjc-arc tools/metal_bench.cpp \
 //   montecarlo/MonteCarloSimulator.cpp montecarlo/metal/MetalEquity.mm \
-//   model/advanced_hand_evaluator.cpp model/card.cpp model/deck.cpp \
+//   model/advanced_hand_evaluator.cpp model/card.cpp \
 //   -framework Metal -framework Foundation -o metal_bench
 #include "../montecarlo/MonteCarloSimulator.h"
 #include "../model/advanced_hand_evaluator.h"

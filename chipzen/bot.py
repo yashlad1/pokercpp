@@ -335,9 +335,6 @@ class PokerCppBot(Bot):
         if word == "call":
             return Action.call() if "call" in valid else self._safe_default(state, valid)
 
-        if word == "check":
-            return self._safe_default(state, valid)
-
         if word == "fold":
             # Folding for free is strictly worse than checking.
             if state.to_call == 0 and "check" in valid:

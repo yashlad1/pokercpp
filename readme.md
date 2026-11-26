@@ -22,7 +22,7 @@ A heads-up no-limit Texas Hold'em bot for the Chipzen platform. The decisions co
 
 | Path | What it is |
 |---|---|
-| `model/card.*`, `model/deck.*` | Card, suit and rank; a 52-card deck with shuffling |
+| `model/card.*` | Card, suit and rank |
 | `model/advanced_hand_evaluator.*`, `model/fast_eval.h`, `model/hand_types.h` | Best five of seven with full kicker resolution |
 | `model/poker_math.h` | Pot odds and related helpers |
 | `montecarlo/MonteCarloSimulator.*` | Win probability by dealing out the unknown cards many times and evaluating each board with the same evaluator |

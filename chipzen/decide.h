@@ -332,17 +332,6 @@ inline Decision decideFull(const std::vector<Card> &hole,
     return d;
 }
 
-// Line-protocol form, for the CLI binary the tests drive.
-inline std::string decide(const std::vector<Card> &hole,
-                          const std::vector<Card> &board,
-                          int pot, int toCall, int minRaise, int maxRaise,
-                          int stack, int bb, int sims, int villainRaises = 0) {
-    Decision d = decideFull(hole, board, pot, toCall, minRaise, maxRaise, stack, bb,
-                            sims, villainRaises);
-    return d.action == "raise" ? d.action + " " + std::to_string(d.amount) : d.action;
-}
-
-
 } // namespace chipzen
 
 #endif

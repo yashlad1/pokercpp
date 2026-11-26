@@ -38,7 +38,6 @@ RUN g++ -std=c++17 -O2 -shared -fPIC \
         montecarlo/MonteCarloSimulator.cpp \
         model/advanced_hand_evaluator.cpp \
         model/card.cpp \
-        model/deck.cpp \
         -o /pokercpp_engine$(python3-config --extension-suffix) \
     && strip /pokercpp_engine*.so
 

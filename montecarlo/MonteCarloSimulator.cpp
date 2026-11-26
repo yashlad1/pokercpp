@@ -375,29 +375,8 @@ std::vector<Card> MonteCarloSimulator::getRemainingDeck() const
             Card card(static_cast<Rank>(r), static_cast<Suit>(s));
 
             // Check if card is already in player hand or community cards
-            bool isUsed = false;
-            for (const Card &c : playerHand)
-            {
-                if (c.rank == card.rank && c.suit == card.suit)
-                {
-                    isUsed = true;
-                    break;
-                }
-            }
-
-            if (!isUsed)
-            {
-                for (const Card &c : communityCards)
-                {
-                    if (c.rank == card.rank && c.suit == card.suit)
-                    {
-                        isUsed = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!isUsed)
+            if (std::find(playerHand.begin(), playerHand.end(), card) == playerHand.end() &&
+                std::find(communityCards.begin(), communityCards.end(), card) == communityCards.end())
             {
                 deck.push_back(card);
             }
