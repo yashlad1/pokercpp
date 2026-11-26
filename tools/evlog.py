@@ -25,8 +25,8 @@ from zoneinfo import ZoneInfo
 from openpyxl import load_workbook
 from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
+from paired import bb100_ci
 
-HERE = os.path.dirname(os.path.abspath(__file__))
 ET = ZoneInfo("America/New_York")
 NR = "not recorded"
 DT_FMT = "yyyy-mm-dd hh:mm"
@@ -43,27 +43,8 @@ HEADERS = {
     "Timing": ["Date-time", "Operation", "Build", "Hands", "Sims", "MC path", "Wall time (s)", "ms per hand",
                "Hardware", "Notes"],
 }
-WIDTHS = {
-    "Runs": {"Comparison": 34, "Logic tested": 44, "Build A": 18, "Build B": 18, "Hardware": 30, "Source": 30,
-             "Notes": 40, "Experiment": 26, "Date-time (ET)": 17},
-    "Matches": {"Experiment": 26, "Schedule": 26, "Paired (v4 won & v3 lost / reverse)": 30, "Hardware": 30,
-                "Source": 30, "Date-time (ET)": 17},
-    "Timing": {"Operation": 40, "Hardware": 30, "Notes": 40, "Date-time": 17},
-}
 DATE_HEADERS = {"Date-time (ET)", "Date-time"}
 ARIAL = Font(name="Arial", size=10)
-BOLD = Font(name="Arial", size=10, bold=True)
-
-
-def _bb100_ci():
-    # paired.py runs main() on import, so execute only the part above it
-    src = open(os.path.join(HERE, "paired.py")).read().split("\ndef main")[0]
-    ns = {}
-    exec(compile(src, "paired.py", "exec"), ns)
-    return ns["bb100_ci"]
-
-
-bb100_ci = _bb100_ci()
 
 
 def verdict(lo, hi):
@@ -120,16 +101,6 @@ def paired_legs(a, b):
     la = [w for p in a["won"] for w in p]
     lb = [w for p in b["won"] for w in p]
     return sum(x and not y for x, y in zip(la, lb)), sum(y and not x for x, y in zip(la, lb))
-
-
-def style_sheet(ws, name):
-    hs = HEADERS[name]
-    for c in ws[1]:
-        c.font = BOLD
-    for i, h in enumerate(hs, 1):
-        ws.column_dimensions[get_column_letter(i)].width = WIDTHS[name].get(h, max(11, min(len(h) + 3, 20)))
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(hs))}{ws.max_row}"
 
 
 def append(ws, name, row):

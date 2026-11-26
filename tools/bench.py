@@ -21,7 +21,7 @@ Usage:
     pip install pokerkit pybind11
     g++ -std=c++17 -O2 -shared -fPIC $(python -m pybind11 --includes) \
         chipzen/pokercpp_engine.cpp montecarlo/MonteCarloSimulator.cpp \
-        model/advanced_hand_evaluator.cpp model/card.cpp model/deck.cpp \
+        model/advanced_hand_evaluator.cpp model/card.cpp \
         -o chipzen/pokercpp_engine$(python3-config --extension-suffix)
     PYTHONPATH=chipzen python tools/bench.py --hands 2000 --vs reference
 """
@@ -69,12 +69,8 @@ class View:
 
     def __init__(self, **kw):
         for k in self.__slots__:
-            setattr(self, k, kw.get(k) if k == "live_history" else kw[k])  # optional: live labels
+            setattr(self, k, kw.get(k) if k == "live_history" else kw[k])
 
-
-# --------------------------------------------------------------------------
-# Agents
-# --------------------------------------------------------------------------
 
 class Seeder:
     """A stable nonzero seed per decision, from the hand id (deal seed and the
@@ -86,7 +82,7 @@ class Seeder:
     def __init__(self, name):
         self.salt = zlib.crc32(name.encode())
         self.count = Counter()
-        self.role = 0  # 1 for the villain when it shares the hero's salt, see split_roles
+        self.role = 0
 
     def next(self, hand):
         k = self.count[hand]
@@ -177,12 +173,12 @@ class Bot:
         self.GameState, self.Card = GameState, Card
         self.history, self.sims, self.zero = history, sims, hand_number == "zero"
         self.seen_hand = None
-        self.live = wire == "live"  # the live server's view: no all_in, live history labels
+        self.live = wire == "live"
         self.seeder, self.cur = Seeder("pokercpp"), 0
-        real = REAL_DECIDE  # never a previous Bot's wrapper
+        real = REAL_DECIDE
 
         def seeded(**kw):
-            kw["sims"] = self.sims  # bot.py reads POKERCPP_SIMS (5000); the bench sets sims
+            kw["sims"] = self.sims
             kw["seed"] = self.seeder.next(self.cur)
             self.last_kw = kw
             return real(**kw)
@@ -194,7 +190,7 @@ class Bot:
 
     def act(self, v: View):
         self.cur = v.hand
-        if v.hand != self.seen_hand:  # the platform sends round_start per hand
+        if v.hand != self.seen_hand:
             self.seen_hand = v.hand
             self.bot.on_round_start({})
         to_call, stack, n = v.to_call, v.stack, len(v.board)
@@ -214,7 +210,7 @@ class Bot:
         hist = [e for e in ([{**e, "is_timeout": False} for e in v.live_history] if self.live else v.history)
                 if self.history == "full" or not e["action"].startswith("post_")]
         st = self.GameState(
-            hand_number=0 if self.zero else v.hand + 1,  # platform counts from 1
+            hand_number=0 if self.zero else v.hand + 1,
             phase={0: "preflop", 3: "flop", 4: "turn", 5: "river"}[n],
             hole_cards=[self.Card.from_str(c) for c in v.hole],
             board=[self.Card.from_str(c) for c in v.board],
@@ -233,7 +229,7 @@ class Bot:
         """The end-of-hand message as the live server sends it. Seats swap under
         duplicate dealing and the hero may not have acted this hand (the big blind
         after a fold), so the seat is set here."""
-        self.bot.my_seat = seat  # the seat chipzen/bot.py's bluff detector reads
+        self.bot.my_seat = seat
         res = dict(res, hand_number=0 if self.zero else res["hand_number"])
         self.bot.on_round_result({"type": "round_result", "result": res})
 
@@ -247,7 +243,7 @@ class September:
     def __init__(self, sims=2000):
         self.sims = sims
         self.seeder = Seeder(self.name)
-        try:  # older builds of the module do not take a seed
+        try:
             pokercpp_engine_base.decide(hole=["As", "Kd"], board=[], pot=150, to_call=50,
                                         min_raise=200, max_raise=1000, stack=1000,
                                         bb=100, sims=10, seed=1)
@@ -459,10 +455,6 @@ class RandomLegal:
         return (pick, 0)
 
 
-# --------------------------------------------------------------------------
-# One hand
-# --------------------------------------------------------------------------
-
 HAND_RANK = {"HIGH_CARD": "High Card", "ONE_PAIR": "Pair", "TWO_PAIR": "Two Pair",
              "THREE_OF_A_KIND": "Three of a Kind", "STRAIGHT": "Straight", "FLUSH": "Flush",
              "FULL_HOUSE": "Full House", "FOUR_OF_A_KIND": "Four of a Kind",
@@ -509,14 +501,14 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
 
     holes = [[repr(c) for c in st.hole_cards[k]] for k in (0, 1)]
     aggression = [0, 0]  # voluntary bets/raises this hand, by seat
-    # SDK-shaped log of the hand so far, for the Bot agent. pokerkit heads-up:
-    # the small blind is the dealer and acts first preflop.
+    # SDK-shaped log of the hand so far, for the Bot agent. pokerkit heads-up: the small blind is the dealer
+    # and acts first preflop.
     sb = 0 if st.bets[0] < st.bets[1] else 1
     history = [
         {"seat": sb, "action": "post_small_blind", "amount": st.bets[sb], "phase": "preflop", "is_timeout": False},
         {"seat": 1 - sb, "action": "post_big_blind", "amount": st.bets[1 - sb], "phase": "preflop", "is_timeout": False},
     ]
-    live = [dict(e) for e in history]  # same, in the live round_result labels
+    live = [dict(e) for e in history]
     for e in live:
         del e["is_timeout"]
     phases = {0: "preflop", 3: "flop", 4: "turn", 5: "river"}
@@ -526,31 +518,30 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
         if i is None:
             break
         guard += 1
-        if guard > 400:  # a stuck state must not hang the run
+        if guard > 400:
             break
 
         view = View(
             hole=[repr(c) for c in st.hole_cards[i]],
             board=[repr(c) for row in st.board_cards for c in (row if isinstance(row, list) else [row])],
             pot=st.total_pot_amount,
-            # Uncapped, as the platform sends it: pokerkit's own amount is
-            # capped at our stack, which would hide the engine's cap.
+            # Uncapped, as the platform sends it: pokerkit's own amount is capped at our stack, which would hide the
+            # engine's cap.
             to_call=max(max(st.bets) - st.bets[i], 0),
             min_raise=st.min_completion_betting_or_raising_to_amount or 0,
             max_raise=st.max_completion_betting_or_raising_to_amount or 0,
             stack=st.stacks[i],
             bb=blinds[1],
             villain_raises=aggression[1 - i],
-            hand=seed * 2 + i,  # deal seed + own seat: unique per play, no global counter
+            hand=seed * 2 + i,
             history=list(history), seat=i, dealer_seat=sb, opp_stack=st.stacks[1 - i],
             live_history=list(live),
         )
         phase = phases.get(len(view.board), "river")
 
+        # The agents answer about equity; legality is enforced here, as bot.py enforces it against valid_actions on the wire.
         action, amount = agents[i].act(view)
 
-        # The agents answer about equity; legality is enforced here, exactly
-        # as bot.py enforces it against valid_actions on the real wire.
         if action == "raise" and st.can_complete_bet_or_raise_to():
             lo = st.min_completion_betting_or_raising_to_amount
             hi = st.max_completion_betting_or_raising_to_amount
@@ -558,7 +549,7 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
             st.complete_bet_or_raise_to(to)
             aggression[i] += 1
             entry = ("all_in" if to >= hi else "raise", to)
-            live_label = "raise"  # live labels every bet and all-in raise "raise"
+            live_label = "raise"  # live labels every bet and all-in "raise"
         elif action in ("call", "check") and st.can_check_or_call():
             st.check_or_call()
             entry = (("check", 0) if view.to_call == 0 else
@@ -583,7 +574,7 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
         res = round_result(st, seed, live, holes)
         for k, a in enumerate(agents):
             if hasattr(a, "hand_over"):
-                a.hand_over(dict(res, hand_number=seed * 2 + k + 1), k)  # as the turn states carry
+                a.hand_over(dict(res, hand_number=seed * 2 + k + 1), k)
 
     return [st.stacks[k] - start[k] for k in range(2)]
 
@@ -639,8 +630,6 @@ OPPONENTS = {"reference": Reference, "station": CallingStation, "nit": Nit,
              "loosebluff25": lambda: LooseBluffer(0.25, "loosebluff25"),
              "loosebluff50": lambda: LooseBluffer(0.5, "loosebluff50")}
 
-# Only when the September build is next to the current one, so --vs all still
-# works without it.
 try:
     import pokercpp_engine_base
     OPPONENTS["september"] = September
@@ -688,8 +677,6 @@ if __name__ == "__main__":
         ap.error("the knob flags do not apply to --ab, which sweeps them itself")
 
     if args.ab:
-        # Every variant faces the same decks, so the comparison between rows
-        # is itself duplicate-dealt and not just each row against its opponent.
         variants = [
             ("shipping", dict()),
             ("no memory", dict(memory=False)),
@@ -702,6 +689,7 @@ if __name__ == "__main__":
         print(f"Knob sweep vs {opp.name}, {args.sims} sims/decision, duplicate-dealt, {args.stack} bb deep\n")
         runs = []
         for label, kw in variants:
+            # Every variant faces the same decks, so rows are duplicate-dealt against each other, not just against the opponent.
             res = duplicate_match(args.hands, PokerCpp(sims=args.sims, **kw), opp,
                                   blinds=(args.bb // 2, args.bb),
                                   stack=args.stack * args.bb, seed0=args.seed0)
@@ -719,7 +707,6 @@ if __name__ == "__main__":
     names = list(OPPONENTS) if args.vs == "all" else [args.vs]
     print(f"pokercpp ({args.sims} sims/decision) vs opponents, duplicate-dealt, {args.stack} bb deep\n")
     for nm in names:
-        # fresh, so memory never carries between opponents
         hero = (Bot(args.bb // 2, args.bb, args.stack * args.bb, args.sims, args.history, args.hand_number, wire=args.wire)
                 if args.hero == "bot" else PokerCpp(sims=args.sims, **knobs))
         res = duplicate_match(args.hands, hero, OPPONENTS[nm](), blinds=(args.bb // 2, args.bb),

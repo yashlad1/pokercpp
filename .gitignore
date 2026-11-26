@@ -1,8 +1,6 @@
 # Build output
-poker
 tests/test_hand_evaluator
 tests/test_monte_carlo
-tests/test_game_logic
 *.o
 *.dSYM/
 

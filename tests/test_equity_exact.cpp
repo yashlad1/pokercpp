@@ -1,26 +1,5 @@
-// Exact equity by enumeration — ground truth for the Monte Carlo engine.
-//
-// MonteCarloSimulator samples; this counts every case. Where both answer the
-// same question, the sampler must converge on the number computed here, and
-// any gap wider than sampling error is a bug in the evaluator or in how the
-// board gets completed.
-//
-// Two different quantities, both needed:
-//
-//   vs a KNOWN villain hand  - has published reference values (AA vs KK is
-//                              82.36%), so it validates the hand evaluator
-//                              against the outside world rather than against
-//                              our own other code.
-//   vs a RANDOM villain hand - the quantity MonteCarloSimulator estimates,
-//                              so it validates the sampler directly.
-//
-// Enumeration sizes (heads-up, 7-card showdown):
-//   river   vs random: C(45,2)             =       990
-//   turn    vs random: C(46,2) x 44        =    45,540
-//   flop    vs random: C(47,2) x C(45,2)   = 1,070,190
-//   preflop vs known : C(48,5)             = 1,712,304
-//   preflop vs random: C(50,2) x C(48,5)   = ~2.1 billion  <- not enumerable
-//
+// Exact equity by enumeration: ground truth the Monte Carlo sampler must converge on.
+// vs a KNOWN villain hand validates the evaluator against published values; vs a RANDOM one, the sampler.
 // Run:  ./tests/test_equity_exact [--slow]
 //       --slow adds the preflop vs-known checks (~10s).
 
@@ -52,9 +31,6 @@ std::vector<Card> remainingDeck(const std::vector<Card> &used) {
     return deck;
 }
 
-// Visit every k-subset of `deck[start..]`. Templated rather than taking a
-// std::function: the flop case calls this a million times and the indirect
-// call would dominate the run.
 template <typename F>
 void forEachCombo(const std::vector<Card> &deck, size_t start, int k,
                   std::vector<Card> &acc, F &&fn) {
@@ -69,8 +45,6 @@ void forEachCombo(const std::vector<Card> &deck, size_t start, int k,
     }
 }
 
-// Score one showdown: 1 for a win, 0.5 for a chop, 0 for a loss. A chop
-// returns half the money, which is why equity counts it as half a win.
 double showdown(const std::vector<Card> &hole, const std::vector<Card> &villain,
                 const std::vector<Card> &board) {
     std::vector<Card> a = hole, b = villain;
@@ -83,7 +57,6 @@ double showdown(const std::vector<Card> &hole, const std::vector<Card> &villain,
     return 0.5;
 }
 
-// Exact equity against one specific villain holding, over every runout.
 double exactVsKnown(const std::vector<Card> &hole, const std::vector<Card> &villain,
                     const std::vector<Card> &board) {
     std::vector<Card> used = hole;
@@ -104,8 +77,6 @@ double exactVsKnown(const std::vector<Card> &hole, const std::vector<Card> &vill
     return count ? score / count : 0.0;
 }
 
-// Exact equity against a uniformly random villain holding — the same
-// quantity MonteCarloSimulator estimates by sampling.
 double exactVsRandom(const std::vector<Card> &hole, const std::vector<Card> &board) {
     std::vector<Card> used = hole;
     used.insert(used.end(), board.begin(), board.end());
@@ -163,9 +134,6 @@ void checkNear(const char *what, double got, double want, double tol) {
     if (!ok) ++failures;
 }
 
-// Does the sampler land on the enumerated answer? Tolerance is 4 standard
-// errors of the sampler's own estimate, so a pass means any remaining bias
-// is smaller than the noise, not that the two merely look close.
 void checkSamplerAgainstExact(const char *what, const std::string &holeStr,
                               const std::string &boardStr, int sims) {
     std::vector<Card> hole = cards(holeStr), board = cards(boardStr);
@@ -174,6 +142,7 @@ void checkSamplerAgainstExact(const char *what, const std::string &holeStr,
     MonteCarloSimulator sim(hole, board, sims);
     sim.runSimulation();
     double mc = sim.getEquity();
+    // Tolerance is 4 standard errors of the sampler's own estimate, so a pass means any bias is below the noise.
     double tol = 4.0 * std::max(sim.getEquityStdDev(), 1e-4);
 
     std::printf("  %-38s exact %7.4f   mc %7.4f   diff %+.4f  (tol %.4f)  %s\n",
@@ -182,11 +151,8 @@ void checkSamplerAgainstExact(const char *what, const std::string &holeStr,
     if (std::fabs(mc - exact) > tol) ++failures;
 }
 
-} // namespace
+}
 
-// Every 5-card hand, binned by category. The frequencies below are pure
-// combinatorics and hold for any correct evaluator, so this proves
-// classification outright rather than comparing us to our own other code.
 void checkHandFrequencies() {
     std::vector<Card> deck = remainingDeck({});
     std::vector<long> got(10, 0);
@@ -211,9 +177,6 @@ void checkHandFrequencies() {
     }
 }
 
-// Classification being right says nothing about ordering within a category.
-// These pin the tiebreaks, including the wheel — A-2-3-4-5 is the LOWEST
-// straight, and treating the ace as high there is the classic evaluator bug.
 void checkTiebreaks() {
     struct { const char *what; const char *win; const char *lose; } cases[] = {
         {"AA with K kicker > AA with Q kicker", "As Ad Kh 7c 2d", "Ah Ac Qh 7s 2c"},
@@ -241,17 +204,10 @@ int main(int argc, char **argv) {
     checkTiebreaks();
     std::printf("\n");
 
-    // Preflop all-in equities, every one of the 1,712,304 boards counted.
-    //
-    // These are regression anchors, not external truth: the values were
-    // produced by this enumerator once the evaluator had been proven correct
-    // above. Quoted "AA vs KK = 82.36%" figures are an average over suit
-    // layouts and will not match any single line here — equity depends on
-    // how many suits the two hands share (82.64% sharing both, 81.26%
-    // sharing none), which is exactly why a single published number makes a
-    // poor assertion.
     if (slow) {
         std::printf("Preflop all-in equity, exact (regression anchors)\n");
+        // Regression values from this enumerator, not external truth: the published AA vs KK 82.36% averages over
+        // suit layouts (82.64% sharing both suits, 81.26% sharing none).
         checkNear("AsAd vs KsKd  (shares both suits)",
                   exactVsKnown(cards("As Ad"), cards("Ks Kd"), {}), 0.82637, 0.0001);
         checkNear("AsAd vs KsKh  (shares one suit)",
@@ -260,30 +216,19 @@ int main(int argc, char **argv) {
                   exactVsKnown(cards("As Ad"), cards("Kh Kc"), {}), 0.81255, 0.0001);
         checkNear("AsKs vs QhQd", exactVsKnown(cards("As Ks"), cards("Qh Qd"), {}), 0.46207, 0.0002);
         checkNear("AsKh vs 2c2d", exactVsKnown(cards("As Kh"), cards("2c 2d"), {}), 0.46962, 0.0002);
-        // A hand against its own mirror must be exactly half, by symmetry.
-        // No outside reference needed and no tolerance deserved.
         checkNear("AsAd vs AhAc  (mirror, must be 0.5)",
                   exactVsKnown(cards("As Ad"), cards("Ah Ac"), {}), 0.5, 1e-9);
         std::printf("\n");
     }
 
-    // Postflop vs a known hand, where the runout is small enough to count.
     std::printf("Evaluator vs known villain (exact enumeration)\n");
-    // An ace-high flush is not a lock, and the exact count says by how much.
-    // Villain holds AhAd and beats the flush in exactly 18 of the 990
-    // runouts: 9 where Ac arrives alongside a card pairing the board (aces
-    // full), and 9 where the two cards trip up Q, J or 2 (queens/jacks/deuces
-    // full). 972/990 = 0.98182.
     checkNear("AsKs on Qs Js 2s vs Ah Ad",
               exactVsKnown(cards("As Ks"), cards("Ah Ad"), cards("Qs Js 2s")),
               972.0 / 990.0, 1e-9);
-    // Drawing dead: quads against a hand with no outs.
     checkNear("7h 7d on 7s 7c 2h vs Ah Kh",
               exactVsKnown(cards("7h 7d"), cards("Ah Kh"), cards("7s 7c 2h")), 1.0, 0.0);
     std::printf("\n");
 
-    // The real check: does MonteCarloSimulator converge on the enumerated
-    // answer for the quantity it actually estimates?
     std::printf("MonteCarloSimulator vs exact, uniform-random villain\n");
     checkSamplerAgainstExact("river   AsKs on Qs Js 2h 9d 3c", "As Ks", "Qs Js 2h 9d 3c", 40000);
     checkSamplerAgainstExact("river   7h2c on Ah Kd Qc 4s 9h", "7h 2c", "Ah Kd Qc 4s 9h", 40000);

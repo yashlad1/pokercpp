@@ -42,10 +42,8 @@ def c1():
 
 def pair_files(d, seed_b=None):
     a, b = os.path.join(d, "a.jsonl"), os.path.join(d, "b.jsonl")
-    # 4 pairs = 8 matches; B flips 2 A-wins to losses and 1 A-loss to a win
     A = [(1, [True, True]), (2, [True, False]), (3, [False, False]), (4, [True, False])]
     B = [(1, [False, False]), (2, [True, True]), (3, [False, False]), (4, [True, False])]
-    # discordant: seed1 two A-won/B-lost, seed2 one A-lost/B-won -> (2, 1)
     if seed_b:
         B[3] = (seed_b, B[3][1])
     write(a, A)
@@ -60,7 +58,6 @@ def c2():
         assert r.returncode == 0, r.stderr
         line = [l for l in r.stdout.splitlines() if "discordant" in l]
         assert line, r.stdout
-        # assumed: counts appear as "2" and "1"; p printed to >=3 decimals, so compare at 5e-4
         assert re.search(r"\b2\b", line[0]) and re.search(r"\b1\b", line[0]), line[0]
         p = float(re.search(r"p=\s*([0-9.]+(?:e-?\d+)?)", line[0]).group(1))
         assert abs(p - match.mcnemar(2, 1)) < 5e-4, (p, line[0])
@@ -138,7 +135,6 @@ def c6():
 
 
 def c7():
-    # what the bot receives, not how match builds it: --wire live must hide all_in
     import bot
     import match
     real = bot.PokerCppBot.decide

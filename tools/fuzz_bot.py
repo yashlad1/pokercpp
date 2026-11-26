@@ -12,8 +12,8 @@ import sys
 
 os.environ["POKERCPP_SIMS"] = "300"
 sys.path.insert(0, os.path.abspath(sys.argv[1]))
-import bot  # noqa: E402
-from chipzen import Card, GameState  # noqa: E402
+import bot
+from chipzen import Card, GameState
 
 buf = io.StringIO()
 log = logging.getLogger("pokercpp")
@@ -43,7 +43,7 @@ for k in range(5000):
         lo = min(lo, hi)
         if rng.random() < .2:
             lo = hi
-        elif rng.random() < .2:  # short stack: min_raise above max_raise (= stack)
+        elif rng.random() < .2:
             hi = max(stack, 1)
             lo = hi + rng.randint(1, 5000)
     else:

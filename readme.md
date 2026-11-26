@@ -1,12 +1,12 @@
-# pokercpp: Texas Hold'em in C++
+# pokercpp: a heads-up no-limit hold'em bot
 
-A command-line Texas Hold'em game in modern **C++17**, with Monte Carlo bot opponents, an MVC layering with no view dependencies in the model, and a tested hand evaluator. The same Monte Carlo engine also plays heads-up no-limit hold'em as a bot on the Chipzen platform (see below).
+A heads-up no-limit Texas Hold'em bot for the Chipzen platform. The decisions come from a Monte Carlo equity engine in **C++17**, compiled into a Python extension; a thin Python adapter speaks the wire protocol and checks that every action is legal.
 
 ---
 
 ## Chipzen bot
 
-- **What it is:** the same Monte Carlo engine plays heads-up no-limit hold'em on the Chipzen platform. The decision logic in `chipzen/decide.h` is compiled into a Python extension, and `chipzen/bot.py` handles the wire protocol and checks that every action is legal.
+- **What it is:** the decision logic in `chipzen/decide.h` is compiled into a Python extension, and `chipzen/bot.py` handles the wire protocol and checks that every action is legal.
 - **Build, validate and upload:** [chipzen/README.md](chipzen/README.md).
 - **Offline measurement:**
   - `tools/bench.py`: duplicate-dealt bb/100 against scripted opponents, seeded and repeatable; `--hero bot` runs the real `chipzen/bot.py`.
@@ -14,221 +14,38 @@ A command-line Texas Hold'em game in modern **C++17**, with Monte Carlo bot oppo
   - `tools/match.py`: freezeout matches with rising blinds, scored by match wins.
 - **Tests:** `make test` (C++ engine), `chipzen/test_solver.py` (decision rules through the CLI solver), `chipzen/test_bot_sdk.py` (bot.py against the real SDK), `chipzen/test_engine_seed.py` and `tools/test_paired.py`.
 - **Results:** write-ups of the benchmark runs in [results/](results/).
+- **What to run and what protects what:** [docs/TESTING_CHECKLIST.md](docs/TESTING_CHECKLIST.md) and [docs/FEATURES_AND_TESTS.md](docs/FEATURES_AND_TESTS.md).
 
 ---
 
-## Features (Implemented)
+## Engine
 
-- Card and deck generation, with suit symbols in the terminal
-- Full game loop with betting and showdown
-- **Bot opponents: Easy / Medium / Hard / HardPlus**, the last driven by Monte Carlo equity and pot odds
-- **Threaded spinner animation** while the bot thinks
-- Best-five-of-seven hand evaluator with full kicker resolution
-- Clear CLI interface (check, bet, fold actions)
-- SOLID design with `BotPlayer` subclass
-- MVC layering: the model performs no console I/O. `BotPlayer` reports its
-  reasoning through a `BotObserver` interface and the view supplies the
-  adapter, so game logic can run headless.
-- Injectable input (`PlayerInput`) and a configurable thinking delay, so a
-  full hand can be played in tests without a terminal
-- **64 unit tests** covering hand ranking, chip conservation, bot decisions
-  and the statistical machinery; `make test-asan` runs them under
-  AddressSanitizer and UBSan
+| Path | What it is |
+|---|---|
+| `model/card.*` | Card, suit and rank |
+| `model/advanced_hand_evaluator.*`, `model/fast_eval.h`, `model/hand_types.h` | Best five of seven with full kicker resolution |
+| `model/poker_math.h` | Pot odds and related helpers |
+| `montecarlo/MonteCarloSimulator.*` | Win probability by dealing out the unknown cards many times and evaluating each board with the same evaluator |
+| `chipzen/decide.h` | The decision rules built on that equity |
+
+The equity model assumes a **uniformly random opponent hand**, which overstates equity by roughly 13 percentage points against a tight range. See `docs/MONTE_CARLO_ANALYSIS.md`.
 
 ---
 
-## Known limitations
+## Build and test
 
-- **No blinds or antes**, so folding preflop costs nothing.
-- **No preflop betting round**; action starts on the flop.
-- **No raises** and a fixed 100-chip bet size.
-- The bot's equity model assumes a **uniformly random opponent hand**, which
-  overstates its equity by roughly 13 percentage points against a tight range.
-  See `docs/MONTE_CARLO_ANALYSIS.md`.
+Requires **clang++** (or g++) with C++17.
 
----
-
-## Poker Rules - Texas Hold'em
-
-1. **2 hole cards** dealt to each player
-2. **5 community cards** revealed in stages:
-   - **Flop** (3 cards)
-   - **Turn** (1 card)
-   - **River** (1 card)
-3. Make the **best 5-card poker hand**
-4. Actions: `check`, `bet`, `fold`
-5. Win by:
-   - Forcing opponent to fold
-   - Having a better hand at showdown
-
----
-
-## Hand Rankings (Best to Worst)
-
-1. Royal Flush
-2. Straight Flush
-3. Four of a Kind
-4. Full House
-5. Flush
-6. Straight
-7. Three of a Kind
-8. Two Pair
-9. One Pair
-10. High Card
-
----
-
-## Bot Difficulty Logic
-
-You can choose bot difficulty at the start:
-- **Easy**: Randomly calls ~25% of the time
-- **Medium**: Calls if hand ≥ One Pair
-- **Hard**: Calls if hand is good, but may bluff ~20% with weak hands
-
----
-
-## Architecture Overview
-
-```mermaid
-classDiagram
-    direction LR
-
-    class PokerController {
-        +runGame()
-        +playRound()
-        +bettingRound(stage)
-    }
-    class CLIView {
-        +renderTable()
-        +promptAction()
-    }
-    class Player {
-        +string name
-        +int chips
-        +vector~Card~ hole
-        +act()
-    }
-    class BotPlayer {
-        +BotDifficulty level
-        +decide()
-    }
-    class Deck {
-        +shuffle()
-        +deal()
-    }
-    class Card {
-        +Rank rank
-        +Suit suit
-    }
-    class HandEvaluator {
-        +evaluate(cards) HandRank
-    }
-    class AdvancedHandEvaluator
-    class MonteCarloSimulator {
-        +winProbability(hole, board, opponents)
-    }
-    class BotThinkingVisualizer
-    class PerformanceMonitor
-    class GameLogger
-
-    PokerController --> CLIView : renders through
-    PokerController --> Deck
-    PokerController --> Player
-    PokerController --> HandEvaluator : resolves showdown
-    Player <|-- BotPlayer
-    Deck o-- Card
-    HandEvaluator <|-- AdvancedHandEvaluator
-    BotPlayer --> MonteCarloSimulator : estimates equity
-    BotPlayer --> BotThinkingVisualizer : shows its reasoning
-    MonteCarloSimulator --> HandEvaluator : evaluates rollouts
-    PokerController --> GameLogger
-    MonteCarloSimulator --> PerformanceMonitor
-```
-
-**Strict MVC.** `model/` knows nothing about how the game is displayed, `view/` knows nothing
-about the rules, and `controller/` is the only thing that talks to both. That separation is
-what makes the hand evaluator unit-testable in isolation, which matters because a poker game
-where the evaluator is subtly wrong is not a game.
-
-### How the bot actually decides
-
-```mermaid
-flowchart LR
-    state["hole cards + board<br/>+ opponent count"] --> mc["Monte Carlo rollouts<br/><i>deal out the unknowns,<br/>evaluate, repeat</i>"]
-    mc --> eq["win probability"]
-    eq --> d{"BotDifficulty"}
-    d -->|easy| a1["loose thresholds"]
-    d -->|medium| a2["pot-odds aware"]
-    d -->|hard| a3["tight, equity vs pot odds"]
-    a1 --> act["fold · call · raise"]
-    a2 --> act
-    a3 --> act
-
-    style mc fill:#0d1117,stroke:#58a6ff,color:#c9d1d9
-```
-
-The bot does not use a lookup table or hand-tuned heuristics for hand strength. It deals out
-the unknown cards many times, evaluates each complete board with the same evaluator the real
-game uses, and counts how often it wins. Difficulty changes what it does with that number,
-not how the number is produced.
-
-
-### `Card` & `Deck`
-- Card = suit + rank
-- Deck = 52-card generation + shuffling
-
-### `Player` & `BotPlayer`
-- `Player`: name, chip count, hand
-- `BotPlayer`: subclass with `shouldCallBet()` based on difficulty
-
-### `HandEvaluator`
-- Uses frequency maps and sorted ranks
-- Detects pairs, trips, flushes, full house, straights, etc.
-
-### `PokerController`
-- Manages game loop, betting, round progression
-
-### `CLIView`
-- Handles output formatting and emoji display
-- Includes `Spinner` animation using multithreading
-
----
-
-## How a Round Works
-
-1. Deal hole cards
-2. Reveal flop → turn → river
-3. User chooses action
-4. Bot decides based on difficulty
-5. Evaluate hands and determine winner
-6. Update chip counts
-
----
-
-## Strategy Guide: How Poker Players Think
-
-- Is my pre-flop hand strong?
-- Did the flop improve my hand?
-- What could the opponent be holding?
-- Should I bluff or fold?
-- What’s the pot odds and EV?
-
----
-
-## How to Run the Game
-
-### Requirements
-- macOS or Linux with **clang++ or g++**
-- C++17 compatible terminal setup
-- (Optional) Sublime Text or VSCode
-
-### Compile and Run
 ```bash
-make clean
-make run
+make test        # hand evaluator, Monte Carlo, exact equity, decide properties, exhaustive evaluator
+make test-asan   # the same tests under AddressSanitizer and UBSan
+make strict      # compile the engine with the noisier warning set
 ```
 
-or without MakeFile
-```bash
-clang++ -std=c++17 main.cpp controller/poker_controller.cpp view/cli_view.cpp view/ascii_art.cpp view/bot_thinking_visualizer.cpp view/bot_thinking_config.cpp model/card.cpp model/deck.cpp model/player.cpp model/advanced_hand_evaluator.cpp model/bot_player.cpp animation/spinner.cpp animation/card_animation.cpp montecarlo/MonteCarloSimulator.cpp utils/performance_monitor.cpp utils/game_logger.cpp -o poker && ./poker
-```
+The rules of the game are in `res/texashold.md`.
+
+---
+
+## License
+
+PolyForm Noncommercial 1.0.0 (SPDX: PolyForm-Noncommercial-1.0.0). Noncommercial use and sharing are allowed; entering the code or a derivative in a prize competition is not licensed. See LICENSE.md.

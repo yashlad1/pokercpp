@@ -1,9 +1,4 @@
-"""pokercpp on Chipzen.
-
-The strategy lives in C++ — the Monte Carlo equity engine this repo is built
-around, compiled into the `pokercpp_engine` extension module. This file is
-the wire adapter: it owns the WebSocket and guarantees that whatever the
-engine returns is a legal action the server actually offered.
+"""pokercpp on Chipzen: the wire adapter around the `pokercpp_engine` extension.
 
 The engine is linked in rather than shelled out to because the platform
 sandbox blocks both `subprocess` and `ctypes`.
@@ -33,18 +28,16 @@ from opponent import Opponent
 logger = logging.getLogger("pokercpp")
 
 VERSION = "4.0.1"
-STATE_LOG_LIMIT = 50  # raw GameState lines logged after each match start
+STATE_LOG_LIMIT = 50
 
-# 5000 trials puts the 95% interval near +/-1.4% and costs ~12 ms, against a
-# 2000 ms ranked budget. Accuracy is nowhere near the binding constraint.
+# 5000 trials: 95% interval near +/-1.4%, ~12 ms of a 2000 ms ranked budget.
 try:
     SIMS = int(os.environ.get("POKERCPP_SIMS", "5000"))
-except ValueError:  # junk or empty value must not crash the bot at import
+except ValueError:
     SIMS = 5000
 
 
 def _hist(state: GameState) -> str:
-    """seat:action:amount per entry; the log line runs outside the try."""
     try:
         return ",".join(
             f"{e.get('seat')}:{e.get('action')}:{e.get('amount')}"
@@ -55,12 +48,7 @@ def _hist(state: GameState) -> str:
 
 
 def _villain_raises(state: GameState) -> int:
-    """Count aggressive actions by anyone other than us in this hand.
-
-    This is the whole opponent model: how many times they have chosen to put
-    money in voluntarily. Posting a blind is not a choice, so the synthetic
-    entries are skipped.
-    """
+    # Posting a blind is not a choice, so the synthetic blind entries are skipped.
     n = 0
     for entry in state.action_history or ():
         if entry.get("seat") == state.your_seat:
@@ -71,11 +59,7 @@ def _villain_raises(state: GameState) -> int:
 
 
 def _current_blinds(state: GameState) -> tuple[int, int]:
-    """Read this hand's blinds off the synthetic entries in action_history.
-
-    Blinds escalate, so caching them at match start would leave every
-    stack-in-BB calculation drifting as the structure climbs.
-    """
+    # Blinds escalate, so read them each hand, not once at match start.
     sb = bb = 0
     for entry in state.action_history or ():
         action = entry.get("action")
@@ -84,17 +68,12 @@ def _current_blinds(state: GameState) -> tuple[int, int]:
         elif action == "post_big_blind":
             bb = int(entry.get("amount") or 0)
         elif action != "post_ante":
-            break  # past the synthetic entries
+            break
     return sb, bb
 
 
 def _raise_band(state: GameState, valid) -> tuple[int, int]:
-    """The (lo, hi) raise bounds, for the engine and for _to_action alike.
-
-    A stack too short for a full raise is offered as "raise" with min_raise
-    above max_raise (max_raise is the whole stack): the only legal amount is
-    max_raise, so the band collapses to it.
-    """
+    """The server offers a short stack "raise" with min_raise above max_raise; only max_raise is legal."""
     lo, hi = int(state.min_raise or 0), int(state.max_raise or 0)
     if "raise" in valid and 0 < hi < lo:
         lo = hi
@@ -113,13 +92,12 @@ class PokerCppBot(Bot):
     def _reset_blinds(self, match_info):
         cfg = (match_info or {}).get("game_config") or {}
         self.ante = int(cfg.get("ante") or 0)
-        self.last_bb = int(cfg.get("big_blind") or 0)  # fallback until a hand shows its own
+        self.last_bb = int(cfg.get("big_blind") or 0)
         self.hand_bb: dict[int, int] = {}
-        self._fixed_bb = None  # bb fixed for the current hand
-        self._last_n = 0  # last nonzero hand_number seen
+        self._fixed_bb = None
+        self._last_n = 0
 
     def on_match_start(self, match_info):
-        # One process can play several matches; do not carry one opponent into the next.
         self.opponent = Opponent()
         self._reset_blinds(match_info)
         self._state_logs = 0
@@ -138,7 +116,7 @@ class PokerCppBot(Bot):
     def on_round_start(self, message):
         self._round_seen = True
         self._round_seq += 1
-        self._fixed_bb = None  # a new hand: its bb is not fixed yet
+        self._fixed_bb = None
         super().on_round_start(message)
 
     def on_turn_result(self, message):
@@ -168,20 +146,9 @@ class PokerCppBot(Bot):
         self._turns = 0
 
     def _bb(self, state: GameState) -> int:
-        """This hand's big blind, from the first of these that applies:
-
-        1. the bb already fixed for this hand;
-        2. the history's post_big_blind amount;
-        3. a value backed out of pot and to_call, on our first preflop
-           decision of the hand only (later, pot and to_call include raises:
-           a 3-bet read as 'pot + to_call' is the 3-bet size, not the bb).
-           Heads-up the button posts the small blind, so pot + to_call (as
-           SB) or pot - to_call (as BB) is two big blinds, antes removed;
-        4. last_bb, which starts as the game_config big blind.
-
-        A hand starts at on_round_start or when a nonzero hand_number
-        changes. Cross-check against min_raise is logged, never applied.
-        """
+        # Precedence: the bb fixed for this hand, the history's post_big_blind, a value backed out of pot and
+        # to_call on our first preflop decision only (heads-up that sum is 2 bb, antes removed), then last_bb.
+        # A hand starts at on_round_start or when a nonzero hand_number changes.
         n = state.hand_number
         if n and n != self._last_n:
             self._last_n, self._fixed_bb = n, None
@@ -191,8 +158,6 @@ class PokerCppBot(Bot):
         first = preflop and not any(
             e.get("seat") == state.your_seat and not str(e.get("action", "")).startswith("post_")
             for e in state.action_history or ())
-        # With no hand_number and no round_start there is no hand boundary to
-        # trust, so a fixed bb is reused only after our first preflop decision.
         if self._fixed_bb and (n or self._round_seen or not first):
             return self._fixed_bb
         hist_bb = _current_blinds(state)[1]
@@ -239,18 +204,16 @@ class PokerCppBot(Bot):
             if "raise" in valid:
                 lo, hi = _raise_band(state, valid)
             elif "all_in" in valid:
-                # Only a shove is offered: let the engine pick it.
                 lo = hi = int(state.your_stack or 0)
             else:
                 lo = hi = 0
             self.opponent.saw(state.hand_number or self._round_seq, vr)
             d = pokercpp_engine.decide(
-                # Card.__str__ is already the wire's two-char form.
                 hole=[str(c) for c in (state.hole_cards or ())],
                 board=[str(c) for c in (state.board or ())],
                 pot=int(state.pot or 0),
                 to_call=int(state.to_call or 0),
-                # The SDK passes the server's bounds through; 0 means raising is closed.
+                # 0 means raising is closed.
                 min_raise=lo, max_raise=hi,
                 stack=int(state.your_stack or 0),
                 bb=int(bb or 0),
@@ -260,10 +223,7 @@ class PokerCppBot(Bot):
             )
             action = self._to_action(d, state, valid)
         except Exception:
-            # decide() must never raise: an exception here costs the whole
-            # match, while a safe default costs one pot.
-            # A traceback here is the signal that the engine never ran and
-            # every decision this match is a fallback, not a strategy.
+            # decide() must never raise: an exception costs the match, a safe default one pot.
             logger.exception("ENGINE FAILED - falling back to check/fold")
             d = None
             bb = 0
@@ -292,7 +252,6 @@ class PokerCppBot(Bot):
 
     @staticmethod
     def _safe_default(state: GameState, valid: list[str]) -> Action:
-        """Every fallback lands here: the first legal of check, fold, call, all_in, min raise."""
         for name, make in (("check", Action.check), ("fold", Action.fold),
                            ("call", Action.call), ("all_in", Action.all_in)):
             if name in valid:
@@ -304,12 +263,7 @@ class PokerCppBot(Bot):
         return Action.fold()
 
     def _to_action(self, d: dict, state: GameState, valid: list[str]) -> Action:
-        """Map the engine's reply onto a legal action.
-
-        Every branch re-checks ``valid_actions``: the engine reasons about
-        equity and knows nothing about which actions the server offered this
-        turn, so this is the only place legality is enforced.
-        """
+        # The engine knows nothing of the actions offered this turn, so every branch re-checks valid_actions.
         if not d:
             return self._safe_default(state, valid)
 
@@ -335,11 +289,7 @@ class PokerCppBot(Bot):
         if word == "call":
             return Action.call() if "call" in valid else self._safe_default(state, valid)
 
-        if word == "check":
-            return self._safe_default(state, valid)
-
         if word == "fold":
-            # Folding for free is strictly worse than checking.
             if state.to_call == 0 and "check" in valid:
                 return Action.check()
             return Action.fold() if "fold" in valid else self._safe_default(state, valid)

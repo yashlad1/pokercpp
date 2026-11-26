@@ -29,7 +29,7 @@ def state_of(rec):
     d = {k: v for k, v in rec.items() if k not in ("match_file", "live")}
     d["hole_cards"] = [Card.from_str(c) for c in d["hole_cards"]]
     d["board"] = [Card.from_str(c) for c in d["board"]]
-    d.setdefault("your_seat", 0)  # dropped from the fixture when always 0 -- kept, but be safe
+    d.setdefault("your_seat", 0)
     return GameState(**d)
 
 def history_bb(rec):
@@ -46,7 +46,7 @@ for r in recs:
 same = n = 0
 times = []
 for mf, rs in by_match.items():
-    b = bot.PokerCppBot()  # fresh bot per match, states in the logged order
+    b = bot.PokerCppBot()
     b.on_match_start({})
     for r in rs:
         n += 1

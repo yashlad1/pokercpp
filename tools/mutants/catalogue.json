@@ -53,8 +53,8 @@
  {
   "id": "M4b",
   "file": "chipzen/opponent.py",
-  "find": "self.raises[hand] = max(self.raises.get(hand, 0), villain_raises)",
-  "replace": "self.raises[0] = max(self.raises.get(0, 0), villain_raises)",
+  "find": "self.max_raises_by_hand[hand] = max(self.max_raises_by_hand.get(hand, 0), villain_raises)",
+  "replace": "self.max_raises_by_hand[0] = max(self.max_raises_by_hand.get(0, 0), villain_raises)",
   "what": "memory key constant (opponent.py side; extra, not in the table)",
   "expect": [
    "opponent"

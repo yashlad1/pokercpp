@@ -1,14 +1,10 @@
-// Decision logic shared by the CLI solver and the Python extension module.
-//
-// Kept in one header so the binary the tests drive and the module the bot
-// imports cannot drift apart — they compile the same source.
+// Decision logic shared by the CLI solver and the Python module, so the two cannot drift.
 
 #ifndef CHIPZEN_DECIDE_H
 #define CHIPZEN_DECIDE_H
 
 #include "../montecarlo/MonteCarloSimulator.h"
 #include "../model/poker_math.h"
-#include "../model/card.h"
 
 #include <algorithm>
 #include <string>
@@ -44,16 +40,12 @@ inline bool parseCard(const std::string &s, Card &out) {
     return true;
 }
 
-// Clamp a desired total bet into the band the server will accept. Returns 0
-// when raising is illegal this turn (the server reports both bounds as 0).
+// Returns 0 when raising is illegal (the server reports both bounds as 0).
 inline int boundedRaise(int target, int minRaise, int maxRaise) {
     if (minRaise <= 0 || maxRaise <= 0) return 0;
     return std::max(minRaise, std::min(target, maxRaise));
 }
 
-// How wide a range to credit the opponent with, from what they have done
-// this hand. Heads-up opens are wide; re-raises are not.
-//
 // ponytail: a step function fitted by hand, not from data. The right version
 // learns these from observed showdowns. Replace it once there are hands to
 // learn from - the shape below is a starting prior, not a finding.
@@ -63,11 +55,8 @@ inline double villainRangeFraction(int villainRaises, int toCall, int pot) {
     if (villainRaises >= 2) f = 0.18;
     if (villainRaises >= 3) f = 0.08;
 
-    // Within that band, the price asked says something too: betting large
-    // is a stronger action than betting small.
-    // pot already includes the bet, so measure against the pot before it:
-    // a pot-size bet is 1.0 (100%), not 0.5, and the 0.75 / 0.35 cuts below
-    // mean 75% and 35% of the pot.
+    // pot already includes the bet, so measure it against the pot before: a pot-size bet is 1.0,
+    // and the 0.75 / 0.35 cuts below mean 75% and 35% of that pot.
     if (toCall > 0 && pot - toCall > 0) {
         double betFraction = static_cast<double>(toCall) / (pot - toCall);
         if (betFraction > 0.75) f *= 0.7;
@@ -79,48 +68,30 @@ inline double villainRangeFraction(int villainRaises, int toCall, int pot) {
 
 constexpr double kPreflopRealization = 0.75;
 
-// Share of raw equity a hand can expect to actually collect.
-//
-// Monte Carlo equity assumes every hand runs to showdown for free. It does
-// not: calling now means surviving the betting still to come, and a hand
-// that has to fold the turn never collects the river equity counted here.
-// The further from showdown, the less of it is real. On the river the board
-// is complete and the number is exact, so realization is 1.
-//
 // ponytail: depends only on the street, not on position, stack depth or
 // whether the hand is the kind that flops well. Those are the next terms if
 // this proves to matter.
+// Monte Carlo equity assumes every hand reaches showdown for free; the further from showdown, the
+// less of it is collected. The river is exact, so realization there is 1.
 inline double equityRealization(size_t boardSize, double preflop = kPreflopRealization) {
     switch (boardSize) {
-        case 0:  return preflop;   // preflop: three streets to navigate (default 0.75)
-        case 3:  return 0.82;   // flop
-        case 4:  return 0.90;   // turn
-        default: return 1.00;   // river: showdown next, nothing left to lose
+        case 0:  return preflop;
+        case 3:  return 0.82;
+        case 4:  return 0.90;
+        default: return 1.00;
     }
 }
 
-// Fraction of a betting range that should be bluffs, for a bet of `bet`
-// into a pot of `pot`.
-//
-// Villain calling `bet` to win `pot + bet` needs bet/(pot + 2*bet) to break
-// even. Make bluffs exactly that share of the betting range and villain
-// gains nothing by calling or by folding - the bluffs pay for the times the
-// value bets get paid. This is arithmetic, not an opponent model: it holds
-// whoever is sitting there.
+// Villain calling `bet` to win `pot + bet` needs bet/(pot + 2*bet) to break even. Bluffs at exactly
+// that share of the betting range make calling and folding equal for villain, whoever it is.
 inline double bluffShare(int pot, int bet) {
     if (pot <= 0 || bet <= 0) return 0.0;
     return static_cast<double>(bet) / (pot + 2.0 * bet);
 }
 
-// Deterministic pseudo-random draw in [0,1) from the cards themselves.
-//
-// Bluffing has to be a frequency, not a rule, or it is readable. Deriving it
-// from the hole cards and board rather than an RNG means the same spot always
-// resolves the same way - reproducible in tests, and still unguessable to an
-// opponent who cannot see the hole cards. No generator state to thread
-// through, and no seeding question across decisions.
-inline double cardHash(const std::vector<Card> &hole, const std::vector<Card> &board) {
-    unsigned long long h = 1469598103934665603ULL;  // FNV-1a offset basis
+// Deterministic draw from the cards: reproducible in tests, unreadable without the hole cards, no RNG state.
+inline double deterministicDraw(const std::vector<Card> &hole, const std::vector<Card> &board) {
+    unsigned long long h = 1469598103934665603ULL;
     for (const std::vector<Card> *v : {&hole, &board}) {
         for (const Card &c : *v) {
             h ^= static_cast<unsigned long long>(static_cast<int>(c.rank) * 4 +
@@ -131,19 +102,8 @@ inline double cardHash(const std::vector<Card> &hole, const std::vector<Card> &b
     return static_cast<double>((h >> 11) % 100000) / 100000.0;
 }
 
-// How often to bluff with a hopeless hand, so that bluffs end up the right
-// share of the betting range.
-//
-// The share above is a property of the range, not of one hand. Betting a
-// fixed fraction of air hands only lands on it if air and value hands are
-// equally common, and they are not: most hands miss most boards, and miss
-// them worse the more cards are out. Getting this wrong over-bluffs by two
-// to one, which any opponent that calls a lot collects on.
-//
-// So count instead of guessing. Walk our own possible holdings on this
-// board, tally how many are strong enough to value bet against how many are
-// hopeless, and set the frequency from the actual composition. Cheap
-// simulations are fine here - this decides a frequency, not a hand.
+// Bluff frequency is counted over our own holdings on this board (value vs air), not a fixed fraction
+// of air hands: air is far more common than value, and a fixed fraction over-bluffs about two to one.
 inline double bluffFrequency(const std::vector<Card> &board, double rangeFraction,
                              double valueThreshold, double airThreshold,
                              int pot, int bet, unsigned long long seed = 0) {
@@ -160,22 +120,22 @@ inline double bluffFrequency(const std::vector<Card> &board, double rangeFractio
         }
     }
 
-    // Every 31st combination rather than a random sample: deterministic, so
-    // the same board always yields the same frequency, and 31 is coprime
-    // with the suit and rank strides so the walk does not land on one suit.
+    // Every kComboStride-th combination, not a random sample: deterministic, and 31 is coprime with the
+    // suit and rank strides so the walk does not land on one suit.
+    constexpr int kComboStride = 31;
     int value = 0, air = 0, step = 0;
-    unsigned long long n = 0;  // inner simulation index, for its seed
+    unsigned long long n = 0;
     auto tally = [&](double eq) {
         if (eq >= valueThreshold) ++value;
         else if (eq < airThreshold) ++air;
     };
 #ifdef USE_METAL
     const bool gpu = metalAvailable();
-    std::vector<EquityJob> jobs;  // every inner simulation goes out as one GPU batch
+    std::vector<EquityJob> jobs;
 #endif
     for (size_t i = 0; i < deck.size(); ++i) {
         for (size_t j = i + 1; j < deck.size(); ++j) {
-            if (step++ % 31 != 0) continue;
+            if (step++ % kComboStride != 0) continue;
             MonteCarloSimulator sim({deck[i], deck[j]}, board, 300);
             sim.setVillainRange(rangeFraction);
             if (seed) sim.setSeed(seed + 1 + n++);
@@ -213,14 +173,15 @@ struct Decision {
 #define OPEN_EQ 0.50       // ponytail: fitted; minimum raw equity to open
 #endif
 #ifndef OPEN_SIZE_BB
-#define OPEN_SIZE_BB 2.5   // open size in big blinds
+#define OPEN_SIZE_BB 2.5
 #endif
 #ifndef OPEN_MAX_BB
-#define OPEN_MAX_BB 1e9    // open only at or under this many big blinds at hand start
+// open only at or under this many big blinds at hand start
+#define OPEN_MAX_BB 1e9
 #endif
 
-// `realizationScale`, `bluffEnabled` and `preflopRealization` exist so tools/bench.py can A/B them.
-// Defaults reproduce shipping behaviour exactly.
+// `realizationScale`, `bluffEnabled` and `preflopRealization` exist so tools/bench.py can A/B them;
+// the defaults are the shipping behaviour.
 inline Decision decideFull(const std::vector<Card> &hole,
                           const std::vector<Card> &board,
                           int pot, int toCall, int minRaise, int maxRaise,
@@ -228,9 +189,7 @@ inline Decision decideFull(const std::vector<Card> &hole,
                           double realizationScale = 1.0, bool bluffEnabled = true,
                           double rangeFloor = 0.0, unsigned long long seed = 0,
                           double preflopRealization = kPreflopRealization) {
-    // The SDK passes to_call uncapped. Facing a bet bigger than our stack we
-    // can only call the stack; the excess goes back uncalled. Without this,
-    // `required` and the range's bet-size read use chips that can never be won or lost.
+    // The SDK passes to_call uncapped; we can only call our stack.
     if (toCall > stack && stack > 0) { pot -= toCall - stack; toCall = stack; }
     Decision d;
     d.range = std::max(villainRangeFraction(villainRaises, toCall, pot), rangeFloor);
@@ -242,14 +201,8 @@ inline Decision decideFull(const std::vector<Card> &hole,
     double equity = sim.getEquity();
     d.equity = equity;
 
-    // Equity is already measured against the range the opponent is credited
-    // with, so no bet-size fudge is needed on top. What is still needed is
-    // the discount for equity we will not get to collect.
-    //
-    // Realization applies to continuing for a price. It does not apply when
-    // betting: a bet can win the pot outright, and that fold equity is
-    // exactly what a called-down hand lacks. Nor does it apply when the call
-    // ends the betting (all-in, or raising closed): nothing is left to lose.
+    // Realization applies to continuing for a price, not to betting (fold equity) nor to a call that
+    // ends the betting (all-in, or raising closed): nothing is left to lose there.
     const bool callEndsBetting = toCall >= stack || maxRaise <= 0;
     const double shaded = (toCall > 0 && !callEndsBetting)
         ? equity * std::min(1.0, equityRealization(board.size(), preflopRealization) * realizationScale)
@@ -260,24 +213,16 @@ inline Decision decideFull(const std::vector<Card> &hole,
 
     double stackInBB = (bb > 0) ? static_cast<double>(stack) / bb : 100.0;
 
-    // Short stack: the fold-or-shove zone, judged on raw equity for the same
-    // reason - a shove ends the betting, so there is nothing left to realize.
+    // Short stack: fold-or-shove, judged on raw equity because a shove ends the betting.
     // ponytail: shoving when checked to is a 5x-pot overbet. It is right against callers and wrong against folders, so sizing it by opponent type is planned (Phase 4).
     if (stackInBB <= 10.0 && equity >= 0.55) {
         int shove = boundedRaise(maxRaise, minRaise, maxRaise);
         if (shove > 0) { d.action = "raise"; d.amount = shove; return d; }
     }
 
-    // Small blind's first action: facing only the blind difference, no raise
-    // yet. Raising beats limping with any hand ahead of a random one: it takes
-    // the initiative, and a limp hands the big blind a free chance to raise us
-    // off the pot. 2.5 big blinds is a standard open - big enough to charge a
-    // call, small enough to risk little when the big blind re-raises.
-    //
     // ponytail: the 0.50 cut is fitted, not solved. A solved short-stack
     // open/shove table would replace it.
-    // toCall < bb: the blind difference is under one big blind; more than that
-    // means a raise we did not count, and this is no longer an open.
+    // toCall < bb: only the blind difference is owed; more means a raise we did not count, not an open.
     if (board.empty() && villainRaises == 0 && toCall > 0 && toCall < bb && bb > 0 && equity >= OPEN_EQ &&
         (stack + bb - toCall) / static_cast<double>(bb) <= OPEN_MAX_BB) {
         int open = boundedRaise(static_cast<int>(OPEN_SIZE_BB * bb), minRaise, maxRaise);
@@ -287,24 +232,19 @@ inline Decision decideFull(const std::vector<Card> &hole,
     if (toCall <= 0) {
         const int target = boundedRaise(static_cast<int>(pot * 0.66), minRaise, maxRaise);
 
-        // Nothing to call: bet for value...
         if (shaded >= 0.62 && target > 0) {
             d.action = "raise";
             d.amount = target;
             return d;
         }
 
-        // ...or bluff, with hands too weak to win a showdown anyway. Betting
-        // is polarised on purpose: the strong hands and the hopeless ones,
-        // never the middle. A hand with some showdown value loses that value
-        // by betting - it folds out everything it beats and gets called by
-        // everything that beats it - so those check.
-        //
+        // Betting is polarised: strong hands and hopeless ones, never the middle. A hand with showdown
+        // value loses it by betting, so those check.
         // ponytail: the 0.62 and 0.30 bucket edges are fitted. The frequency
         // between them is computed, not fitted.
         if (bluffEnabled && equity < 0.30 && target > 0 && stack > target) {
             const double freq = bluffFrequency(board, d.range, 0.62, 0.30, pot, target, seed);
-            if (cardHash(hole, board) < freq) {
+            if (deterministicDraw(hole, board) < freq) {
                 d.action = "raise";
                 d.amount = target;
                 d.bluff = true;
@@ -316,13 +256,9 @@ inline Decision decideFull(const std::vector<Card> &hole,
         return d;
     }
 
-    // Continuing for a price is judged on equity we expect to collect...
     if (shaded <= d.required) { d.action = "fold"; return d; }
 
-    // ...but whether to raise is judged on the raw number. Realization is
-    // the cost of having to call down; raising is how a hand avoids paying
-    // it, so discounting the raise threshold by it would have the best hands
-    // flat-calling exactly when they should be building the pot.
+    // Raising is judged on raw equity: realization is the cost of calling down, and raising avoids it.
     if (equity >= 0.75) {
         int target = boundedRaise(static_cast<int>((pot + toCall) * 0.75) + toCall,
                                   minRaise, maxRaise);
@@ -333,17 +269,6 @@ inline Decision decideFull(const std::vector<Card> &hole,
     return d;
 }
 
-// Line-protocol form, for the CLI binary the tests drive.
-inline std::string decide(const std::vector<Card> &hole,
-                          const std::vector<Card> &board,
-                          int pot, int toCall, int minRaise, int maxRaise,
-                          int stack, int bb, int sims, int villainRaises = 0) {
-    Decision d = decideFull(hole, board, pot, toCall, minRaise, maxRaise, stack, bb,
-                            sims, villainRaises);
-    return d.action == "raise" ? d.action + " " + std::to_string(d.amount) : d.action;
 }
-
-
-} // namespace chipzen
 
 #endif

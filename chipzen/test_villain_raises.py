@@ -4,6 +4,7 @@ Run from the repo root:  PYTHONPATH=chipzen python chipzen/test_villain_raises.p
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from testutil import run
 os.environ["POKERCPP_SIMS"] = "2000"
 
 from chipzen import GameState
@@ -52,7 +53,7 @@ def test_villain_ignores_blind_posts():
 def test_villain_ignores_our_own_raises():
     h = BL + [H(1, "raise", 300), H(1, "bet", 300), H(1, "all_in", 900)]
     assert vr(h) == 0
-    assert vr(h, your_seat=0) == 3  # same history, seen from the other seat
+    assert vr(h, your_seat=0) == 3
 
 
 def test_villain_mixed_history():
@@ -61,22 +62,5 @@ def test_villain_mixed_history():
     assert vr(h) == 3, vr(h)
 
 
-
-def run():
-    failed = 0
-    for name, fn in sorted(globals().items()):
-        if name.startswith("test_") and callable(fn):
-            try:
-                fn()
-                print("PASS", name)
-            except BaseException as e:  # noqa: BLE001
-                failed += 1
-                print("FAIL", name, "-", type(e).__name__, e)
-    if failed:
-        print(failed, "failed")
-        sys.exit(1)
-    print("all passed")
-
-
 if __name__ == "__main__":
-    run()
+    run(globals())

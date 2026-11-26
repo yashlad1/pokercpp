@@ -61,4 +61,5 @@ def main():
     print(f"A - B: {m:+.1f} bb/100   95% CI [{lo:+.1f}, {hi:+.1f}]   {verdict}")
 
 
-main()
+if __name__ == "__main__":
+    main()

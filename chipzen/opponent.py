@@ -1,10 +1,5 @@
-"""Per-match memory of how often the opponent raises.
-
-The engine reads a hand's own raises as a range: one raise is the top 45%,
-three the top 8%. That is wrong for an opponent who raises every hand, whose
-third raise is no stronger than their first. This remembers the match so far
-so the engine can widen its guess for such an opponent.
-"""
+"""Per-match memory of how often the opponent raises, so the engine can widen its range guess for
+one who raises every hand (whose third raise is no stronger than the first)."""
 
 # ponytail: fitted, not measured. Pseudo-hands of no raise, so a couple of
 # hands cannot swing the range. 3 and not 20 because a short-stacked freezeout
@@ -19,14 +14,14 @@ class Opponent:
     """Counts, per hand, the most raises villain made as seen at our turns."""
 
     def __init__(self):
-        self.raises = {}  # hand id -> most raises villain made in it, as seen at our turns
+        self.max_raises_by_hand = {}  # hand id -> most raises villain made in it, as seen at our turns
 
     def saw(self, hand, villain_raises):
-        self.raises[hand] = max(self.raises.get(hand, 0), villain_raises)
+        self.max_raises_by_hand[hand] = max(self.max_raises_by_hand.get(hand, 0), villain_raises)
 
     def range_floor(self, villain_raises):
         """Fraction of hands in which villain made at least this many raises."""
         if villain_raises < 1:
             return 0.0
-        hits = sum(r >= villain_raises for r in self.raises.values())
-        return hits / (len(self.raises) + PRIOR_HANDS)
+        hits = sum(r >= villain_raises for r in self.max_raises_by_hand.values())
+        return hits / (len(self.max_raises_by_hand) + PRIOR_HANDS)

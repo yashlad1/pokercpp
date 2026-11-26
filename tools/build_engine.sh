@@ -20,7 +20,7 @@ if [ "$MODE" = native ]; then
   echo "native cpu flag: $CPU" >&2
   FLAGS="-std=c++17 -O3 $CPU -flto"
 fi
-SRC="chipzen/pokercpp_engine.cpp montecarlo/MonteCarloSimulator.cpp model/advanced_hand_evaluator.cpp model/card.cpp model/deck.cpp"
+SRC="chipzen/pokercpp_engine.cpp montecarlo/MonteCarloSimulator.cpp model/advanced_hand_evaluator.cpp model/card.cpp"
 EXTRA=
 [ -n "$METAL" ] && { EXTRA="-DUSE_METAL -fobjc-arc"; SRC="$SRC montecarlo/metal/MetalEquity.mm"; EXTRA="$EXTRA -framework Metal -framework Foundation"; }
 EXT=$("$PY" -c 'import sysconfig;print(sysconfig.get_config_var("EXT_SUFFIX"))')

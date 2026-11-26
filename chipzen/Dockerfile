@@ -1,21 +1,8 @@
 # syntax=docker/dockerfile:1.7
 #
-# pokercpp bot image.
+# Both stages share one base: the extension is tied to the interpreter's ABI.
 #
-# Two stages: the first compiles the C++ equity engine into a Python
-# extension module, the second ships only that .so plus the wire adapter.
-# No toolchain reaches the runtime image.
-#
-# The engine is linked into Python rather than run as a separate process
-# because the platform sandbox blocks `subprocess` and `ctypes` alike.
-#
-# Both stages use the same python:3.11-alpine base on purpose: a CPython
-# extension is tied to the interpreter's ABI, so a mismatch here would fail
-# at import, in the container, after upload.
-#
-# Build from the REPO ROOT, not this directory, and target amd64 — the
-# platform runs x86-64, and an arm64 image built on Apple Silicon will not
-# start there:
+# Build from the repo root for amd64 (the platform runs x86-64):
 #   docker build --platform linux/amd64 -f chipzen/Dockerfile -t pokercpp:v1 .
 #   docker save pokercpp:v1 | gzip > pokercpp.tar.gz
 
@@ -38,7 +25,6 @@ RUN g++ -std=c++17 -O2 -shared -fPIC \
         montecarlo/MonteCarloSimulator.cpp \
         model/advanced_hand_evaluator.cpp \
         model/card.cpp \
-        model/deck.cpp \
         -o /pokercpp_engine$(python3-config --extension-suffix) \
     && strip /pokercpp_engine*.so
 
@@ -51,17 +37,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /bot
 
-# Pinned: unpinned, each build silently picks up a newer SDK, which already
-# changed the validator once. 0.7.1 is what this image was validated with
-# on 24 Nov 2026.
+# Pinned: an unpinned build picks up a newer SDK, which changed the validator once.
 RUN pip install chipzen-bot==0.7.1 \
     && rm -rf /root/.cache \
     && find /usr/local/lib/python3.11 -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 COPY --from=builder /pokercpp_engine*.so /bot/
-# Dockerfile and .dockerignore are here only for `chipzen-sdk validate .`, whose
-# packaging check wants them in the bot folder. The platform runs this built
-# image; it does not rebuild from /bot.
+# Dockerfile and .dockerignore are copied only for `chipzen-sdk validate .`.
 COPY chipzen/bot.py chipzen/opponent.py chipzen/Dockerfile chipzen/.dockerignore /bot/
 
 ARG GIT_SHA=unknown

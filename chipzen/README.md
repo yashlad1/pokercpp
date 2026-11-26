@@ -162,7 +162,7 @@ rises every 20 hands.
 ```bash
 g++ -std=c++17 -O2 -o /tmp/solver chipzen/solver.cpp \
     montecarlo/MonteCarloSimulator.cpp model/advanced_hand_evaluator.cpp \
-    model/card.cpp model/deck.cpp
+    model/card.cpp
 python3 chipzen/test_solver.py /tmp/solver
 ```
 
