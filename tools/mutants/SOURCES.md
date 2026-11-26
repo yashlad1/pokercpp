@@ -41,6 +41,7 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - T2 / match: MEASURED. A4 (h=1)
 - T3 / match: MEASURED. A4 (h=20)
 - T4 / match: MEASURED. A4 (h=1 TypeError)
+- T4 / wire_default: MEASURED. #141 full mutant run
 - T5: known survivor, expect []. equals the real code at the default FIRST_BB 100; see #111
 
 ## Out of scope

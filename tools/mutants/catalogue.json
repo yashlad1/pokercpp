@@ -253,7 +253,8 @@
   "replace": "if not DOUBLE_EVERY:",
   "what": "blinds_for: DOUBLE_EVERY inverted",
   "expect": [
-   "match"
+   "match",
+   "wire_default"
   ],
   "why_survives": ""
  },

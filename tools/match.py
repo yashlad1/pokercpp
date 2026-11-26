@@ -95,7 +95,8 @@ def compare(path_a, path_b):
               f"{2 * len(keys)} matches")
 
 
-def run(opp_name, matches, hand_cap, sims, seed0, hero="engine", dump=None, wire="bench"):
+def run(opp_name, matches, hand_cap, sims, seed0, hero="engine", dump=None, wire=None):
+    wire = (wire or "live") if hero == "bot" else "bench"
     new_hero = ((lambda: Bot(FIRST_BB // 2, FIRST_BB, START_BB * FIRST_BB, sims, wire=wire)) if hero == "bot"
                 else (lambda: PokerCpp(sims=sims)))
     pair = [0, 0, 0]  # lost both, split, won both
@@ -138,7 +139,7 @@ if __name__ == "__main__":
     a = ap.parse_args()
     if a.wire and a.hero == "engine":
         print("note: --wire is ignored for --hero engine (recorded as bench)", file=sys.stderr)
-    a.wire = a.wire or "live" if a.hero == "bot" else "bench"
+    a.wire = (a.wire or "live") if a.hero == "bot" else "bench"
     if a.compare:
         compare(*a.compare)
         sys.exit(0)
