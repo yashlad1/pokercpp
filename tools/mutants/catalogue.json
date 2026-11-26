@@ -278,5 +278,16 @@
    "bench_coerced"
   ],
   "why_survives": ""
+ },
+ {
+  "id": "I1",
+  "file": "tools/import_logs.py",
+  "find": "    if interrupted and subprocess.run([\"pgrep\", \"-f\", \"run-external\"], capture_output=True).returncode == 0:",
+  "replace": "    if interrupted and subprocess.run([\"pgrep\", \"-f\", \"run-external\"], capture_output=True).returncode == 0 and False:",
+  "what": "import_logs thinks no run-external is running",
+  "expect": [
+   "import_logs"
+  ],
+  "why_survives": ""
  }
 ]
