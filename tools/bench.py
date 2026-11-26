@@ -650,8 +650,9 @@ if __name__ == "__main__":
                     help="first deal seed; pair k uses seed0 + k")
     ap.add_argument("--hero", default="engine", choices=["engine", "bot"],
                     help="engine: call the C++ engine directly; bot: run chipzen/bot.py")
-    ap.add_argument("--wire", default="bench", choices=["bench", "live"],
-                    help="with --hero bot: bench view (today) or the live server's (no all_in, live labels)")
+    ap.add_argument("--wire", choices=["bench", "live"],
+                    help="with --hero bot: the live server's view (no all_in, live labels; default) or the bench view; "
+                         "the engine hero ignores it and records bench (default)")
     ap.add_argument("--history", default="full", choices=["full", "noblinds"],
                     help="with --hero bot: include the blind posts in action_history or omit them")
     ap.add_argument("--hand-number", default="full", choices=["full", "zero"],
@@ -665,6 +666,9 @@ if __name__ == "__main__":
     ap.add_argument("--dump", metavar="PATH",
                     help="write per-pair results as JSON, for tools/paired.py")
     args = ap.parse_args()
+    if args.wire and args.hero == "engine":
+        print("note: --wire is ignored for --hero engine (recorded as bench)", file=sys.stderr)
+    args.wire = args.wire or "live" if args.hero == "bot" else "bench"
     if args.dump and (args.ab or args.vs == "all"):
         ap.error("--dump needs a single opponent: use --vs NAME without --ab")
     knobs = dict(realization_scale=args.realization_scale,

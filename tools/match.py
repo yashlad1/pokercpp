@@ -128,13 +128,17 @@ if __name__ == "__main__":
     ap.add_argument("--seed0", type=int, default=1)
     ap.add_argument("--hero", default="engine", choices=["engine", "bot"],
                     help="engine: call the C++ engine directly; bot: run chipzen/bot.py")
-    ap.add_argument("--wire", default="bench", choices=["bench", "live"],
-                    help="bot hero only: live = the live server's view (no all_in, live history labels)")
+    ap.add_argument("--wire", choices=["bench", "live"],
+                    help="bot hero only: live (default) = the live server's view (no all_in, live history labels), "
+                         "or bench; the engine hero ignores it and records bench (default)")
     ap.add_argument("--start-bb", type=int, default=FIRST_BB, help="first big blind (stack is 100 of them)")
     ap.add_argument("--double-every", type=int, help="double the bb every N hands (default: live Chipzen steps)")
     ap.add_argument("--dump", help="write one JSON line per match pair to this file")
     ap.add_argument("--compare", nargs=2, metavar=("A", "B"), help="paired McNemar on two --dump files; runs no games")
     a = ap.parse_args()
+    if a.wire and a.hero == "engine":
+        print("note: --wire is ignored for --hero engine (recorded as bench)", file=sys.stderr)
+    a.wire = a.wire or "live" if a.hero == "bot" else "bench"
     if a.compare:
         compare(*a.compare)
         sys.exit(0)
