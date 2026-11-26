@@ -90,7 +90,7 @@ inline double bluffShare(int pot, int bet) {
 }
 
 // Deterministic draw from the cards: reproducible in tests, unreadable without the hole cards, no RNG state.
-inline double cardHash(const std::vector<Card> &hole, const std::vector<Card> &board) {
+inline double deterministicDraw(const std::vector<Card> &hole, const std::vector<Card> &board) {
     unsigned long long h = 1469598103934665603ULL;
     for (const std::vector<Card> *v : {&hole, &board}) {
         for (const Card &c : *v) {
@@ -120,8 +120,9 @@ inline double bluffFrequency(const std::vector<Card> &board, double rangeFractio
         }
     }
 
-    // Every 31st combination, not a random sample: deterministic, and 31 is coprime with the suit and
-    // rank strides so the walk does not land on one suit.
+    // Every kComboStride-th combination, not a random sample: deterministic, and 31 is coprime with the
+    // suit and rank strides so the walk does not land on one suit.
+    constexpr int kComboStride = 31;
     int value = 0, air = 0, step = 0;
     unsigned long long n = 0;
     auto tally = [&](double eq) {
@@ -134,7 +135,7 @@ inline double bluffFrequency(const std::vector<Card> &board, double rangeFractio
 #endif
     for (size_t i = 0; i < deck.size(); ++i) {
         for (size_t j = i + 1; j < deck.size(); ++j) {
-            if (step++ % 31 != 0) continue;
+            if (step++ % kComboStride != 0) continue;
             MonteCarloSimulator sim({deck[i], deck[j]}, board, 300);
             sim.setVillainRange(rangeFraction);
             if (seed) sim.setSeed(seed + 1 + n++);
@@ -243,7 +244,7 @@ inline Decision decideFull(const std::vector<Card> &hole,
         // between them is computed, not fitted.
         if (bluffEnabled && equity < 0.30 && target > 0 && stack > target) {
             const double freq = bluffFrequency(board, d.range, 0.62, 0.30, pot, target, seed);
-            if (cardHash(hole, board) < freq) {
+            if (deterministicDraw(hole, board) < freq) {
                 d.action = "raise";
                 d.amount = target;
                 d.bluff = true;

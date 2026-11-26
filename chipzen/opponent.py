@@ -14,14 +14,14 @@ class Opponent:
     """Counts, per hand, the most raises villain made as seen at our turns."""
 
     def __init__(self):
-        self.raises = {}  # hand id -> most raises villain made in it, as seen at our turns
+        self.max_raises_by_hand = {}  # hand id -> most raises villain made in it, as seen at our turns
 
     def saw(self, hand, villain_raises):
-        self.raises[hand] = max(self.raises.get(hand, 0), villain_raises)
+        self.max_raises_by_hand[hand] = max(self.max_raises_by_hand.get(hand, 0), villain_raises)
 
     def range_floor(self, villain_raises):
         """Fraction of hands in which villain made at least this many raises."""
         if villain_raises < 1:
             return 0.0
-        hits = sum(r >= villain_raises for r in self.raises.values())
-        return hits / (len(self.raises) + PRIOR_HANDS)
+        hits = sum(r >= villain_raises for r in self.max_raises_by_hand.values())
+        return hits / (len(self.max_raises_by_hand) + PRIOR_HANDS)
