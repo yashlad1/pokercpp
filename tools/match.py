@@ -72,8 +72,18 @@ def compare(path_a, path_b):
     def load(path):
         with open(path) as f:
             rows = [json.loads(l) for l in f if l.strip()]
-        return {(r["opponent"], r["seed"]): r["won"] for r in rows}
-    A, B = load(path_a), load(path_b)
+        meta = rows[0]["meta"] if rows and "meta" in rows[0] else None
+        return meta, {(r["opponent"], r["seed"]): r["won"] for r in rows if "meta" not in r}
+    (ma, A), (mb, B) = load(path_a), load(path_b)
+    if ma is None or mb is None:
+        for path, m in ((path_a, ma), (path_b, mb)):
+            if m is None:
+                print(f"warning: no metadata in {path}; pairing unchecked")
+    else:
+        for k in ma.keys() | mb.keys():
+            if k != "commit" and ma.get(k) != mb.get(k):
+                sys.exit(f"cannot pair: meta.{k} differs ({ma.get(k)} vs {mb.get(k)})")
+        print(f"commits: A {ma.get('commit')}, B {mb.get('commit')}")
     if A.keys() != B.keys():
         sys.exit(f"cannot pair: {len(A.keys() - B.keys())} keys only in {path_a}, "
                  f"{len(B.keys() - A.keys())} only in {path_b}")
@@ -113,7 +123,7 @@ def run(opp_name, matches, hand_cap, sims, seed0, hero="engine", dump=None):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--matches", type=int, default=200, help="duplicate pairs (2 matches each)")
-    ap.add_argument("--vs", default="all", choices=[*OPPONENTS, "all"])
+    ap.add_argument("--vs", default="all", choices=[*OPPONENTS, "all"] if OPPONENTS else None)
     ap.add_argument("--hand-cap", type=int, default=1000)
     ap.add_argument("--sims", type=int, default=2000)
     ap.add_argument("--seed0", type=int, default=1)
@@ -133,6 +143,11 @@ if __name__ == "__main__":
     sched = f"doubling every {DOUBLE_EVERY} hands" if DOUBLE_EVERY else "live Chipzen steps every 20 hands"
     print(f"Schedule: {START_BB} bb start, bb {FIRST_BB}, {sched}, no antes, hand cap {a.hand_cap}", flush=True)
     dump = open(a.dump, "w") if a.dump else None
+    if dump:
+        import bench
+        meta = {"sims": a.sims, "hero": a.hero, "hand_cap": a.hand_cap, "start_bb": FIRST_BB,
+                "double_every": DOUBLE_EVERY, "impl": bench.engine_impl(), "commit": bench.git_commit()}
+        dump.write(json.dumps({"meta": meta}) + "\n")
     for nm in (list(OPPONENTS) if a.vs == "all" else [a.vs]):
         run(nm, a.matches, a.hand_cap, a.sims, a.seed0, a.hero, dump)
         sys.stdout.flush()

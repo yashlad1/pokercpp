@@ -80,7 +80,13 @@ def c4():
             r = run("--matches", "3", "--vs", "nit", "--hand-cap", "60", "--sims", "200",
                     "--seed0", "1", "--dump", p)
             assert r.returncode == 0, r.stderr[-300:]
-            rows = [json.loads(l) for l in open(p) if l.strip()]
+            allr = [json.loads(l) for l in open(p) if l.strip()]
+            meta = allr[0].get("meta")
+            assert meta is not None, "no header"
+            for k in ("sims", "hero", "hand_cap", "start_bb", "double_every", "impl", "commit"):
+                assert k in meta, "meta missing " + k
+            assert meta["hero"] == "engine", meta["hero"]
+            rows = [o for o in allr if "meta" not in o]
             assert len(rows) == 3, len(rows)
             for o in rows:
                 assert isinstance(o["opponent"], str) and isinstance(o["seed"], int)
@@ -91,8 +97,27 @@ def c4():
         assert line and len(re.findall(r"\b0\b", line[0])) >= 2, r.stdout
 
 
+def c5():
+    base = {"sims": 200, "hero": "engine", "hand_cap": 60, "start_bb": 100,
+            "double_every": None, "impl": "x", "commit": "aaa"}
+    rows = [(1, [True, False]), (2, [False, False])]
+    with tempfile.TemporaryDirectory() as d:
+        def mk(name, **kw):
+            p = os.path.join(d, name)
+            write(p, rows)
+            body = open(p).read()
+            open(p, "w").write(json.dumps({"meta": dict(base, **kw)}) + "\n" + body)
+            return p
+        a, b, c = mk("a", ), mk("b", double_every=25), mk("c", commit="bbb")
+        r = run("--compare", a, b)
+        assert r.returncode != 0 and "meta.double_every" in r.stdout + r.stderr, r.stdout + r.stderr
+        r = run("--compare", a, c)
+        assert r.returncode == 0, r.stdout + r.stderr
+
+
 case("1 mcnemar values", c1)
 case("2 compare 2/1", c2)
 case("3 mismatched seeds", c3)
+case("5 meta mismatch", c5)
 case("4 A/A run", c4)
 sys.exit(1 if fails else 0)
