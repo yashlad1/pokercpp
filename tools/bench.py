@@ -318,6 +318,44 @@ class Reference:
         return ("check", 0) if v.to_call == 0 else ("fold", 0)
 
 
+class ThreeBet(Reference):
+    """Reference, except it re-raises our first preflop raise to 3x with any pair, ace, two cards
+    9 or higher or suited connector 54s+, and against our re-raise calls with TT+ or AK, else folds."""
+
+    name = "threebet"
+
+    def _preflop(self, v: View):
+        r = sorted((RANK_ORDER[c[0]] for c in v.hole), reverse=True)
+        suited = v.hole[0][1] == v.hole[1][1]
+        if v.villain_raises >= 2:
+            if (r[0] == r[1] and r[0] >= RANK_ORDER["T"]) or r[:2] == [RANK_ORDER["A"], RANK_ORDER["K"]]:
+                return ("call", 0) if v.to_call else ("check", 0)
+            return ("fold", 0) if v.to_call else ("check", 0)
+        if v.villain_raises == 1 and v.to_call > 0 and v.max_raise > 0:
+            if (r[0] == r[1] or r[0] == RANK_ORDER["A"] or r[1] >= RANK_ORDER["9"]
+                    or (suited and r[0] - r[1] == 1 and r[1] >= RANK_ORDER["4"])):
+                raise_to = (v.pot + v.to_call) // 2  # to_call plus our own posted blind, heads-up
+                return "raise", min(max(3 * raise_to, v.min_raise), v.max_raise)
+        return super()._preflop(v)
+
+
+class Sizer(Reference):
+    """Reference, except when checked to postflop it bets 1/3 pot with two pair or better,
+    1.5x pot with no pair, and checks one pair."""
+
+    name = "sizer"
+
+    def _postflop(self, v: View):
+        if v.to_call == 0 and v.max_raise > 0:
+            counts = sorted(Counter(c[0] for c in v.hole + v.board).values(), reverse=True)
+            klass = 3 if counts[0] >= 3 else (2 if counts[:2] == [2, 2] else (1 if counts[0] == 2 else 0))
+            if klass != 1:
+                size = v.pot // 3 if klass >= 2 else v.pot * 3 // 2
+                return "raise", min(max(size, v.min_raise), v.max_raise)
+            return "check", 0
+        return super()._postflop(v)
+
+
 class Bluffer(Reference):
     """Reference, except a fixed share p of its no-pair postflop hands (chosen per deal) bet
     0.66 pot on every street and fold to any raise. A bot that cannot beat this folds too
@@ -640,7 +678,8 @@ OPPONENTS = {"reference": Reference, "station": CallingStation, "nit": Nit,
              "bluff50": lambda: Bluffer(0.5, "bluff50"),
              "loosebluff0": lambda: LooseBluffer(0.0, "loosebluff0"),
              "loosebluff25": lambda: LooseBluffer(0.25, "loosebluff25"),
-             "loosebluff50": lambda: LooseBluffer(0.5, "loosebluff50")}
+             "loosebluff50": lambda: LooseBluffer(0.5, "loosebluff50"),
+             "threebet": ThreeBet, "sizer": Sizer}
 
 try:
     import pokercpp_engine_base
