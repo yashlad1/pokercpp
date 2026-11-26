@@ -43,6 +43,7 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - T4 / wire_default: MEASURED. #141 full mutant run
 - B1 / bench_coerced: MEASURED. run.py --only B1 (the counter adds 0, so the coerced-count test fails); no other test kills it
 - T5 / match: MEASURED. run.py --only T5 (a match at a 50 first big blind starts at 5,000 chips, the mutant gives 10,000; #111)
+- I1 / import_logs: MEASURED. full run.py (the running-process check is off, so the refuse-while-running and whole-call-refusal tests fail); no other test kills it
 
 ## Out of scope
 - Metal bias mutants: +0.03 equity and +0.002 equity in the Metal path (A5, PR #96). They need Metal builds.
