@@ -1,0 +1,6 @@
+{"meta": {"sims": 1000, "hero": "bot", "hand_cap": 100, "start_bb": 100, "wire": "live", "double_every": null, "impl": "cpu", "commit": "unknown"}}
+{"opponent": "reference", "seed": 1, "won": [true, true], "hands": [100, 100]}
+{"opponent": "reference", "seed": 2, "won": [true, true], "hands": [100, 81]}
+{"opponent": "reference", "seed": 3, "won": [true, true], "hands": [68, 87]}
+{"opponent": "reference", "seed": 4, "won": [true, true], "hands": [70, 95]}
+{"opponent": "reference", "seed": 5, "won": [true, true], "hands": [72, 87]}

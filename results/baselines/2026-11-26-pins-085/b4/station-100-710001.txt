@@ -1,0 +1,4 @@
+pokercpp (2000 sims/decision) vs opponents, duplicate-dealt, 100 bb deep
+
+vs station                     +274.1 bb/100   95% CI [+225.4, +322.8]     1000 hands   wins
+coerced 0

@@ -1,0 +1,4 @@
+pokercpp (1000 sims/decision) vs opponents, duplicate-dealt, 25 bb deep
+
+vs reference                    +45.9 bb/100   95% CI [+33.4, +58.3]      400 hands   wins
+coerced 0

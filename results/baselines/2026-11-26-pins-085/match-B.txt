@@ -1,0 +1,2 @@
+Schedule: 100 bb start, bb 100, live Chipzen steps every 20 hands, no antes, hand cap 100
+vs reference    10/10 = 100.0% [72.2%, 100.0%]   pairs lost both 0 / split 0 / won both 5   avg 86.0 hands/match
