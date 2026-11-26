@@ -35,6 +35,20 @@ def main():
         sys.exit(f"cannot pair: {len(a['results'])} pairs vs {len(b['results'])}")
     if len(a["results"]) < 2:
         sys.exit("cannot pair: need at least 2 pairs")
+    ma, mb = a.get("meta"), b.get("meta")
+    if ma and mb:
+        for k in ("sims", "hero", "history", "hand_number", "impl"):
+            if ma[k] != mb[k]:
+                sys.exit(f"cannot pair: meta.{k} differs ({ma[k]!r} vs {mb[k]!r})")
+        if ma.get("wire", "bench") != mb.get("wire", "bench"):
+            sys.exit(f"cannot pair: meta.wire differs ({ma.get('wire', 'bench')!r} vs {mb.get('wire', 'bench')!r})")
+        print(f"commits: A {ma['commit']}, B {mb['commit']}")
+        if ma["knobs"] != mb["knobs"]:
+            print(f"knobs differ: A {ma['knobs']}, B {mb['knobs']}")
+    else:
+        for n, m in (("A", ma), ("B", mb)):
+            if not m:
+                print(f"warning: no metadata in {n}.json; pairing unchecked")
     bb = a["bb"]
     print(f"vs {a['opponent']}, {a['stack_bb']} bb deep, seed0 {a['seed0']}, "
           f"{2 * len(a['results'])} hands each")
