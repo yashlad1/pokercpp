@@ -91,6 +91,9 @@ jobs:
       - name: Test the preflop realization
         run: python chipzen/test_preflop_realization.py
 
+      - name: Test that suit relabelling keeps the decision
+        run: python chipzen/test_suit_relabel.py
+
       - name: Test the paired comparison
         run: python tools/test_paired.py
 
@@ -115,8 +118,26 @@ jobs:
       - name: Test the match blind schedule
         run: PYTHONPATH=chipzen python tools/test_match.py
 
+      - name: Test the default wire of the bench tools
+        run: PYTHONPATH=chipzen python tools/test_wire_default.py
+
+      - name: Test that a seeded A/A bench run pairs to exactly 0.0
+        run: PYTHONPATH=chipzen python tools/test_aa_seeded.py
+
       - name: Test the Monte Carlo seed key
         run: PYTHONPATH=chipzen python tools/test_seed_key.py
 
       - name: Test the paired McNemar comparison
         run: PYTHONPATH=chipzen python tools/test_mcnemar.py
+
+      - name: Test the bench smoke for the bot adapter
+        run: PYTHONPATH=chipzen python tools/test_bench_smoke.py
+
+      - name: Test that the bench counts coerced hero answers
+        run: PYTHONPATH=chipzen python tools/test_bench_coerced.py
+
+      - name: Test the threebet and sizer bench opponents
+        run: PYTHONPATH=chipzen python tools/test_bench_opponents.py
+
+      - name: Test the pushfold bench opponent
+        run: PYTHONPATH=chipzen python tools/test_bench_pushfold.py

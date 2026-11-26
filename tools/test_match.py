@@ -38,6 +38,15 @@ if match is not None:
             check("double25", h, (bb // 2, bb), lambda: tuple(match.blinds_for(h)))
         match.FIRST_BB, match.DOUBLE_EVERY = 50, None
         check("first_bb50", 21, (37, 75), lambda: tuple(match.blinds_for(21)))
+
+        class Folder:
+            seen = None
+
+            def act(self, v):
+                Folder.seen = Folder.seen or v.stack + v.opp_stack + v.pot
+                return ("fold", 0)
+
+        check("start stack 50", 1, 10000, lambda: (match.play_match(1, [Folder(), Folder()], 1), Folder.seen)[1])
     except Exception as e:
         fails.append("globals")
         print("FAIL setting globals: %s: %s" % (type(e).__name__, e))

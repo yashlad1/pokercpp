@@ -81,7 +81,7 @@ def compare(path_a, path_b):
                 print(f"warning: no metadata in {path}; pairing unchecked")
     else:
         for k in ma.keys() | mb.keys():
-            if k != "commit" and ma.get(k) != mb.get(k):
+            if k not in ("commit", "coerced") and ma.get(k) != mb.get(k):
                 sys.exit(f"cannot pair: meta.{k} differs ({ma.get(k)} vs {mb.get(k)})")
         print(f"commits: A {ma.get('commit')}, B {mb.get('commit')}")
     if A.keys() != B.keys():
@@ -95,7 +95,8 @@ def compare(path_a, path_b):
               f"{2 * len(keys)} matches")
 
 
-def run(opp_name, matches, hand_cap, sims, seed0, hero="engine", dump=None, wire="bench"):
+def run(opp_name, matches, hand_cap, sims, seed0, hero="engine", dump=None, wire=None):
+    wire = (wire or "live") if hero == "bot" else "bench"
     new_hero = ((lambda: Bot(FIRST_BB // 2, FIRST_BB, START_BB * FIRST_BB, sims, wire=wire)) if hero == "bot"
                 else (lambda: PokerCpp(sims=sims)))
     pair = [0, 0, 0]  # lost both, split, won both
@@ -128,13 +129,17 @@ if __name__ == "__main__":
     ap.add_argument("--seed0", type=int, default=1)
     ap.add_argument("--hero", default="engine", choices=["engine", "bot"],
                     help="engine: call the C++ engine directly; bot: run chipzen/bot.py")
-    ap.add_argument("--wire", default="bench", choices=["bench", "live"],
-                    help="bot hero only: live = the live server's view (no all_in, live history labels)")
+    ap.add_argument("--wire", choices=["bench", "live"],
+                    help="bot hero only: live (default) = the live server's view (no all_in, live history labels), "
+                         "or bench; the engine hero ignores it and records bench (default)")
     ap.add_argument("--start-bb", type=int, default=FIRST_BB, help="first big blind (stack is 100 of them)")
     ap.add_argument("--double-every", type=int, help="double the bb every N hands (default: live Chipzen steps)")
     ap.add_argument("--dump", help="write one JSON line per match pair to this file")
     ap.add_argument("--compare", nargs=2, metavar=("A", "B"), help="paired McNemar on two --dump files; runs no games")
     a = ap.parse_args()
+    if a.wire and a.hero == "engine":
+        print("note: --wire is ignored for --hero engine (recorded as bench)", file=sys.stderr)
+    a.wire = (a.wire or "live") if a.hero == "bot" else "bench"
     if a.compare:
         compare(*a.compare)
         sys.exit(0)

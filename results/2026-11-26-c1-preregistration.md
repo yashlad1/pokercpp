@@ -161,6 +161,6 @@ Earlier timing was at 2,000 sims. Measured 26 Nov, `--hero bot --wire live`; the
 
 ## Checklist section 6
 - [x] Decision rule and exact commands committed before any run (this file)
-- [ ] `results/<date>-<slug>.md` for the gate results: written after the runs
+- [x] `results/<date>-<slug>.md` for the gate results: `results/2026-11-26-phase-c-gate.md`
 - [x] Timing rows added to `results/eval-log.xlsx`; run rows follow the runs
 - [ ] Vault status line: left to the lead

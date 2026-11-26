@@ -67,7 +67,7 @@ inline double villainRangeFraction(int villainRaises, int toCall, int pot) {
     return std::max(0.05, std::min(1.0, f));
 }
 
-constexpr double kPreflopRealization = 0.75;
+constexpr double kPreflopRealization = 0.85;
 // Per opponent call of a bet or raise, the assumed range is multiplied by this. 1.0 = off.
 constexpr double kCallNarrow = 1.0;
 
