@@ -17,7 +17,7 @@ import sys
 
 try:
     from bench import OPPONENTS, Bot, PokerCpp, play_hand, split_roles
-except ImportError as e:  # engine not built: only --compare (no games) still works
+except ImportError as e:
     OPPONENTS, _no_engine = {}, e
 
 START_BB, FIRST_BB, DOUBLE_EVERY = 100, 100, None  # stack in bb, big blind, hands per doubling (None = live steps)
@@ -40,13 +40,13 @@ def play_match(match_seed, agents, hand_cap=1000):
     hand_no = 0
     while min(stacks) > 0 and hand_no < hand_cap:
         hand_no += 1
-        f = hand_no % 2 == 0  # button alternates: swap agent order and stack order
+        f = hand_no % 2 == 0
         order = (1, 0) if f else (0, 1)
         d = play_hand(match_seed * 1000 + hand_no, [agents[i] for i in order],
                       blinds_for(hand_no), stacks=[stacks[i] for i in order])
         for seat, i in enumerate(order):
             stacks[i] += d[seat]
-    # level chips at the cap: the agent seated first in this match wins (Chipzen rule)
+    # at the hand cap the agent seated first wins (Chipzen rule)
     return (1 if stacks[1] > stacks[0] else 0), hand_no
 
 
@@ -96,7 +96,6 @@ def compare(path_a, path_b):
 
 
 def run(opp_name, matches, hand_cap, sims, seed0, hero="engine", dump=None, wire="bench"):
-    # bot: a fresh chipzen/bot.py per match, so its memory starts empty every match
     new_hero = ((lambda: Bot(FIRST_BB // 2, FIRST_BB, START_BB * FIRST_BB, sims, wire=wire)) if hero == "bot"
                 else (lambda: PokerCpp(sims=sims)))
     pair = [0, 0, 0]  # lost both, split, won both
@@ -104,9 +103,9 @@ def run(opp_name, matches, hand_cap, sims, seed0, hero="engine", dump=None, wire
     for m in range(matches):
         ms = seed0 + m
         h1 = (new_hero(), OPPONENTS[opp_name]())
-        w1, n1 = play_match(ms, h1, hand_cap)       # hero on the button first
+        w1, n1 = play_match(ms, h1, hand_cap)
         v2 = (OPPONENTS[opp_name](), new_hero())
-        w2, n2 = play_match(ms, v2, hand_cap)       # villain on the button first
+        w2, n2 = play_match(ms, v2, hand_cap)
         won = [w1 == 0, w2 == 1]
         wins += sum(won)
         hands += n1 + n2

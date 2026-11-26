@@ -10,7 +10,7 @@ import sys
 MODULE_DIR = sys.argv[1] if len(sys.argv) > 1 else "chipzen"
 sys.path.insert(0, MODULE_DIR)
 
-import pokercpp_engine  # noqa: E402
+import pokercpp_engine
 
 
 def decide(hole, board, pot, to_call, min_raise, max_raise, stack, bb,

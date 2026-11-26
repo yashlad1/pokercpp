@@ -49,8 +49,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SIMS = 20000
-Z = 4.0                      # noise band, in standard errors of a difference
-THRESHOLDS = (0.30, 0.50, 0.55, 0.62, 0.75)   # fixed equity cuts in chipzen/decide.h
+Z = 4.0  # noise band, in standard errors of a difference
+THRESHOLDS = (0.30, 0.50, 0.55, 0.62, 0.75)  # fixed equity cuts in chipzen/decide.h
 CARDS = [r + s for r in "23456789TJQKA" for s in "cdhs"]
 
 
@@ -63,7 +63,7 @@ def make_spots(n, seed=38, seed_offset=0):
         bb = 100
         stack = rng.choice([8, 15, 30, 100]) * bb
         if nb == 0 and rng.random() < 0.3:
-            pot, to_call, vr = 150, 50, 0          # small blind's first action
+            pot, to_call, vr = 150, 50, 0
         else:
             pot = int(rng.uniform(1.5, 30) * bb)
             to_call = 0 if rng.random() < 0.3 else int(pot * rng.choice([0.25, 0.5, 0.75, 1.0, 2.0]))
@@ -74,14 +74,12 @@ def make_spots(n, seed=38, seed_offset=0):
     return spots
 
 
-# Each worker is this script run in a fresh process, so the build's module is
-# the only pokercpp_engine it can import.
 def worker(kind, build_dir, args):
     sys.path.insert(0, build_dir)
     import pokercpp_engine
     if kind == "decide":
         out = [dict(pokercpp_engine.decide(**s)) for s in json.load(open(args[0]))]
-    else:  # bench: opp stack_bb hands seed0 sims
+    else:
         opp, stack, hands, seed0, sims = args[0], int(args[1]), int(args[2]), int(args[3]), int(args[4])
         sys.path.insert(0, HERE)
         import bench
@@ -110,8 +108,6 @@ def decision_parity(cpu_dir, metal_dir, n, tmp, spot_seed=38, eo=0):
     spots = make_spots(n, spot_seed, eo)
     p = os.path.join(tmp, "spots.json")
     json.dump(spots, open(p, "w"))
-    # Control: the CPU build again on the same spots with other engine seeds. It
-    # shows how often two honest runs of one implementation flip on this mix.
     p2 = os.path.join(tmp, "spots-control.json")
     json.dump(make_spots(n, spot_seed, eo + 100000), open(p2, "w"))
     with ThreadPoolExecutor(3) as ex:
@@ -120,20 +116,18 @@ def decision_parity(cpu_dir, metal_dir, n, tmp, spot_seed=38, eo=0):
         fk = ex.submit(run, "decide", cpu_dir, [p2], None, tmp)
         cpu, gpu, ctl = fc.result(), fm.result(), fk.result()
     control_flips = sum(c["action"] != k["action"] for c, k in zip(cpu, ctl))
-    band = Z * math.sqrt(0.25 / SIMS) * math.sqrt(2)      # worst case, p = 0.5
+    band = Z * math.sqrt(0.25 / SIMS) * math.sqrt(2)  # worst case, p = 0.5
     same, bad = 0, []
     for s, c, g in zip(spots, cpu, gpu):
         if c["action"] == g["action"]:
             same += 1
             continue
-        # The raise gates (equity vs a fixed cut) and the call gate (realized vs required).
         gaps = [min(abs(c["equity"] - t), abs(g["equity"] - t)) for t in THRESHOLDS]
         gaps.append(min(abs(c["realized"] - c["required"]), abs(g["realized"] - g["required"])))
         bluff_gate = (c["bluff"] or g["bluff"]) and max(c["equity"], g["equity"]) < THRESHOLDS[0] + band
         bad.append(dict(spot=s["seed"], cpu=c["action"], metal=g["action"], cpu_eq=c["equity"],
                         metal_eq=g["equity"], gap=min(gaps), ok=min(gaps) <= band or bluff_gate,
                         bluff=c["bluff"] or g["bluff"], gate=bool(bluff_gate)))
-    # Bias check: paired equity difference, overall and per street (by board size).
     bias = {}
     for name, keep in (("all", lambda s: True), ("preflop", lambda s: len(s["board"]) == 0),
                        ("flop", lambda s: len(s["board"]) == 3), ("turn", lambda s: len(s["board"]) == 4),
@@ -148,7 +142,7 @@ def decision_parity(cpu_dir, metal_dir, n, tmp, spot_seed=38, eo=0):
 
 def bench_parity(cpu_dir, metal_dir, opp, stack, hands, sims, jobs, tmp, seed0=1):
     """Per-pair results for each build, split over `jobs` processes by seed range."""
-    per = hands // 2 // jobs * 2          # hands per process
+    per = hands // 2 // jobs * 2
     res = {}
     for name, d in (("cpu", cpu_dir), ("metal", metal_dir)):
         with ThreadPoolExecutor(jobs) as ex:
@@ -204,9 +198,6 @@ def main():
                   f"({b['metal_eq']:.4f}), nearest threshold {b['gap']:.4f} away"
                   f"{' [bluff path]' if b['bluff'] else ''}"
                   f"{' [bluff gate]' if b['gate'] else ''} {'ok' if b['ok'] else 'OUTSIDE NOISE'}")
-        # The issue asks for more than 99%. The mix here is dense near thresholds, so
-        # a CPU-vs-CPU rerun can miss that too; Metal then passes when it flips no more
-        # often than the control plus two standard deviations.
         rate_ok = same / n > 0.99 or len(bad) <= control + 2 * math.sqrt(control)
         print(f"Flip rule: {len(bad)} flips vs limit {control + 2 * math.sqrt(control):.1f} "
               f"(control {control} + 2 SD) {'ok' if rate_ok else 'FAILS'}")

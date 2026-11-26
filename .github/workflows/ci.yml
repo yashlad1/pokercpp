@@ -25,9 +25,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Compiles with -Wshadow -Wconversion -Wsign-conversion and friends.
-      # These are kept out of the default build so everyday compiles stay
-      # quiet, but a regression here should still fail the pipeline.
       - name: Compile with the strict warning set
         run: make strict CXX=clang++
 
@@ -37,9 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Several real defects in this codebase were out-of-bounds reads caused
-      # by unsigned loop bounds underflowing. They compiled and ran without
-      # complaint; only a sanitizer caught them.
+      # Real defects here were out-of-bounds reads from unsigned loop bounds underflowing; only a sanitizer caught them.
       - name: Run the tests under AddressSanitizer and UBSan
         run: make test-asan CXX=clang++
         env:
@@ -58,8 +53,6 @@ jobs:
           cache: pip
           cache-dependency-path: .github/workflows/ci.yml
 
-      # chipzen-bot is the version the Docker image is validated with.
-      # pokerkit 0.7.8 is what the local bench venv runs (no pin in the repo).
       - name: Install Python dependencies
         run: pip install chipzen-bot==0.7.1 pybind11 pokerkit==0.7.8 pytest
 
@@ -87,8 +80,7 @@ jobs:
         run: python chipzen/test_logging.py
 
       - name: Test the engine seed
-        # The test reads sys.argv[1] as a module dir, so the file goes in
-        # PYTEST_ADDOPTS to keep it off the command line.
+        # The test reads sys.argv[1] as a module dir, so the file goes in PYTEST_ADDOPTS.
         run: python -m pytest
         env:
           PYTEST_ADDOPTS: chipzen/test_engine_seed.py

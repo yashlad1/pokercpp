@@ -60,7 +60,7 @@ def test_five_hands():
 
 
 def test_twenty_hands_cycle():
-    o = feed([i % 4 for i in range(1, 21)])  # 5 each of 0..3
+    o = feed([i % 4 for i in range(1, 21)])
     for k, n in ((1, 15), (2, 10), (3, 5)):
         assert close(o.range_floor(k), n / 23), (k, o.range_floor(k), n / 23)
 

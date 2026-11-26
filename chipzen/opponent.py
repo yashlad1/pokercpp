@@ -1,10 +1,5 @@
-"""Per-match memory of how often the opponent raises.
-
-The engine reads a hand's own raises as a range: one raise is the top 45%,
-three the top 8%. That is wrong for an opponent who raises every hand, whose
-third raise is no stronger than their first. This remembers the match so far
-so the engine can widen its guess for such an opponent.
-"""
+"""Per-match memory of how often the opponent raises, so the engine can widen its range guess for
+one who raises every hand (whose third raise is no stronger than the first)."""
 
 # ponytail: fitted, not measured. Pseudo-hands of no raise, so a couple of
 # hands cannot swing the range. 3 and not 20 because a short-stacked freezeout

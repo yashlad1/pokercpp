@@ -1,8 +1,5 @@
-// Exhaustive seven-card count: classify every one of C(52,7) = 133,784,560
-// hands with fast_eval.h and compare each category total to the published
-// figures. Also cross-checks AdvancedHandEvaluator against fast_eval on a
-// seeded random sample (the advanced evaluator is too slow to enumerate).
-//
+// Classifies every one of the C(52,7) = 133,784,560 hands with fast_eval.h and compares each category total to the
+// published figures. Category index 0..8 is score >> 20; royal counts as straight flush.
 // Run:  ./tests/test_eval_exhaustive     (make test_eval_exhaustive, also part of make test)
 
 #include "../model/advanced_hand_evaluator.h"
@@ -18,7 +15,6 @@ static const uint64_t EXPECTED[9] = {23294460, 58627800, 31433400, 6461620, 6180
                                      4047644,  3473184,  224848,   41584};
 static const uint64_t TOTAL = 133784560;
 
-// Category index 0..8 as used by fast_eval (score >> 20); royal counts as straight flush.
 static int advancedCategory(const std::vector<Card> &cards)
 {
     int r = static_cast<int>(AdvancedHandEvaluator::evaluate(cards).rank);
@@ -52,7 +48,6 @@ int main()
                 (unsigned long long)TOTAL, totalOk ? "ok" : "MISMATCH");
     failures += !totalOk;
 
-    // Cross-check on a seeded sample: same category from both evaluators.
     std::mt19937 rng(30);
     const int SAMPLES = 2000000;
     int disagreements = 0;

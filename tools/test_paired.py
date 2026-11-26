@@ -74,10 +74,8 @@ def test_length_mismatch(tmp):
 
 
 def test_known_numbers(tmp):
-    # A=[100,300], B=[0,0], bb=100, hands=4, hands/100=0.04.
-    # A bb/100 = (400/100)/0.04 = 100.0. stdev(A)=141.42, n=2:
-    # half-width = 1.96*141.42/sqrt(2)*2/100/0.04 = 98.0, so interval [2.0, 198.0].
-    # Paired diffs are [100,300], so the A - B line is also 100.0 [2.0, 198.0].
+    # A=[100,300], B=[0,0], bb=100, hands=4: A is 100.0 bb/100, half-width 1.96*stdev/sqrt(n) gives [2.0, 198.0];
+    # the paired diffs equal A, so the A - B line is the same.
     r = run(tmp, base([100, 300]), base([0, 0]))
     assert r.returncode == 0, r.stdout + r.stderr
     nums = [float(x) for x in re.findall(r"[+-]?\d+\.\d+", r.stdout)]
@@ -141,7 +139,6 @@ def test_missing_meta_pairs_with_note(tmp):
 
 
 def test_bench_dump_has_meta(tmp):
-    # Needs the engine built in chipzen/; runs from the repo root.
     root = os.path.dirname(HERE)
     out = os.path.join(tmp, "X.json")
     env = dict(os.environ, PYTHONPATH="chipzen")

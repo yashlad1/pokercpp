@@ -8,7 +8,7 @@ def run(ns):
             try:
                 fn()
                 print("PASS", name)
-            except BaseException as e:  # noqa: BLE001
+            except BaseException as e:
                 failed += 1
                 print("FAIL", name, "-", type(e).__name__, e)
     if failed:

@@ -57,8 +57,8 @@ SPOTS = [
         min_raise=0, max_raise=0, your_stack=900, valid_actions=["check"])),
 ]
 
-# [invariant] every action is one the server offered, and a raise sits in its
-# band. The printed action per spot is not checked: that part would be a pin.
+# [invariant]
+# Every action is one the server offered and a raise sits in its band; the printed action is not checked.
 fails = 0
 worst = 0.0
 for name, kw in SPOTS:
@@ -82,10 +82,8 @@ for name, kw in SPOTS:
     print(f"  {name:32s} -> {act.action}{detail:22s} {ms:6.1f}ms  {'ok' if ok else 'ILLEGAL'}")
 
 
-# An opponent who raises every hand is not showing a strong hand when they
-# raise. The bot remembers, across the match, how often this opponent has
-# raised, and widens the range it puts them on to match. K8o is a fold against
-# a shove from a tight range and a call against a shove from any two cards.
+# An opponent who raises every hand is not showing strength when they raise: the bot remembers how often
+# this one raised and widens its range guess. K8o folds to a tight shove and calls an any-two-cards shove.
 BL = [
     {"seat": 0, "action": "post_small_blind", "amount": 50,  "phase": "preflop", "is_timeout": False},
     {"seat": 1, "action": "post_big_blind",   "amount": 100, "phase": "preflop", "is_timeout": False},
@@ -105,8 +103,9 @@ def limp_spot(n, hole):
         board=[], pot=200, to_call=0, min_raise=200, max_raise=1400, your_stack=1400,
         valid_actions=["check", "raise"])
 
-# [pin] the checks below that read K8o (fold vs call) depend on the range
-# steps, the memory floor and the realization discount.
+# [pin]
+# The checks below that read K8o (fold vs call) depend on the range steps, the memory floor and the
+# realization discount.
 H = "Ks8h"
 extra = 0
 
@@ -137,9 +136,8 @@ check(b.decide(shove_spot(22, H)).action == "fold",
 
 print("opponent-memory checks:", "FAILED" if extra else "ok")
 
-# The platform's own fixture sends no blinds in the history, so the bot has to
-# work the big blind out from its first preflop decision, and an all-in is
-# sometimes the only way to call or to raise.
+# The platform's own fixture sends no blinds in the history, so the bot works the big blind out from its
+# first preflop decision.
 extra_before = extra
 
 def wire(hist, **kw):
@@ -150,9 +148,9 @@ def wire(hist, **kw):
     kw["hole_cards"] = [C(kw["hole_cards"][:2]), C(kw["hole_cards"][2:])]
     return GameState(action_history=hist, **kw)
 
-# [pin] open size 2.5 bb and the 0.50 open cut.
-# 1. Small blind, empty history: pot 15 + to_call 5 gives a 10 chip big blind,
-# so the open is 2.5 big blinds, a raise to 25.
+# [pin]
+# Open size 2.5 bb and the 0.50 open cut. Small blind, empty history: pot 15 + to_call 5 gives a 10 chip bb,
+# so the open is a raise to 25.
 b = botmod.PokerCppBot()
 b.on_match_start({"game_config": {"small_blind": 5, "big_blind": 10, "ante": 0,
                                   "starting_stack": 1000}})
@@ -162,9 +160,9 @@ a = b.decide(wire([], hole_cards="AhKd", your_seat=0, dealer_seat=0, pot=15,
 check(a.action == "raise" and a.amount == 25,
       f"small blind, empty history: AKo should open to 25, got {a.action} {a.amount}")
 
-# [pin] 10 bb or less shoves AA.
-# 2. Big blind, empty history, no match_start fallback: (pot 40 - to_call 20) / 2
-# is a 10 chip big blind, so 70 behind is 7 big blinds and AA shoves.
+# [pin]
+# 10 bb or less shoves AA: big blind, empty history, no match_start fallback, so (pot 40 - to_call 20) / 2
+# is a 10 chip bb, and 70 behind is 7 bb.
 b = botmod.PokerCppBot()
 a = b.decide(wire([], hole_cards="AhAd", your_seat=1, dealer_seat=0, pot=40,
                   to_call=20, min_raise=50, max_raise=80, your_stack=70,
@@ -172,16 +170,14 @@ a = b.decide(wire([], hole_cards="AhAd", your_seat=1, dealer_seat=0, pot=40,
 check(a.action == "all_in" or (a.action == "raise" and a.amount == 80),
       f"big blind, empty history, 7bb deep: AA should shove, got {a.action} {a.amount}")
 
-# [invariant] legality mapping.
-# 3. Only all_in offered: wanting to raise means sending all_in.
+# [invariant]
 b = botmod.PokerCppBot()
 a = b.decide(wire(list(BL), hole_cards="AhAd", your_seat=0, dealer_seat=0, pot=150,
                   to_call=50, min_raise=0, max_raise=0, your_stack=700,
                   valid_actions=["fold", "call", "all_in"]))
 check(a.action == "all_in", f"only all_in raises: AA should all_in, got {a.action}")
 
-# [invariant] legality mapping.
-# 4. The call is offered as all_in (the opponent's shove covers our stack).
+# [invariant]
 b = botmod.PokerCppBot()
 a = b.decide(wire(BL + [{"seat": 0, "action": "all_in", "amount": 1500,
                          "phase": "preflop", "is_timeout": False}],

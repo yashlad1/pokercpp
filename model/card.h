@@ -1,7 +1,6 @@
 #ifndef CARD_H
 #define CARD_H
 
-// enum for suit
 enum class Suit
 {
 	Hearts,
@@ -10,7 +9,6 @@ enum class Suit
 	Spades
 };
 
-// Enum for Rank
 enum class Rank
 {
 	Two = 2,
@@ -28,7 +26,6 @@ enum class Rank
 	Ace
 };
 
-// Card class
 class Card
 {
 public:

@@ -16,14 +16,14 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import bench  # noqa: E402
+import bench
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--pairs", type=int, default=50, help="pairs per opponent (1000 = record run)")
 ap.add_argument("--sims", type=int, default=200)
 args = ap.parse_args()
 
-if os.environ.get("BOT_PY"):  # Bot does `import bot`, so seat the copy in sys.modules first
+if os.environ.get("BOT_PY"):
     spec = importlib.util.spec_from_file_location("bot", os.environ["BOT_PY"])
     mod = importlib.util.module_from_spec(spec)
     sys.modules["bot"] = mod
@@ -33,7 +33,7 @@ BB, STACK = 100, 100
 
 
 def play(kind, opp, wire):
-    bench.pokercpp_engine.decide = bench.REAL_DECIDE  # Bot() leaves its wrapper behind
+    bench.pokercpp_engine.decide = bench.REAL_DECIDE
     hero = (bench.Bot(BB // 2, BB, STACK * BB, args.sims, "full", "full", wire=wire)
             if kind == "bot" else bench.PokerCpp(sims=args.sims))
     log, act = [], hero.act
@@ -56,7 +56,7 @@ for wire in ("bench", "live"):
         t = time.time()
         try:
             (er, el), (br, bl) = play("engine", opp, wire), play("bot", opp, wire)
-        except Exception as e:  # e.g. Bot has no wire keyword yet: count as a failure
+        except Exception as e:
             fails += 1
             print(f"FAIL: wire={wire}: {opp}: {type(e).__name__}: {e}")
             continue

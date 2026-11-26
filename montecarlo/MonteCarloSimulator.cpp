@@ -1,4 +1,3 @@
-// montecarlo/MonteCarloSimulator.cpp
 #include "MonteCarloSimulator.h"
 #include "../model/advanced_hand_evaluator.h"
 #include "../model/fast_eval.h"
@@ -6,7 +5,7 @@
 
 #include <random>
 #include <algorithm>
-#include <cmath>  // for sqrt, max, min
+#include <cmath>
 
 MonteCarloSimulator::MonteCarloSimulator(const std::vector<Card> &playerHand,
                                          const std::vector<Card> &communityCards,
@@ -19,9 +18,8 @@ MonteCarloSimulator::MonteCarloSimulator(const std::vector<Card> &playerHand,
 
 void MonteCarloSimulator::setVillainRange(double fraction)
 {
-    // Clamped rather than rejected: callers derive this from observed
-    // betting, and a range of "top 0%" is a modelling artefact, not a
-    // request to simulate an opponent holding nothing.
+    // Clamped, not rejected: callers derive this from observed betting, and a range of "top 0%" is a
+    // modelling artefact, not a request to simulate an opponent holding nothing.
     if (fraction < 0.01) fraction = 0.01;
     if (fraction > 1.0) fraction = 1.0;
     villainRangeFraction = fraction;
@@ -30,11 +28,7 @@ void MonteCarloSimulator::setVillainRange(double fraction)
 std::vector<std::pair<Card, Card>> MonteCarloSimulator::villainCombos(
     const std::vector<Card> &deck) const
 {
-    // Walk the ranked classes, strongest first, until the cumulative combo
-    // count reaches the wanted share of all 1326 holdings. Counting in
-    // combos rather than classes is what makes "top 20%" mean 20% of the
-    // hands actually dealt: there are 12 ways to be dealt AKo and only 6 to
-    // be dealt AA.
+    // Counted in combos, not classes, so "top 20%" is 20% of the hands actually dealt (12 ways to be dealt AKo, 6 AA).
     const int wanted = static_cast<int>(villainRangeFraction * 1326.0 + 0.5);
     bool allowed[15][15][2] = {};
     int cumulative = 0;
@@ -65,7 +59,7 @@ EquityJob MonteCarloSimulator::metalJob() const
     std::vector<Card> deck = getRemainingDeck();
     std::vector<std::pair<Card, Card>> combos;
     if (villainRangeFraction < 1.0) combos = villainCombos(deck);
-    if (combos.empty()) {  // range 1.0, or a range emptied by our own cards
+    if (combos.empty()) {
         for (size_t i = 0; i < deck.size(); ++i)
             for (size_t j = i + 1; j < deck.size(); ++j)
                 combos.emplace_back(deck[i], deck[j]);
@@ -89,9 +83,7 @@ void MonteCarloSimulator::runSimulation()
     }
 #endif
 
-    // Seed once and reuse. Re-seeding a fresh mt19937 from random_device on
-    // every iteration is expensive and gains nothing. The deck is built once
-    // and re-shuffled in place, since dealing only reads from it.
+    // Seed once and reuse; the deck is built once and re-shuffled in place, since dealing only reads it.
     std::mt19937 g;
     if (seed) {
         std::seed_seq ss{static_cast<unsigned>(seed), static_cast<unsigned>(seed >> 32)};
@@ -102,22 +94,15 @@ void MonteCarloSimulator::runSimulation()
     }
     std::vector<Card> deck = getRemainingDeck();
 
-    // Only build the combo list when the range is actually restricted. The
-    // unrestricted path stays exactly as it was, which matters because that
-    // is the path the exact-enumeration tests validate.
     std::vector<std::pair<Card, Card>> combos;
     if (villainRangeFraction < 1.0)
     {
         combos = villainCombos(deck);
-        // A range narrow enough to be empty once our own cards are removed
-        // tells us nothing. Fall back to dealing at random rather than
-        // returning an equity computed from no opponent at all.
     }
     std::uniform_int_distribution<size_t> pick(0, combos.empty() ? 0 : combos.size() - 1);
 
-    // Fast path: fixed arrays and the bitmask evaluator, same draws in the same
-    // order as the general loop below. Only taken for the normal shape (a
-    // two-card hero, at most five distinct board cards, a full-size deck).
+    // Fast path: same draws in the same order as the general loop below; taken only for the normal shape
+    // (two-card hero, at most five distinct board cards, a full-size deck).
     uint64_t heroMask = 0, boardMask = 0;
     for (const Card &c : playerHand) heroMask |= 1ULL << fast_eval::cardId(c);
     for (const Card &c : communityCards) boardMask |= 1ULL << fast_eval::cardId(c);
@@ -167,7 +152,6 @@ void MonteCarloSimulator::runSimulation()
 
     for (int i = 0; i < numSimulations; ++i)
     {
-        // Shuffle the deck
         std::shuffle(deck.begin(), deck.end(), g);
 
         std::vector<Card> opponentHand;
@@ -177,8 +161,6 @@ void MonteCarloSimulator::runSimulation()
             const auto &combo = combos[pick(g)];
             opponentHand = {combo.first, combo.second};
             completeBoard = communityCards;
-            // Fill the board from the shuffled deck, skipping the two cards
-            // the opponent is holding this trial.
             for (const Card &c : deck)
             {
                 if (completeBoard.size() >= 5) break;
@@ -191,19 +173,15 @@ void MonteCarloSimulator::runSimulation()
             std::tie(opponentHand, completeBoard) = dealRandomOpponentAndBoard(deck);
         }
 
-        // Combine player hand with board
         std::vector<Card> playerFullHand = playerHand;
         playerFullHand.insert(playerFullHand.end(), completeBoard.begin(), completeBoard.end());
 
-        // Combine opponent hand with board
         std::vector<Card> opponentFullHand = opponentHand;
         opponentFullHand.insert(opponentFullHand.end(), completeBoard.begin(), completeBoard.end());
 
-        // Evaluate both hands
         HandValue playerValue = AdvancedHandEvaluator::evaluate(playerFullHand);
         HandValue opponentValue = AdvancedHandEvaluator::evaluate(opponentFullHand);
 
-        // Compare results
         if (playerValue > opponentValue)
         {
             winCount++;
@@ -240,8 +218,6 @@ double MonteCarloSimulator::getLosePercentage() const
     return static_cast<double>(loseCount) / numSimulations;
 }
 
-// Calculate standard deviation of win rate using binomial distribution
-// For binary outcomes: σ = sqrt(p(1-p)/n)
 double MonteCarloSimulator::getWinRateStdDev() const
 {
     if (numSimulations == 0)
@@ -252,13 +228,7 @@ double MonteCarloSimulator::getWinRateStdDev() const
     return std::sqrt(variance);
 }
 
-/**
- * Inverse of the standard normal CDF (the probit function).
- *
- * Needed to turn an arbitrary confidence level into a z-score. Uses Acklam's
- * rational approximation, accurate to roughly 1e-9 over (0, 1) - far tighter
- * than Monte Carlo sampling error, so it is never the limiting factor here.
- */
+// Acklam's rational approximation of the inverse normal CDF.
 static double probit(double p)
 {
     if (p <= 0.0)
@@ -304,7 +274,6 @@ static double probit(double p)
 
 double MonteCarloSimulator::getEquity() const
 {
-    // A split pot returns half the money, so it counts as half a win.
     return getWinPercentage() + 0.5 * getTiePercentage();
 }
 
@@ -335,9 +304,6 @@ double MonteCarloSimulator::getEquityStdDev() const
     return std::sqrt(variance / numSimulations);
 }
 
-// Calculate confidence interval for win rate
-// Returns pair of (lower_bound, upper_bound)
-// Uses normal approximation for binomial: mean ± z * σ
 std::pair<double, double> MonteCarloSimulator::getConfidenceInterval(double confidence) const
 {
     if (numSimulations == 0)
@@ -349,11 +315,6 @@ std::pair<double, double> MonteCarloSimulator::getConfidenceInterval(double conf
     double winRate = getWinPercentage();
     double stdDev = getWinRateStdDev();
 
-    // Derive the z-score from the requested level instead of matching it
-    // against a handful of hardcoded thresholds. The old if/else chain had no
-    // branch below 0.90, so z kept its 1.96 initializer and any level under
-    // 90% silently came back as a 95% interval - a requested 50% interval was
-    // returned *wider* than a 90% one.
     double z = probit(0.5 * (1.0 + confidence));
 
     double margin = z * stdDev;
@@ -367,14 +328,12 @@ std::vector<Card> MonteCarloSimulator::getRemainingDeck() const
 {
     std::vector<Card> deck;
 
-    // Create a full deck
     for (int s = 0; s < 4; ++s)
     {
         for (int r = 2; r <= 14; ++r)
         {
             Card card(static_cast<Rank>(r), static_cast<Suit>(s));
 
-            // Check if card is already in player hand or community cards
             if (std::find(playerHand.begin(), playerHand.end(), card) == playerHand.end() &&
                 std::find(communityCards.begin(), communityCards.end(), card) == communityCards.end())
             {
@@ -392,14 +351,12 @@ std::pair<std::vector<Card>, std::vector<Card>> MonteCarloSimulator::dealRandomO
     std::vector<Card> opponentHand;
     std::vector<Card> completeBoard = communityCards;
 
-    // Deal opponent's two cards if they don't already have them
     size_t index = 0;
     while (opponentHand.size() < 2 && index < deck.size())
     {
         opponentHand.push_back(deck[index++]);
     }
 
-    // Complete the board to 5 cards if needed
     while (completeBoard.size() < 5 && index < deck.size())
     {
         completeBoard.push_back(deck[index++]);

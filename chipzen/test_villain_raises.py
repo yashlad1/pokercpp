@@ -53,14 +53,13 @@ def test_villain_ignores_blind_posts():
 def test_villain_ignores_our_own_raises():
     h = BL + [H(1, "raise", 300), H(1, "bet", 300), H(1, "all_in", 900)]
     assert vr(h) == 0
-    assert vr(h, your_seat=0) == 3  # same history, seen from the other seat
+    assert vr(h, your_seat=0) == 3
 
 
 def test_villain_mixed_history():
     h = BL + [H(0, "raise", 300), H(1, "raise", 900), H(0, "call", 600),
               H(0, "bet", 200), H(0, "check"), H(0, "all_in", 5000), H(0, "fold")]
     assert vr(h) == 3, vr(h)
-
 
 
 if __name__ == "__main__":

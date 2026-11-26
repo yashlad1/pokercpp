@@ -1,5 +1,4 @@
-// fast_eval.h: allocation-free 7-card evaluator. Ported from the MSL evalMask in
-// montecarlo/metal/MetalEquity.mm. The score is an integer whose order matches
+// Allocation-free 7-card evaluator. The score is an integer whose order matches
 // HandValue::operator> and ==, so only comparisons of scores are meaningful.
 // Card id = suit*13 + (rank-2); a hand is a 52-bit mask, one 13-bit field per suit.
 #ifndef FAST_EVAL_H
@@ -21,7 +20,7 @@ inline uint32_t topN(uint32_t x, int n)
     return r;
 }
 
-// Top rank index of the best straight in a 13-bit mask, or -1. Ace plays low too.
+// Top rank index of the best straight in a 13-bit mask, or -1. The ace plays low too.
 inline int straightTop(uint32_t m)
 {
     uint32_t x = (m << 1) | (m >> 12);
@@ -72,6 +71,6 @@ inline uint32_t evalMask(uint64_t m)
     return topN(all, 5);
 }
 
-} // namespace fast_eval
+}
 
 #endif

@@ -3,7 +3,7 @@
 
 #include "../model/card.h"
 #include <vector>
-#include <utility>  // for std::pair
+#include <utility>
 #ifdef USE_METAL
 #include "metal/MetalEquity.h"
 #endif
@@ -22,28 +22,20 @@ public:
     EquityJob metalJob() const;
 #endif
 
-    // Fix the generator's seed so a run is repeatable (bench only). 0, the
-    // default, seeds from std::random_device as before.
+    // Fix the generator's seed so a run is repeatable; 0 seeds from std::random_device.
     void setSeed(unsigned long long s) { seed = s; }
 
-    // Restrict the opponent to the strongest `fraction` of starting hands
-    // (1.0 = any two cards, the default). Dealing the opponent a uniformly
-    // random hand overstates our equity against anyone who only puts money
-    // in with good ones, which is the single largest source of error in a
-    // decision made from this number.
+    // Restrict the opponent to the strongest `fraction` of starting hands (1.0 = any two cards).
+    // A uniformly random opponent hand overstates our equity against anyone who only plays good ones.
     void setVillainRange(double fraction);
     double getWinPercentage() const;
     double getTiePercentage() const;
     double getLosePercentage() const;
     
-    // Statistical rigor methods
-    double getWinRateStdDev() const;  // Standard deviation of win rate
+    double getWinRateStdDev() const;
     std::pair<double, double> getConfidenceInterval(double confidence = 0.95) const;
 
-    // Equity = win% + half of tie%, i.e. the expected share of the pot. This
-    // is the quantity betting decisions are made on, so it needs its own
-    // interval: a win-rate interval does not contain the equity whenever ties
-    // are possible.
+    // Equity = win% + half of tie%, the expected share of the pot.
     double getEquity() const;
     double getEquityStdDev() const;
 
@@ -54,12 +46,11 @@ private:
     int winCount;
     int tieCount;
     int loseCount;
-    double villainRangeFraction;  // 1.0 means unrestricted
-    unsigned long long seed = 0;  // 0 means random_device
+    double villainRangeFraction;
+    unsigned long long seed = 0;
 
     std::vector<Card> getRemainingDeck() const;
 
-    // Concrete two-card holdings from `deck` that fall inside the range.
     std::vector<std::pair<Card, Card>> villainCombos(const std::vector<Card> &deck) const;
     std::pair<std::vector<Card>, std::vector<Card>> dealRandomOpponentAndBoard(const std::vector<Card> &deck) const;
 };

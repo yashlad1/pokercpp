@@ -32,7 +32,6 @@ SOLVER_SRC = ["chipzen/solver.cpp", "montecarlo/MonteCarloSimulator.cpp",
               "model/advanced_hand_evaluator.cpp", "model/card.cpp"]
 
 # name -> (argv with {py} and {solver}, extra env, timeout seconds). Mirrors .github/workflows/ci.yml.
-# Anything not in the build-free group below needs the engine built first.
 TESTS = {
     "solver": (["{py}", "chipzen/test_solver.py", "{solver}"], {}, 600),
     "sdk": (["{py}", "chipzen/test_bot_sdk.py"], {"PYTHONPATH": "chipzen"}, 600),
@@ -64,7 +63,7 @@ def sh(argv, cwd, env=None, timeout=None):
         return "timeout", ""
 
 
-BASE = "HEAD"  # resolved to a SHA in main()
+BASE = "HEAD"
 
 
 def snapshot():
@@ -177,7 +176,7 @@ def main():
                          "results": res, "expect": sorted(expect), "extra_kills": extra, "problems": problems})
             print(f"{m['id']}: {status} killed={sorted(killed)} {'FAIL' if problems else 'ok'}", flush=True)
     finally:
-        shutil.rmtree(tmp, ignore_errors=True)  # only the temp dir this run created
+        shutil.rmtree(tmp, ignore_errors=True)
         subprocess.run(["git", "worktree", "prune"], cwd=ROOT, capture_output=True)
     wall = time.time() - t0
 
