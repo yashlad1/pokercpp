@@ -122,6 +122,17 @@ def git_commit():
         return "unknown"
 
 
+def villain_calls(history, seat):
+    """Opponent calls of an earlier bet or raise this hand; same rule as chipzen/bot.py _villain_calls."""
+    n, bet = 0, False
+    for e in history:
+        if e["action"] in ("raise", "bet", "all_in"):
+            bet = True
+        elif e["action"] == "call" and bet and e["seat"] != seat:
+            n += 1
+    return n
+
+
 class PokerCpp:
     """The real engine, with its knobs exposed so variants can be compared."""
 
@@ -147,6 +158,7 @@ class PokerCpp:
             realization_scale=self.realization_scale,
             bluff_enabled=self.bluff_enabled, range_floor=floor,
             seed=self.seeder.next(v.hand),
+            villain_calls=villain_calls(v.live_history or v.history, v.seat),
             **({} if self.preflop_realization is None
                else {"preflop_realization": self.preflop_realization}),
         )

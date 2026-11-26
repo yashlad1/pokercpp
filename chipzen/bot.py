@@ -58,6 +58,18 @@ def _villain_raises(state: GameState) -> int:
     return n
 
 
+def _villain_calls(state: GameState) -> int:
+    # An opponent call that matches an earlier bet or raise this hand; a limp, blinds and checks do not count.
+    n, bet = 0, False
+    for entry in state.action_history or ():
+        action = entry.get("action")
+        if action in ("raise", "bet", "all_in"):
+            bet = True
+        elif action == "call" and bet and entry.get("seat") != state.your_seat:
+            n += 1
+    return n
+
+
 def _current_blinds(state: GameState) -> tuple[int, int]:
     # Blinds escalate, so read them each hand, not once at match start.
     sb = bb = 0
@@ -219,6 +231,7 @@ class PokerCppBot(Bot):
                 bb=int(bb or 0),
                 sims=SIMS,
                 villain_raises=vr,
+                villain_calls=_villain_calls(state),
                 range_floor=self.opponent.range_floor(vr),
             )
             action = self._to_action(d, state, valid)
