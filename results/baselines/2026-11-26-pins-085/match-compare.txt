@@ -1,0 +1,2 @@
+commits: A unknown, B unknown
+vs reference: discordant A-only 0, B-only 0, p=1.0000 (McNemar exact), 10 matches

@@ -1,0 +1,31 @@
+bench/bot-live-aggro-15 --hero bot --wire live --vs aggro --stack 15 --hands 400 --sims 1000 --seed0 700001
+bench/engine-aggro-15 --hero engine --vs aggro --stack 15 --hands 400 --sims 1000 --seed0 700001
+bench/bot-live-aggro-25 --hero bot --wire live --vs aggro --stack 25 --hands 400 --sims 1000 --seed0 700001
+bench/engine-aggro-25 --hero engine --vs aggro --stack 25 --hands 400 --sims 1000 --seed0 700001
+bench/bot-live-aggro-100 --hero bot --wire live --vs aggro --stack 100 --hands 400 --sims 1000 --seed0 700001
+bench/engine-aggro-100 --hero engine --vs aggro --stack 100 --hands 400 --sims 1000 --seed0 700001
+bench/bot-live-reference-15 --hero bot --wire live --vs reference --stack 15 --hands 400 --sims 1000 --seed0 700001
+bench/engine-reference-15 --hero engine --vs reference --stack 15 --hands 400 --sims 1000 --seed0 700001
+bench/bot-live-reference-25 --hero bot --wire live --vs reference --stack 25 --hands 400 --sims 1000 --seed0 700001
+bench/engine-reference-25 --hero engine --vs reference --stack 25 --hands 400 --sims 1000 --seed0 700001
+bench/bot-live-reference-100 --hero bot --wire live --vs reference --stack 100 --hands 400 --sims 1000 --seed0 700001
+bench/engine-reference-100 --hero engine --vs reference --stack 100 --hands 400 --sims 1000 --seed0 700001
+bench/bot-live-september-15 --hero bot --wire live --vs september --stack 15 --hands 400 --sims 1000 --seed0 700001
+bench/engine-september-15 --hero engine --vs september --stack 15 --hands 400 --sims 1000 --seed0 700001
+bench/bot-live-september-25 --hero bot --wire live --vs september --stack 25 --hands 400 --sims 1000 --seed0 700001
+bench/engine-september-25 --hero engine --vs september --stack 25 --hands 400 --sims 1000 --seed0 700001
+bench/bot-live-september-100 --hero bot --wire live --vs september --stack 100 --hands 400 --sims 1000 --seed0 700001
+bench/engine-september-100 --hero engine --vs september --stack 100 --hands 400 --sims 1000 --seed0 700001
+bench/engine-nomemory-aggro-25 --hero engine --no-memory --vs aggro --stack 25 --hands 400 --sims 1000 --seed0 700001
+b4/aggro-15-700001 --hero bot --wire bench --vs aggro --stack 15 --seed0 700001 --hands 1000
+b4/aggro-15-710001 --hero bot --wire bench --vs aggro --stack 15 --seed0 710001 --hands 1000
+b4/aggro-100-700001 --hero bot --wire bench --vs aggro --stack 100 --seed0 700001 --hands 1000
+b4/aggro-100-710001 --hero bot --wire bench --vs aggro --stack 100 --seed0 710001 --hands 1000
+b4/reference-15-700001 --hero bot --wire bench --vs reference --stack 15 --seed0 700001 --hands 1000
+b4/reference-15-710001 --hero bot --wire bench --vs reference --stack 15 --seed0 710001 --hands 1000
+b4/reference-100-700001 --hero bot --wire bench --vs reference --stack 100 --seed0 700001 --hands 1000
+b4/reference-100-710001 --hero bot --wire bench --vs reference --stack 100 --seed0 710001 --hands 1000
+b4/station-15-700001 --hero bot --wire bench --vs station --stack 15 --seed0 700001 --hands 1000
+b4/station-15-710001 --hero bot --wire bench --vs station --stack 15 --seed0 710001 --hands 1000
+b4/station-100-700001 --hero bot --wire bench --vs station --stack 100 --seed0 700001 --hands 1000
+b4/station-100-710001 --hero bot --wire bench --vs station --stack 100 --seed0 710001 --hands 1000

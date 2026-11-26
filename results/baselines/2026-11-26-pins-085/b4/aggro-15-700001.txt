@@ -1,0 +1,4 @@
+pokercpp (2000 sims/decision) vs opponents, duplicate-dealt, 15 bb deep
+
+vs aggro                        +25.9 bb/100   95% CI [-19.7, +71.6]     1000 hands   inconclusive
+coerced 0
