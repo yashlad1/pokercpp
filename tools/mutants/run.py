@@ -45,6 +45,7 @@ TESTS = {
     "bench_coerced": (["{py}", "tools/test_bench_coerced.py"], {"PYTHONPATH": "chipzen"}, 600),
     "bench_opponents": (["{py}", "tools/test_bench_opponents.py"], {"PYTHONPATH": "chipzen"}, 600),
     "bench_pushfold": (["{py}", "tools/test_bench_pushfold.py"], {"PYTHONPATH": "chipzen"}, 600),
+    "bench_knobs": (["{py}", "tools/test_bench_knobs.py"], {"PYTHONPATH": "chipzen"}, 600),
     "opponent": (["{py}", "chipzen/test_opponent.py"], {"PYTHONPATH": "chipzen"}, 600),
     "decide_constants": (["{py}", "chipzen/test_decide_constants.py"], {"PYTHONPATH": "chipzen"}, 600),
     "villain_raises": (["{py}", "chipzen/test_villain_raises.py"], {"PYTHONPATH": "chipzen"}, 600),

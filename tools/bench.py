@@ -489,6 +489,29 @@ class LoosePassive:
         return ("call", 0) if v.to_call <= v.pot - v.to_call else ("fold", 0)
 
 
+def knobs_settings(deal_seed):
+    """The engine knobs for one deal seed (a pair of duplicate hands). Pure in the seed."""
+    r = random.Random(deal_seed)
+    return dict(realization_scale=r.choice([0.8, 0.9, 1.0, 1.1, 1.2]), bluff_enabled=r.choice([True, False]),
+                memory=r.choice([True, False]), preflop_realization=r.choice([0.65, 0.75, 0.85]))
+
+
+class Knobs:
+    """The engine at 500 sims with its settings drawn per hand pair, so the hero meets many variants.
+    A fresh engine per hand: its memory and seeds are those of an engine that saw only this hand."""
+
+    name = "knobs"
+
+    def __init__(self):
+        self.hand = None
+
+    def act(self, v: View):
+        if v.hand != self.hand:
+            self.hand = v.hand
+            self.engine = PokerCpp(sims=500, name="knobs", **knobs_settings(v.hand // 2))
+        return self.engine.act(v)
+
+
 class Switcher:
     """Plays like Nit for 30 hands, then like Maniac for 30, and repeats. A bot that
     cannot follow this is slow to notice a change of style."""
@@ -707,7 +730,7 @@ OPPONENTS = {"reference": Reference, "station": CallingStation, "nit": Nit,
              "loosebluff0": lambda: LooseBluffer(0.0, "loosebluff0"),
              "loosebluff25": lambda: LooseBluffer(0.25, "loosebluff25"),
              "loosebluff50": lambda: LooseBluffer(0.5, "loosebluff50"),
-             "threebet": ThreeBet, "sizer": Sizer, "pushfold": PushFold}
+             "threebet": ThreeBet, "sizer": Sizer, "pushfold": PushFold, "knobs": Knobs}
 
 try:
     import pokercpp_engine_base
