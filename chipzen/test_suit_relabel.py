@@ -16,6 +16,8 @@ Action check: it is made only where the original's realized equity is at least
 2 * TOL = 0.04 away from the price to call (`required`). There noise cannot cross
 the call/fold line. Spots without a bet to call have required 0 and are
 compared on equity only. Spots nearer the margin are still checked on equity.
+Checked-to actions may differ under relabelling: the bluff draw hashes the exact cards, suits included, so check (b) runs only where there is a price to call.
+Check (b) was seen failing with the relabelled action doctored to a different one: AssertionError "pre-AKs-open seed 11 swap-all: action call vs fold".
 Identity relabelling must give the identical dict (same seed, same cards).
 """
 
