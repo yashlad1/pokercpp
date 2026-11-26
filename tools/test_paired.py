@@ -91,6 +91,78 @@ def test_known_numbers(tmp):
         assert any(close_to(x, target) for x in line_nums), (target, line)
 
 
+META = {"sims": 2000, "hero": "engine", "history": "full", "hand_number": "full",
+        "impl": "cpu", "commit": "abc1234", "knobs": {}}
+
+
+def with_meta(**over):
+    m = dict(META)
+    m.update(over)
+    return base([100, -50, 200, 0], meta=m)
+
+
+def check_meta_refused(tmp, key, value):
+    r = run(tmp, with_meta(), with_meta(**{key: value}))
+    out = r.stdout + r.stderr
+    assert r.returncode != 0, "expected nonzero exit\n" + out
+    assert "cannot pair" in out and "meta." + key in out, out
+
+
+def test_meta_impl_mismatch(tmp):
+    check_meta_refused(tmp, "impl", "metal")
+
+
+def test_meta_sims_mismatch(tmp):
+    check_meta_refused(tmp, "sims", 500)
+
+
+def test_meta_hero_mismatch(tmp):
+    check_meta_refused(tmp, "hero", "bot")
+
+
+def test_meta_history_mismatch(tmp):
+    check_meta_refused(tmp, "history", "noblinds")
+
+
+def test_meta_hand_number_mismatch(tmp):
+    check_meta_refused(tmp, "hand_number", "zero")
+
+
+def test_meta_commit_knobs_may_differ(tmp):
+    a = with_meta(commit="aaaa111", knobs={"x": 1})
+    b = with_meta(commit="bbbb222", knobs={"x": 2})
+    r = run(tmp, a, b)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "aaaa111" in r.stdout and "bbbb222" in r.stdout, r.stdout
+
+
+def test_missing_meta_pairs_with_note(tmp):
+    r = run(tmp, with_meta(), base([100, -50, 200, 0]))
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "no metadata" in r.stdout + r.stderr, r.stdout + r.stderr
+
+
+def test_bench_dump_has_meta(tmp):
+    # Needs the engine built in chipzen/; runs from the repo root.
+    root = os.path.dirname(HERE)
+    out = os.path.join(tmp, "X.json")
+    env = dict(os.environ, PYTHONPATH="chipzen")
+    r = subprocess.run(
+        [sys.executable, os.path.join(HERE, "bench.py"), "--vs", "reference", "--stack", "15",
+         "--hands", "20", "--seed0", "1", "--dump", out],
+        capture_output=True, text=True, cwd=root, env=env)
+    assert r.returncode == 0, r.stdout + r.stderr
+    with open(out) as f:
+        meta = json.load(f).get("meta")
+    assert meta is not None, "dump has no meta"
+    assert meta.get("hero") == "engine", meta
+    assert meta.get("sims") == 2000, meta
+    assert meta.get("history") == "full", meta
+    assert meta.get("hand_number") == "full", meta
+    assert meta.get("impl") in ("cpu", "metal"), meta
+    assert isinstance(meta.get("commit"), str) and meta["commit"], meta
+
+
 def main():
     import tempfile as tf
 
@@ -100,10 +172,26 @@ def main():
         test_stack_mismatch,
         test_length_mismatch,
         test_known_numbers,
+        test_meta_impl_mismatch,
+        test_meta_sims_mismatch,
+        test_meta_hero_mismatch,
+        test_meta_history_mismatch,
+        test_meta_hand_number_mismatch,
+        test_meta_commit_knobs_may_differ,
+        test_missing_meta_pairs_with_note,
+        test_bench_dump_has_meta,
     ]
+    failed = 0
     for t in tests:
-        with tf.TemporaryDirectory() as tmp:
-            t(tmp)
+        try:
+            with tf.TemporaryDirectory() as tmp:
+                t(tmp)
+            print("PASS", t.__name__)
+        except AssertionError as e:
+            failed += 1
+            print("FAIL", t.__name__, "-", str(e).strip()[:200])
+    if failed:
+        sys.exit(1)
     print("paired tests: all passed")
 
 
