@@ -125,7 +125,7 @@ def c6():
             ps.append(p)
         r = run("--compare", *ps)
         assert r.returncode != 0 and "meta.wire" in r.stdout + r.stderr, r.stdout + r.stderr
-        for name, extra, want in (("l", ["--wire", "live"], "live"), ("d", [], "bench")):
+        for name, extra, want in (("l", ["--wire", "live"], "live"), ("d", [], "live")):
             p = os.path.join(d, name)
             r = run("--matches", "2", "--vs", "nit", "--hand-cap", "60", "--sims", "200",
                     "--hero", "bot", *extra, "--seed0", "1", "--dump", p)
