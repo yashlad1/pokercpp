@@ -81,7 +81,7 @@ def compare(path_a, path_b):
                 print(f"warning: no metadata in {path}; pairing unchecked")
     else:
         for k in ma.keys() | mb.keys():
-            if k != "commit" and ma.get(k) != mb.get(k):
+            if k not in ("commit", "coerced") and ma.get(k) != mb.get(k):
                 sys.exit(f"cannot pair: meta.{k} differs ({ma.get(k)} vs {mb.get(k)})")
         print(f"commits: A {ma.get('commit')}, B {mb.get('commit')}")
     if A.keys() != B.keys():
