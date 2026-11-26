@@ -184,7 +184,7 @@ Rule 5 then reads: pass means no `GATE FAIL` line, no drop worse than -5 on both
 
 ## Checklist (#85)
 - [x] Decision rule and exact commands committed before any run (this file)
-- [ ] `results/<date>-<slug>.md` for the gate results: written after the runs, after the #126 gate finishes
-- [ ] Dry run done and noted in the gate record
-- [ ] Run rows logged in `results/eval-log.xlsx`: after the runs
+- [x] `results/<date>-<slug>.md` for the gate results: written after the runs, after the #126 gate finishes
+- [x] Dry run done and noted in the gate record
+- [x] Run rows logged in `results/eval-log.xlsx`: after the runs
 - [ ] Vault status line: left to the lead
