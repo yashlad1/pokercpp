@@ -33,7 +33,9 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - D5 / decide_properties: MEASURED. A2 (29 checks)
 - D6 / decide_properties: MEASURED. A2 (146 checks)
 - E1 / eval_exhaustive: MEASURED. A1 (9,197 disagreements)
-- E2 / eval_exhaustive: PREDICTED. one-edit variant of the reviewer's measured swap; SF hands would count as flushes, so the SF and flush totals must mismatch
+- E2 / eval_exhaustive: MEASURED. #130 full mutant run killed E2 with eval_exhaustive (SF hands counted as flushes, so the SF and flush totals mismatch)
+- E1 / eval_order: MEASURED. #134 (run.py --only E1,E2)
+- E2 / eval_order: MEASURED. #134 (run.py --only E1,E2)
 - E3 / eval_order: MEASURED. M-1 (#104): the new test fails on E3 (score does not rise with the reference key); eval_exhaustive still passes it
 - T1 / match: MEASURED. A4 (h=21)
 - T2 / match: MEASURED. A4 (h=1)
