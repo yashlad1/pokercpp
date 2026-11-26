@@ -132,3 +132,6 @@ jobs:
 
       - name: Test the threebet and sizer bench opponents
         run: PYTHONPATH=chipzen python tools/test_bench_opponents.py
+
+      - name: Test the pushfold bench opponent
+        run: PYTHONPATH=chipzen python tools/test_bench_pushfold.py
