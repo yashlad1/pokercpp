@@ -120,3 +120,6 @@ jobs:
 
       - name: Test the paired McNemar comparison
         run: PYTHONPATH=chipzen python tools/test_mcnemar.py
+
+      - name: Test the bench smoke for the bot adapter
+        run: PYTHONPATH=chipzen python tools/test_bench_smoke.py
