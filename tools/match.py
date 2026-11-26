@@ -11,10 +11,14 @@ Each match is played twice with the same per-hand seeds and the seats swapped
 """
 
 import argparse
+import json
 import math
 import sys
 
-from bench import OPPONENTS, Bot, PokerCpp, play_hand, split_roles
+try:
+    from bench import OPPONENTS, Bot, PokerCpp, play_hand, split_roles
+except ImportError as e:  # engine not built: only --compare (no games) still works
+    OPPONENTS, _no_engine = {}, e
 
 START_BB, FIRST_BB, DOUBLE_EVERY = 100, 100, None  # stack in bb, big blind, hands per doubling (None = live steps)
 
@@ -56,7 +60,32 @@ def wilson(k, n, z=1.96):
     return c - h, c + h
 
 
-def run(opp_name, matches, hand_cap, sims, seed0, hero="engine"):
+def mcnemar(b, c):
+    """Exact two-sided McNemar p-value for b A-only and c B-only wins."""
+    n = b + c
+    if n == 0:
+        return 1.0
+    return min(1.0, 2 * sum(math.comb(n, i) for i in range(min(b, c) + 1)) / 2 ** n)
+
+
+def compare(path_a, path_b):
+    def load(path):
+        with open(path) as f:
+            rows = [json.loads(l) for l in f if l.strip()]
+        return {(r["opponent"], r["seed"]): r["won"] for r in rows}
+    A, B = load(path_a), load(path_b)
+    if A.keys() != B.keys():
+        sys.exit(f"cannot pair: {len(A.keys() - B.keys())} keys only in {path_a}, "
+                 f"{len(B.keys() - A.keys())} only in {path_b}")
+    for opp in dict.fromkeys(o for o, _ in A):
+        keys = [k for k in A if k[0] == opp]
+        b = sum(A[k][i] and not B[k][i] for k in keys for i in (0, 1))
+        c = sum(B[k][i] and not A[k][i] for k in keys for i in (0, 1))
+        print(f"vs {opp}: discordant A-only {b}, B-only {c}, p={mcnemar(b, c):.4f} (McNemar exact), "
+              f"{2 * len(keys)} matches")
+
+
+def run(opp_name, matches, hand_cap, sims, seed0, hero="engine", dump=None):
     # bot: a fresh chipzen/bot.py per match, so its memory starts empty every match
     new_hero = ((lambda: Bot(FIRST_BB // 2, FIRST_BB, START_BB * FIRST_BB, sims)) if hero == "bot"
                 else (lambda: PokerCpp(sims=sims)))
@@ -72,6 +101,8 @@ def run(opp_name, matches, hand_cap, sims, seed0, hero="engine"):
         wins += sum(won)
         hands += n1 + n2
         pair[sum(won)] += 1
+        if dump:
+            dump.write(json.dumps({"opponent": opp_name, "seed": ms, "won": won, "hands": [n1, n2]}) + "\n")
     n = 2 * matches
     lo, hi = wilson(wins, n)
     print(f"vs {opp_name:12s} {wins}/{n} = {wins / n:.1%} [{lo:.1%}, {hi:.1%}]   "
@@ -90,10 +121,20 @@ if __name__ == "__main__":
                     help="engine: call the C++ engine directly; bot: run chipzen/bot.py")
     ap.add_argument("--start-bb", type=int, default=FIRST_BB, help="first big blind (stack is 100 of them)")
     ap.add_argument("--double-every", type=int, help="double the bb every N hands (default: live Chipzen steps)")
+    ap.add_argument("--dump", help="write one JSON line per match pair to this file")
+    ap.add_argument("--compare", nargs=2, metavar=("A", "B"), help="paired McNemar on two --dump files; runs no games")
     a = ap.parse_args()
+    if a.compare:
+        compare(*a.compare)
+        sys.exit(0)
+    if not OPPONENTS:
+        raise _no_engine
     FIRST_BB, DOUBLE_EVERY = a.start_bb, a.double_every
     sched = f"doubling every {DOUBLE_EVERY} hands" if DOUBLE_EVERY else "live Chipzen steps every 20 hands"
     print(f"Schedule: {START_BB} bb start, bb {FIRST_BB}, {sched}, no antes, hand cap {a.hand_cap}", flush=True)
+    dump = open(a.dump, "w") if a.dump else None
     for nm in (list(OPPONENTS) if a.vs == "all" else [a.vs]):
-        run(nm, a.matches, a.hand_cap, a.sims, a.seed0, a.hero)
+        run(nm, a.matches, a.hand_cap, a.sims, a.seed0, a.hero, dump)
         sys.stdout.flush()
+        if dump:
+            dump.flush()
