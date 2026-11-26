@@ -16,7 +16,9 @@ Exit 1 if an expected test did not kill, a known survivor was killed, or a
 mutant is STALE. Exit 2 if the repo state changed during the run.
 
 Known limits (not fixed):
-- A compile error in a `make` test counts as a kill (only the exit code is read).
+- Caught = nonzero exit. Timeouts and `make` compile errors count as caught for
+  the expect check but are labelled "timeout" / "compile-error" in the matrix.
+  Every selected test must first pass on the unmutated base, else exit 1.
 - A timeout kills only the direct child, not its descendants.
 - The before/after check is fatal only if a tracked file changed or one of
   this run's own worktrees is left over. Untracked files and other worktrees
@@ -57,7 +59,7 @@ def sh(argv, cwd, env=None, timeout=None):
     e = dict(os.environ, **(env or {}))
     try:
         p = subprocess.run(argv, cwd=cwd, env=e, text=True, capture_output=True, timeout=timeout)
-        return p.returncode, (p.stdout + p.stderr)[-600:]
+        return p.returncode, (p.stdout + p.stderr)[-4000:]
     except subprocess.TimeoutExpired:
         return "timeout", ""
 
@@ -70,24 +72,26 @@ def snapshot():
             for c in (["git", "status", "--short"], ["git", "worktree", "list"])]
 
 
-def run_mutant(m, tests, tmp):
-    """Returns (status, {test: 'killed'|'survived'|'timeout'}, note). status: ok|STALE|BUILD-FAIL."""
-    if not re.fullmatch(r"[A-Za-z0-9_-]+", m["id"]):
+def run_mutant(m, tests, tmp, tails=None):
+    """m=None runs the unmutated base. Returns (status, {test: 'killed'|'survived'|'timeout'|'compile-error'}, note).
+    status: ok|STALE|BUILD-FAIL|BAD-ID|BAD-PATH. tails (optional dict) gets the output of each failing test."""
+    mid = m["id"] if m else "baseline"
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", mid):
         return "BAD-ID", {}, "id must match [A-Za-z0-9_-]+"
-    wt = os.path.join(tmp, "wt-" + m["id"])
+    wt = os.path.join(tmp, "wt-" + mid)
     try:
         subprocess.run(["git", "worktree", "add", "--detach", wt, BASE], cwd=ROOT, check=True, capture_output=True)
-        path = os.path.realpath(os.path.join(wt, m["file"]))
-        if not path.startswith(os.path.realpath(wt) + os.sep):
-            return "BAD-PATH", {}, f"{m['file']} escapes the worktree"
-        src = open(path).read() if os.path.exists(path) else ""
-        n = src.count(m["find"]) if m["find"] else 0
-        if n != 1:
-            return "STALE", {}, f"find matched {n} times in {m['file']}"
-        open(path, "w").write(src.replace(m["find"], m["replace"]))
+        if m:
+            path = os.path.realpath(os.path.join(wt, m["file"]))
+            if not path.startswith(os.path.realpath(wt) + os.sep):
+                return "BAD-PATH", {}, f"{m['file']} escapes the worktree"
+            src = open(path).read() if os.path.exists(path) else ""
+            n = src.count(m["find"]) if m["find"] else 0
+            if n != 1:
+                return "STALE", {}, f"find matched {n} times in {m['file']}"
+            open(path, "w").write(src.replace(m["find"], m["replace"]))
         need_engine = any(t not in MAKE_TESTS for t in tests)
-        cpp = m["file"].split("/")[0] in ("chipzen", "montecarlo", "model") and not m["file"].endswith(".py")
-        solver = os.path.join(tmp, "solver-" + m["id"])
+        solver = os.path.join(tmp, "solver-" + mid)
         steps = []
         if need_engine:
             steps.append((["tools/build_engine.sh"], {"PY": PY}))
@@ -101,8 +105,14 @@ def run_mutant(m, tests, tmp):
         for t in tests:
             argv, env, to = TESTS[t]
             argv = [a.format(py=PY, solver=solver) for a in argv]
-            rc, _ = sh(argv, wt, env, to)
-            res[t] = "timeout" if rc == "timeout" else ("survived" if rc == 0 else "killed")
+            rc, out = sh(argv, wt, env, to)
+            if rc == 0:
+                res[t] = "survived"
+            else:
+                res[t] = "timeout" if rc == "timeout" else (
+                    "compile-error" if t in MAKE_TESTS and "error:" in out else "killed")
+                if tails is not None:
+                    tails[t] = out
         return "ok", res, ""
     finally:
         subprocess.run(["git", "worktree", "remove", "--force", wt], cwd=ROOT, capture_output=True)
@@ -140,6 +150,14 @@ def main():
     tmp = tempfile.mkdtemp(prefix="mutants-wt-")
     before, t0, rows, fails = snapshot(), time.time(), [], []
     try:
+        tails = {}
+        status, res, note = run_mutant(None, tests, tmp, tails)
+        if status != "ok":
+            sys.exit(f"baseline failed: {status}: {note}")
+        for t, r in res.items():
+            if r != "survived":
+                sys.exit(f"baseline failed: {t} ({r}): " + "\n".join(tails[t].strip().splitlines()[-8:]))
+        print("baseline: all selected tests pass on", BASE[:7])
         for m in cat:
             status, res, note = run_mutant(m, tests, tmp)
             killed = {t for t, r in res.items() if r != "survived"}
