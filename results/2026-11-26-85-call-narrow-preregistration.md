@@ -30,7 +30,8 @@ Every comparison is candidate minus baseline on the same deals. The commands pas
 1. **Bench harm (as C1).** A row is one (opponent, stack) pair. A row fails when its paired interval is `worse` on both seed sets. Any failing row parks the candidate. The record lists every row that fails, and every row that is `worse` on one set only.
 2. **Match harm (as C1).** Win rate is wins over 400 matches, from the `vs X k/n` line. Drop is candidate win rate minus baseline win rate, in points. Fails if the drop is worse than -5 points on both seed sets, against reference or against september. `match.py --compare` (McNemar) is reported but does not gate.
 3. **Benefit (gating).** Reference and nit at **100 bb** are each `better` on both seed sets. Both are required. The 15 bb rows for reference and nit are the original target rows but are reported only: at 15 bb few hands reach a postflop decision after a call, so narrowing has little to act on.
-4. **Control (reported, does not gate).** Station is expected to be neutral or worse: it calls with any two cards, so narrowing on its calls is wrong. A station row `better` on both seeds is reported as a sign that the mechanism is not what #53 assumes.
+4. **Control (reported, does not gate).** Station is expected to be neutral or worse: it calls with any two cards, so narrowing on its calls is wrong. A station row `better` on both seeds is reported as a sign that the mechanism is not what #53 assumes. A station row worse on both seeds fails rule 1 like any row; rule 4 only adds the report when station is better on both.
+   A blanket factor may well fail on station. That outcome is itself the finding: narrowing needs an opponent-aware form (#37).
 5. **Outcome.** Pass = no fail under rules 1 or 2, and rule 3 holds. A pass is recorded only; nothing ships. A fail parks the candidate with its numbers.
 6. **No peeking; fail closed (as C1).** No result number is read until all 48 bench dumps and 8 match dumps exist. Step 4's `bench.py` output and step 5's `match.py` output go to log files under `$OUT`, with no `tee`; the person running sees only `IDENTICAL` or `different` and exit codes until then. A crash means the whole set is rerun from step 2. A `paired.py` "no metadata" warning counts as a failed pairing and also means a rerun. Step 6 fails closed: no verdict is read unless all 24 paired files hold exactly one `A - B:` line each and all 8 match logs exactly one `vs ` line each. **Plus, before any number is read:** `grep -c 'ENGINE FAILED'` over every `bench-*.log` and `match-*.txt` must total 0. The bot logs that line when an engine call raises (for example a stale engine module that lacks the new `villain_calls` argument) and then falls back to check/fold. Any nonzero count means a rerun from step 2.
 
@@ -50,7 +51,7 @@ Every comparison is candidate minus baseline on the same deals. The commands pas
 - **September is the real, unseeded module** (`pokercpp_engine_base`, built from c057f40 exactly as in C1 step 1). (a) It cannot be seeded, so september rows are paired on the hero side only and their intervals are wider than the half-widths quoted. (b) The identity check cannot fire on september rows. (c) The match gate's 3.5-point standard deviation is already the unpaired figure, so its false-fail estimate still holds against september.
 
 ## Commands
-Each step is a script run with `bash`, so `exit` stops the run. Set these once. The same `$PY` (pybind11, pokerkit and openpyxl installed) is used for every command. **`BASE_WT` and `CAND_WT` must be absolute paths**: the provenance check runs from `/`.
+Each step is a script run with `bash`, so `exit` stops the run. Steps 4, 5 and 6 are saved as `step4.sh`, `step5.sh` and `step6.sh`. They read `OUT`, `HANDS`, `SIMS`, `MATCHES`, `S1`, `S2`, `PY`, `BASE_WT`, `CAND_WT` and `OPPS` from the environment only, so the block below `export`s them. The same `$PY` (pybind11, pokerkit and openpyxl installed) is used for every command. **`BASE_WT` and `CAND_WT` must be absolute paths**: the provenance check runs from `/`.
 
 ```
 PY="<python with pybind11 and pokerkit>"
@@ -58,7 +59,8 @@ BASE_WT="<absolute path of the worktree of the baseline commit 8f11324>"
 CAND_WT="<absolute path of the worktree of the local call-narrow branch, one commit on 8f11324>"
 OUT="<new empty directory for dumps and logs>"
 OPPS="reference nit station aggro maniac september"
-HANDS=4000; SIMS=5000; MATCHES=200; S1=780001; S2=790001   # the dry run overrides these
+HANDS=4000; SIMS=5000; MATCHES=200; S1=780001; S2=790001
+export PY BASE_WT CAND_WT OUT OPPS HANDS SIMS MATCHES S1 S2   # the step scripts read only these; the dry run overrides them in a subshell
 ```
 
 **Step 0, preconditions.** Stops if any check fails.
@@ -100,16 +102,9 @@ done
 ```
 Stop if the two engine hashes are equal, the two base hashes differ, a printed module path is outside its own worktree, the september check fails, or `meta.impl` is not `cpu`.
 
-**Step 3, dry run (required before the real run).** The same step 4, 5 and 6 scripts with `--hands 40`, `--sims 200`, `--matches 2`, seeds 1 and 2, in a scratch `$OUT` that is deleted afterwards. Rebuilds are not repeated; the step 1 and 2 engines are reused. It checks plumbing only and reads no result. If the station identity stop fires here, it is investigated, not ignored. The `grep -c 'ENGINE FAILED'` total must be 0 at the end of the dry run, so a stale engine module surfaces here and not at step 6. The gate record notes that the dry run was done.
+**Step 3, dry run (required before the real run).** The same step 4, 5 and 6 scripts with `--hands 40`, `--sims 200`, `--matches 2`, seeds 1 and 2, in a scratch `$OUT` that is deleted afterwards. The values are set inside a subshell, so nothing leaks back and the real values stay in force for steps 4 to 6. Rebuilds are not repeated; the step 1 and 2 engines are reused (the scratch `$OUT` needs no engine copy: the engines load from the worktrees). It checks plumbing only and reads no result. If the station identity stop fires here, it is investigated, not ignored. The `grep -c 'ENGINE FAILED'` total must be 0 at the end of the dry run, so a stale engine module surfaces here and not at step 6. The gate record notes that the dry run was done.
 ```
-REAL_OUT=$OUT
-OUT=$(mktemp -d)                                  # scratch
-HANDS=40; SIMS=200; MATCHES=2; S1=1; S2=2
-cp $REAL_OUT/pokercpp_engine_base* $OUT/ 2>/dev/null || true
-# now run steps 4, 5 and 6 below unchanged, then:
-cat $OUT/bench-*.log $OUT/match-*.txt | grep -c 'ENGINE FAILED'   # must print 0
-rm -r "$OUT"
-OUT=$REAL_OUT; HANDS=4000; SIMS=5000; MATCHES=200; S1=780001; S2=790001
+( export OUT=$(mktemp -d) HANDS=40 SIMS=200 MATCHES=2 S1=1 S2=2; bash step4.sh && bash step5.sh && bash step6.sh; cat $OUT/bench-*.log $OUT/match-*.txt | grep -c 'ENGINE FAILED'; rm -r "$OUT" )   # the count must print 0
 ```
 
 **Step 4, bench runs, with the identity check inside each row.** A row runs the baseline, then the candidate, then compares the two `results` lists and prints only `IDENTICAL` or `different`, never a number. The `bench.py` output goes to `$OUT/bench-*.log`. Any failing command stops everything, and so does an IDENTICAL **station** row. An IDENTICAL row for another opponent is printed and the run continues. The first row (station, 100 bb, seed 780001) runs alone, so a candidate that did not take stops the run before the grid. The other 23 rows then run under `xargs -P 10` with at most 10 jobs. Every pair is seeded from seed0 + k, so job order does not change the dumps (the september rows are unseeded either way). The printed rows are saved to `$OUT/step4-rows.txt`.
@@ -128,7 +123,8 @@ echo "$o $st $SEED $r"
 if [ "$r" = IDENTICAL ] && [ "$o" = station ]; then exit 255; fi   # station must call, so the candidate did not take
 exit 0
 EOS
-chmod +x $OUT/row.sh; export PY BASE_WT CAND_WT OUT HANDS SIMS
+chmod +x $OUT/row.sh; export PY BASE_WT CAND_WT OUT HANDS SIMS   # row.sh is launched by xargs, so these must be exported
+echo "run: S1=$S1 S2=$S2 HANDS=$HANDS"                      # not a result; shows which run this is
 date -u > $OUT/step4-start.txt
 $OUT/row.sh station 100 $S1 >> $OUT/step4-rows.txt || exit 1
 for SEED in $S1 $S2; do for st in 15 100; do for o in $OPPS; do echo $o $st $SEED; done; done; done \
