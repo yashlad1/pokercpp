@@ -1,0 +1,97 @@
+# Live log analysis, 26 Nov 2026
+
+One section per play session. Later sessions go below as new sections. Scripts and how to rerun them: end of file. Logs: `results/live-logs/2026-11-26_*.log`.
+
+## Session 1 (11:00 to 11:13 ET)
+
+### Summary
+
+| match | opponent | our build | result | hands | note |
+|---|---|---|---|---|---|
+| 1 | qwentom-leap | commit 3e7421d, main at 0.75; preflop realization inferred as 0.75 from the log, see below | won | 40 | not part of the 0.85 sample |
+| 2 | PoetAndCoder | 0.85 bot, commit 0eff667 | won | 7 | |
+| 3 | PoetAndCoder | 0.85 bot, commit 0eff667 | won | 21 | |
+| 4 | Deep_Thought-v12 | 0.85 bot, commit 0eff667 | lost | 41 | busted on hand 41 |
+
+The 0.85 sample is matches 2 to 4: 69 hands, 2 wins and 1 loss.
+
+### Wire facts
+
+- 0 illegal actions and 0 error lines in all four matches (our own check: chosen action outside `legal=`, or a raise outside the min/max raise).
+- Decisions: 148, 25, 75 and 78.
+- The log's commit stamp is the checkout's HEAD, not necessarily the engine build. The match 1 build was inferred from the numbers: preflop realized/equity on every preflop decision facing a bet is **0.85 in all 63 decisions of the 0eff667 matches (7, 20, 36) and 0.75 in all 23 decisions of the qwentom match**. `measure.py` prints this (section 4).
+
+### Opponent profiles (the 47fcb67 counts, n shown)
+
+| situation | qwentom-leap (n) | PoetAndCoder, 2 matches pooled (n) | Deep_Thought-v12 (n) |
+|---|---|---|---|
+| first_in (opponent is SB) | n=20: limp 20 | n=13: limp 9, raise 4 | n=20: fold 7 (35%), raise 13 (65%) |
+| vs_open (our open) | n=8: call 8 | n=6: call 4, raise 2 | n=13: fold 6, call 7 |
+| cbet (opponent last preflop aggressor, acts first on flop) | n=0 | n=6: check 4, bet 2 | n=8: bet 8 |
+| checked_to (we checked, opponent acts) | n=27: check 19, bet 8 | n=13: check 5, bet 8 | n=11: check 2, bet 9 |
+| vs_bet flop | n=16: fold 2, call 14 | n=12: fold 3, call 6, raise 3 | n=5: fold 4, call 1 |
+| vs_bet turn | n=16: fold 5, call 11 | n=5: fold 3, call 1, raise 1 | n=1: call 1 |
+| vs_bet river | n=10: fold 2, call 7, raise 1 | n=5: fold 1, call 3, raise 1 | n=2: fold 1, call 1 |
+
+All samples are small. Deep_Thought-v12 bets often 1 to 1.5 times the pot on the flop (750 into 750, 1,125 into 750).
+
+### The Deep_Thought loss (match 4)
+
+- **Hand 41 (-7,729, match over).** We held 7c2d on 2c 7d Th 4s. Preflop call (range 1.00, equity 0.339). Flop: two pair, range 0.76, equity 0.859, raised to 1,050 after their bet. Turn 4s: they raised to 3,750, we credited a range of 0.32 (equity 0.917) and shoved. They held 7s4h, which turned two pair (sevens and fours) that beat ours. 74o is not in a top-32% list, so the 0.917 was computed against a range that excluded the hand they held.
+- **Hand 6 (-5,800).** We held Kh7h on Ks Qs 4s 6c 5c, a pair of kings with a weak kicker. We called flop (range 0.13, equity 0.530) and turn bets (range 0.12, equity 0.606) and bet the river (range 0.12, equity 0.714, raise to 3,300). They held KcTh (same pair, better kicker) and called.
+- **Three c-bet folds** (hands 24, 38, 40; 375 chips each, all after calling a preflop raise as big blind and checking the flop): we folded to 750, 1,125 and 1,125 bets with realized equity 0.197 vs 0.333 required, 0.279 vs 0.375, and 0.144 vs 0.375.
+
+### C-bet counterfactual
+
+If the c-bet had not narrowed the range (range stays at its preflop value), the pre-bet equities apply: hand 24 flips from fold to call (0.438 x 0.82 discount = 0.359 against 0.333 required); hand 38 still folds (0.350 vs 0.375) and hand 40 still folds (0.252 vs 0.375). That is 1 of 3 folds, 1,125 chips of pots, over n = 8 c-bets: small.
+
+### Range coverage at showdown
+
+Every hand in all logs where the showdown shows the opponent's cards (n = 59 won, lost and split; chips are our net). The engine's rule (`MonteCarloSimulator::villainCombos`): the fraction counts combos, not classes; hand classes from `montecarlo/preflop_ranks.h` are taken in order until cumulative combos reach round(range x 1326); the class crossing the cut is inside. We use our last decision's `range=` in the hand.
+
+| group | lost, inside (chips) | lost, outside (chips) | split, inside | won, inside (chips) | won, outside (chips) |
+|---|---|---|---|---|---|
+| qwentom-leap (n=19) | 4 (-2,071) | 2 (-3,744) | 2 | 9 (+13,802) | 2 (+800) |
+| Poet match 2 (n=4) | 1 (-100) | 0 | 0 | 0 | 3 (+10,020) |
+| Poet match 3 (n=6) | 2 (-2,362) | 1 (-1,224) | 0 | 1 (+7,904) | 2 (+4,412) |
+| Deep_Thought (n=5) | 0 | 2 (-13,529) | 1 | 0 | 2 (+1,830) |
+| 0.85 pooled (n=15) | 3 (-2,462) | 3 (-14,753) | 1 | 1 (+7,904) | 7 (+16,262) |
+| all logs (n=59) | 13 (-17,142) | 10 (-24,963) | 4 | 20 (+53,794) | 12 (+23,475) |
+
+Lost showdowns at 0.85 (hand, credited range, opponent hand, its percentile in the preflop order, chips): match 2 hand 5, 1.00, 3dJd, 56%, -100. Match 3 hand 12, 0.27, 7h5h, 70%, -1,224; hand 13, 0.31, AdJs, 7%, -1,875; hand 18, 0.81, 5sJd, 59%, -487. Match 4 hand 6, 0.12, KcTh, 16%, -5,800; hand 41, 0.32, 7s4h, 88%, -7,729.
+
+How to read it:
+
+1. The comparison is partly true by construction: a postflop-narrowed fraction is compared against a preflop ordering, so a hand like 74o on a 7-4 board can never be inside a narrowed top-32% list.
+2. What it supports: the preflop-rank range misses about 40% of shown hands, 10 of 23 lost and 12 of 32 won across all logs. Missing is about as common in wins as in losses.
+3. The chip gap (inside about +36.7k net, outside about -1.5k) is confounded, since narrow ranges come from aggression and big pots. It is suggestive only: n = 59 showdowns, 13 + 10 lost and 20 + 12 won.
+4. In the 0.85 matches, 3 of 6 lost showdowns were outside the range, and they carry 14,753 of the 17,215 chips lost at showdown.
+
+Selection bias: only hands that reach showdown count.
+
+### Our small-blind first action
+
+| log set | fold | limp | raise | SB hands |
+|---|---|---|---|---|
+| 24 Nov, 8 logs | 1 (0%) | 112 (47%) | 126 (53%) | 239 |
+| 26 Nov qwentom-leap | 0 | 12 (60%) | 8 (40%) | 20 |
+| 26 Nov Poet, match 2 | 0 | 3 (75%) | 1 (25%) | 4 |
+| 26 Nov Poet, match 3 | 0 | 6 (55%) | 5 (45%) | 11 |
+| 26 Nov Deep_Thought | 0 | 8 (38%) | 13 (62%) | 21 |
+| all | 1 (0%) | 141 (48%) | 153 (52%) | 295 |
+
+The bot almost never folds the small blind: 1 fold in 295 hands.
+
+### Limits
+
+- Three matches and 69 hands at 0.85: this cannot measure 0.85 against 0.75. It shows 0.85 runs cleanly on the live server (no illegal actions, no errors).
+- The opponent counts and showdown tables have small n; the c-bet counterfactual uses n = 8.
+- The coverage `range=` is 2 decimals, so hands near the cut are uncertain.
+
+## How to reproduce
+
+Run from the repo root (python3 3.10 or newer; no other packages):
+
+- `sh results/2026-11-26-live-scripts/run.sh` runs `analyze.py` on the 24 Nov logs (vs_open 22: fold 5, call 16, raise 1 and 27: fold 24, call 2, shove 1; decisions 193 and 117). Pass log paths to analyze others.
+- `python3 -I results/2026-11-26-live-scripts/measure.py results/live-logs/2026-11-2*.log` prints the coverage table, c-bet responses, SB first actions and the preflop realization check.
+- `opponent47.py` is a verbatim copy of the `Stats` class at commit 47fcb67 (first comment line says so).
