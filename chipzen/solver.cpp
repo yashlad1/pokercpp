@@ -5,7 +5,7 @@
 // decides anything lives here, so the C++ engine stays the brain.
 //
 // Line protocol (all integers, cards as two chars "As" "Th" "2c"):
-//   <nhole> <hole...> <nboard> <board...> <pot> <to_call> <min_raise> <max_raise> <stack> <bb> <sims> [villain_raises]
+//   <nhole> <hole...> <nboard> <board...> <pot> <to_call> <min_raise> <max_raise> <stack> <bb> <sims> [villain_raises] [seed]
 // Reply:
 //   fold | check | call | raise <total_bet>
 //
@@ -51,6 +51,11 @@ int main() {
         int villainRaises = 0;
         if (ok) in >> villainRaises;
 
+        // Optional, after villain_raises: a nonzero seed fixes the Monte Carlo
+        // draws so a test run is repeatable. Absent, the run is random as before.
+        unsigned long long seed = 0;
+        if (ok) in >> seed;
+
         // A malformed line must still get an answer: the Python side is
         // waiting on exactly one reply and would otherwise block until the
         // server's decision budget expires.
@@ -60,6 +65,15 @@ int main() {
         }
 
         if (sims <= 0) sims = 5000;
+        if (seed) {
+            chipzen::Decision d = chipzen::decideFull(hole, board, pot, toCall, minRaise,
+                                                      maxRaise, stack, bb, sims, villainRaises,
+                                                      1.0, true, 0.0, seed);
+            std::cout << (d.action == "raise" ? d.action + " " + std::to_string(d.amount)
+                                              : d.action)
+                      << std::endl;
+            continue;
+        }
         std::cout << chipzen::decide(hole, board, pot, toCall, minRaise, maxRaise,
                                      stack, bb, sims, villainRaises)
                   << std::endl;
