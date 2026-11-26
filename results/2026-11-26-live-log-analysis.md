@@ -215,7 +215,11 @@ opp-H (match 9): first_in n=3, fold 3; vs_open n=2, fold 2; too few hands for mo
 | 0.85 pooled, matches 2 to 11 (n=59) | 21 (-16,802) | 8 (-43,681) | 4 | 14 (+31,762) | 12 (+26,175) |
 | all logs (n=103) | 31 (-31,482) | 15 (-53,891) | 7 | 33 (+77,652) | 17 (+33,388) |
 
-The same four caveats as in session 1 apply (partly by construction; the range misses about a third of shown hands, 15 of 46 lost and 17 of 50 won across all logs; the chip gap is confounded; only showdown hands count). In session 3, 3 of 18 lost showdowns were outside the range but carry 15,673 of the 26,167 chips lost at showdown (hands 44 and 30 above, plus 996). In the 0.85 matches 8 of 29 lost showdowns were outside and carry 43,681 of the 60,483 chips lost at showdown.
+The same four caveats as in session 1 apply (partly by construction; the range misses about a third of shown hands, 15 of 46 lost and 17 of 50 won across all logs; the chip gap is confounded; only showdown hands count). In session 3, 3 of 18 lost showdowns were outside the range but carry 15,673 of the 26,167 chips lost at showdown (hands 44 and 30 above, plus 996).
+
+This share is partly true by construction: the credited range is narrowest (0.06, 0.10) exactly in the biggest pots, after repeated aggression, and those pots are the biggest losses. The supported reading is that in big pots the credited range collapses to the top preflop hands and misses made hands from weak starting hands (A6o trips, 87o trips), because it ignores the board. That points at the board-aware range work (#27, #37), not at the call threshold.
+
+In the 0.85 matches 8 of 29 lost showdowns were outside and carry 43,681 of the 60,483 chips lost at showdown.
 
 ### Our response to the opponent's flop c-bet, and small blind first action
 
