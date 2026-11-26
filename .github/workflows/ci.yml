@@ -126,3 +126,6 @@ jobs:
 
       - name: Test the bench smoke for the bot adapter
         run: PYTHONPATH=chipzen python tools/test_bench_smoke.py
+
+      - name: Test that the bench counts coerced hero answers
+        run: PYTHONPATH=chipzen python tools/test_bench_coerced.py

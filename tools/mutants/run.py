@@ -42,6 +42,7 @@ TESTS = {
     "preflop_realization": (["{py}", "chipzen/test_preflop_realization.py"], {}, 600),
     "suit_relabel": (["{py}", "chipzen/test_suit_relabel.py"], {}, 600),
     "paired": (["{py}", "tools/test_paired.py"], {}, 600),
+    "bench_coerced": (["{py}", "tools/test_bench_coerced.py"], {"PYTHONPATH": "chipzen"}, 600),
     "opponent": (["{py}", "chipzen/test_opponent.py"], {"PYTHONPATH": "chipzen"}, 600),
     "decide_constants": (["{py}", "chipzen/test_decide_constants.py"], {"PYTHONPATH": "chipzen"}, 600),
     "villain_raises": (["{py}", "chipzen/test_villain_raises.py"], {"PYTHONPATH": "chipzen"}, 600),

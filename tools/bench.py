@@ -487,6 +487,11 @@ def round_result(st, hand, live, holes):
             "showdown": showdown, "action_history": live, "stacks": list(st.stacks)}
 
 
+def raise_amount_legal(amount, min_raise, max_raise):
+    """The live server's band rule: a short stack (min_raise > max_raise) may only raise to max_raise."""
+    return amount == max_raise if min_raise > max_raise else min_raise <= amount <= max_raise
+
+
 def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
     """Deal from `seed` and play it out. Returns each seat's chip delta.
 
@@ -541,6 +546,12 @@ def play_hand(seed: int, agents, blinds=(50, 100), stack=10000, stacks=None):
 
         # The agents answer about equity; legality is enforced here, as bot.py enforces it against valid_actions on the wire.
         action, amount = agents[i].act(view)
+        if hasattr(agents[i], "coerced"):  # the hero only: count what the live server would reject
+            offered = {"check"} if view.to_call == 0 else {"fold", "call"}
+            if view.max_raise > 0 and not 0 < view.stack <= view.to_call:
+                offered.add("raise")
+            agents[i].coerced += action not in offered or (
+                action == "raise" and not raise_amount_legal(amount, view.min_raise, view.max_raise))
 
         if action == "raise" and st.can_complete_bet_or_raise_to():
             lo = st.min_completion_betting_or_raising_to_amount
@@ -587,6 +598,7 @@ def duplicate_match(hands: int, hero, villain, blinds=(50, 100), stack=10000, se
     than the same number of independent hands would give.
     """
     split_roles(hero, villain)
+    hero.coerced = 0
     results = []
     for k in range(hands // 2):
         s = seed0 + k
@@ -716,10 +728,11 @@ if __name__ == "__main__":
         res = duplicate_match(args.hands, hero, OPPONENTS[nm](), blinds=(args.bb // 2, args.bb),
                              stack=args.stack * args.bb, seed0=args.seed0)
         report(f"vs {nm}", res, args.bb)
+        print(f"coerced {hero.coerced}")
         if args.dump:
             with open(args.dump, "w") as f:
                 json.dump({"seed0": args.seed0, "bb": args.bb, "stack_bb": args.stack,
                            "opponent": nm, "results": res, **knobs,
                            "meta": dict(sims=args.sims, hero=args.hero, history=args.history,
                                         hand_number=args.hand_number, wire=args.wire, impl=engine_impl(),
-                                        commit=git_commit(), knobs=knobs)}, f)
+                                        commit=git_commit(), knobs=knobs, coerced=hero.coerced)}, f)
