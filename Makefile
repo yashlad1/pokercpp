@@ -16,6 +16,7 @@ TEST_HAND = tests/test_hand_evaluator
 TEST_EQUITY = tests/test_equity_exact
 TEST_PROPS = tests/test_decide_properties
 TEST_EXHAUSTIVE = tests/test_eval_exhaustive
+TEST_ORDER = tests/test_eval_order
 
 test_monte_carlo: tests/test_monte_carlo.cpp tests/test_util.h $(ENGINE_SRC)
 	$(CXX) $(CXXFLAGS) tests/test_monte_carlo.cpp $(ENGINE_SRC) -o $(TEST_MC)
@@ -39,7 +40,12 @@ test_eval_exhaustive: tests/test_eval_exhaustive.cpp model/fast_eval.h model/adv
 	$(CXX) $(CXXFLAGS) -O2 tests/test_eval_exhaustive.cpp model/advanced_hand_evaluator.cpp model/card.cpp -o $(TEST_EXHAUSTIVE)
 	./$(TEST_EXHAUSTIVE)
 
-test: test_hand_evaluator test_monte_carlo test_equity_exact test_decide_properties test_eval_exhaustive
+# Score order over all 2,598,960 five-card hands against a rules-built key, plus 7 vs best-of-5.
+test_eval_order: tests/test_eval_order.cpp model/fast_eval.h model/advanced_hand_evaluator.cpp model/card.cpp
+	$(CXX) $(CXXFLAGS) -O2 tests/test_eval_order.cpp model/advanced_hand_evaluator.cpp model/card.cpp -o $(TEST_ORDER)
+	./$(TEST_ORDER)
+
+test: test_hand_evaluator test_monte_carlo test_equity_exact test_decide_properties test_eval_exhaustive test_eval_order
 	@echo "\n=== All Tests Passed ==="
 
 ASAN_DIR = build-asan
@@ -58,8 +64,8 @@ strict:
 	$(CXX) $(CXXFLAGS) $(STRICTFLAGS) -fsyntax-only $(ENGINE_SRC)
 	@echo "=== Strict warning pass clean ==="
 
-.PHONY: test test_decide_properties test_eval_exhaustive test-asan strict clean
+.PHONY: test test_decide_properties test_eval_exhaustive test_eval_order test-asan strict clean
 
 clean:
-	rm -f $(TEST_MC) $(TEST_HAND) $(TEST_EQUITY) $(TEST_PROPS) $(TEST_EXHAUSTIVE)
+	rm -f $(TEST_MC) $(TEST_HAND) $(TEST_EQUITY) $(TEST_PROPS) $(TEST_EXHAUSTIVE) $(TEST_ORDER)
 	rm -rf $(ASAN_DIR)

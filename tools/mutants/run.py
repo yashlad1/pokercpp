@@ -49,8 +49,9 @@ TESTS = {
     "match": (["{py}", "tools/test_match.py"], {"PYTHONPATH": "chipzen"}, 600),
     "decide_properties": (["make", "test_decide_properties"], {}, 900),
     "eval_exhaustive": (["make", "test_eval_exhaustive"], {}, 900),
+    "eval_order": (["make", "test_eval_order"], {}, 900),
 }
-MAKE_TESTS = {"decide_properties", "eval_exhaustive"}  # build and run themselves, no engine needed
+MAKE_TESTS = {"decide_properties", "eval_exhaustive", "eval_order"}  # build and run themselves, no engine needed
 
 
 def sh(argv, cwd, env=None, timeout=None):
