@@ -68,6 +68,8 @@ seed 880001: vs aggro: discordant A-only 0, B-only 257, p=0.0000 (McNemar exact)
 
 Per build vs aggro: default won 255 and 258 of 400; the knob won 3 and 1 of 400. A-only is the knob's wins, B-only its losses: 2 against 254, and 0 against 257, p < 0.0001 on both seeds. The expectation held.
 
+**Pre-statement timing.** The expectation commit a970be3 is dated 05:56:04-05:00. The first confirmatory dump was created at 05:56:04.689, the same second. The commit completed before the run script started (`git commit && ...`, then the script), so the commit comes first by command order. Accepted as pre-stated on that basis. Next time: commit and push the rule first, and start the run a minute later.
+
 ## Conclusion
 
 - **Chips report: passes.** `paired.py` prints `worse` on both seeds, -21.1 and -22.3 bb/100 with intervals clear of zero.
@@ -76,4 +78,4 @@ Per build vs aggro: default won 255 and 258 of 400; the knob won 3 and 1 of 400.
 - **Confirmatory run vs aggro (870001, 880001): reads clearly negative on both seeds, as pre-stated.** The pre-stated reference choice failed because reference is saturated (the default wins about 99%); the aggro run on 850001/860001 was post-hoc, the 870001/880001 run was pre-stated.
 - Reading for #7: the chips half is met as written, and the match half is met by the pre-stated confirmatory run vs aggro. The reference result stays on record as a failed first choice for the reason above. This closes #7.
 
-Eval log: experiment `worse-knob-check-7`; row IDs are added after the eval-log merge, see the PR.
+Eval log: experiment `worse-knob-check-7`. Runs R558 and R559 (chips, seeds 850001 and 860001). Matches M051 to M062, each knob row followed by its default row: reference and aggro on 850001 (M051-M054), reference and aggro on 860001 (M055-M058), confirmatory aggro on 870001 (M059-M060) and 880001 (M061-M062). The match rows have no seed0 column value because `evlog.py match --dump` reads bench dumps, not match dumps; the seed is in the Schedule text.
