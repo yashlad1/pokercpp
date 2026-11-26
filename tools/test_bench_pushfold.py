@@ -22,15 +22,29 @@ CLASSES = list(bench.PREFLOP_PCT)  # (high rank 2..14, low rank, suited), in pre
 RANKS = "23456789TJQKA"
 
 
+TABLE_PATH = os.path.join(ROOT, "tools", "pushfold_table.h")
+
+
 def load_table():
-    txt = subprocess.run(["git", "show", "c3b06d9:chipzen/pushfold.h"], cwd=ROOT, capture_output=True,
-                         text=True, check=True).stdout
+    txt = open(TABLE_PATH).read()
     rows = {float(s): [int(x) for x in r.split(",")] for r, s in re.findall(r"\{([\d,]+)\},\s*//\s*([\d.]+) bb", txt)}
     assert len(rows) == 39 and all(len(r) == 169 for r in rows.values())
     return rows
 
 
 TABLE = load_table()
+
+
+SOURCE_SHA = "c3b06d9"
+
+
+def test_copy_matches_source():
+    if subprocess.run(["git", "cat-file", "-e", SOURCE_SHA], cwd=ROOT, capture_output=True).returncode:
+        print("note: %s not available here, skipping the byte check against the source" % SOURCE_SHA)
+        return
+    src = subprocess.run(["git", "show", SOURCE_SHA + ":chipzen/pushfold.h"], cwd=ROOT, capture_output=True,
+                         check=True).stdout
+    assert open(TABLE_PATH, "rb").read().split(b"\n", 1)[1] == src, "tools/pushfold_table.h differs from the source"
 
 
 def freq(eff_bb, cls_idx):
@@ -171,7 +185,7 @@ def test_results_differ_from_every_other_opponent():
 
 
 if __name__ == "__main__":
-    for t in (test_registered_and_in_all, test_pushes_and_folds_at_table_stacks, test_row_is_largest_stack_at_or_below,
+    for t in (test_copy_matches_source, test_registered_and_in_all, test_pushes_and_folds_at_table_stacks, test_row_is_largest_stack_at_or_below,
               test_effective_stack_is_the_smaller_stack, test_mixed_frequency_share_and_determinism,
               test_elsewhere_is_reference, test_results_differ_from_every_other_opponent):
         t()
