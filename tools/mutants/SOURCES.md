@@ -20,6 +20,7 @@
 - M7 / parity: MEASURED. review table (2026-11-25-review-pr91-pr92.md) P0-P3 F (not re-measured on today's parity)
 - M7 / wire: PREDICTED. test_wire.py:82-83 reply 'call' with valid ['all_in'] must stay in valid
 - M8 / sdk: MEASURED. review table (2026-11-25-review-pr91-pr92.md) (one check); user: sdk only while bench offers all_in
+- M8 / parity: MEASURED in B2 (#115): live-wire parity fails (aggro 3, random 3 pair mismatches)
 - D1 / sdk: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
 - D1 / solver: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
 - D2 / solver: MEASURED. review table (2026-11-25-review-pr91-pr92.md) (245e3a9, d0c8bdf)

@@ -105,6 +105,7 @@
   "replace": "                return Action.raise_to(lo if target >= hi else target)\n            # Raising was illegal",
   "what": "shove without all_in offered becomes min-raise",
   "expect": [
+   "parity",
    "sdk"
   ],
   "why_survives": ""
