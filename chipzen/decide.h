@@ -8,7 +8,6 @@
 
 #include "../montecarlo/MonteCarloSimulator.h"
 #include "../model/poker_math.h"
-#include "../model/card.h"
 
 #include <algorithm>
 #include <string>

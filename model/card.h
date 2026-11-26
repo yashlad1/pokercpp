@@ -1,8 +1,6 @@
 #ifndef CARD_H
 #define CARD_H
 
-#include <string>
-
 // enum for suit
 enum class Suit
 {
@@ -39,8 +37,6 @@ public:
 
 	Card(Suit s, Rank r);
 	Card(Rank r, Suit s) : suit(s), rank(r) {}
-
-	std::string toString() const;
 
 	bool operator==(const Card& other) const {
 		return rank == other.rank && suit == other.suit;

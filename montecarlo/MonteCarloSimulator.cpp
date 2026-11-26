@@ -1,14 +1,11 @@
 // montecarlo/MonteCarloSimulator.cpp
 #include "MonteCarloSimulator.h"
-#include "../model/deck.h"
 #include "../model/advanced_hand_evaluator.h"
 #include "../model/fast_eval.h"
 #include "preflop_ranks.h"
 
 #include <random>
 #include <algorithm>
-#include <iostream>
-#include <map>
 #include <cmath>  // for sqrt, max, min
 
 MonteCarloSimulator::MonteCarloSimulator(const std::vector<Card> &playerHand,
@@ -115,7 +112,6 @@ void MonteCarloSimulator::runSimulation()
         // A range narrow enough to be empty once our own cards are removed
         // tells us nothing. Fall back to dealing at random rather than
         // returning an equity computed from no opponent at all.
-        if (combos.empty()) villainRangeFraction = 1.0;
     }
     std::uniform_int_distribution<size_t> pick(0, combos.empty() ? 0 : combos.size() - 1);
 
@@ -339,19 +335,6 @@ double MonteCarloSimulator::getEquityStdDev() const
     return std::sqrt(variance / numSimulations);
 }
 
-std::pair<double, double> MonteCarloSimulator::getEquityConfidenceInterval(double confidence) const
-{
-    if (numSimulations == 0)
-        return {0.0, 0.0};
-    if (confidence <= 0.0 || confidence >= 1.0)
-        return {0.0, 1.0};
-
-    double equity = getEquity();
-    double margin = probit(0.5 * (1.0 + confidence)) * getEquityStdDev();
-
-    return {std::max(0.0, equity - margin), std::min(1.0, equity + margin)};
-}
-
 // Calculate confidence interval for win rate
 // Returns pair of (lower_bound, upper_bound)
 // Uses normal approximation for binomial: mean ± z * σ
@@ -378,141 +361,6 @@ std::pair<double, double> MonteCarloSimulator::getConfidenceInterval(double conf
     double upperBound = std::min(1.0, winRate + margin);
     
     return {lowerBound, upperBound};
-}
-
-double MonteCarloSimulator::getFlushDrawOdds() const
-{
-    // Count cards by suit
-    std::map<Suit, int> suitCount;
-    for (const Card &c : playerHand)
-    {
-        suitCount[c.suit]++;
-    }
-    for (const Card &c : communityCards)
-    {
-        suitCount[c.suit]++;
-    }
-
-    // Check if we have 4 cards of the same suit
-    Suit flushSuit = Suit::Clubs; // Default
-    bool hasFlushDraw = false;
-
-    for (const auto &[suit, count] : suitCount)
-    {
-        if (count == 4)
-        {
-            hasFlushDraw = true;
-            flushSuit = suit;
-            break;
-        }
-    }
-
-    if (!hasFlushDraw)
-    {
-        return 0.0;
-    }
-
-    // Calculate how many flush cards are left in the deck
-    int totalCards = static_cast<int>(playerHand.size() + communityCards.size());
-    int cardsRemaining = 13 - suitCount[flushSuit]; // 13 cards per suit
-    int deckSize = 52 - totalCards;
-
-    // Probability of drawing a flush card
-    return static_cast<double>(cardsRemaining) / deckSize;
-}
-
-double MonteCarloSimulator::getStraightDrawOdds() const
-{
-    std::vector<int> ranks;
-    for (const Card &c : playerHand)
-    {
-        ranks.push_back(static_cast<int>(c.rank));
-    }
-    for (const Card &c : communityCards)
-    {
-        ranks.push_back(static_cast<int>(c.rank));
-    }
-
-    // Sort and remove duplicates
-    std::sort(ranks.begin(), ranks.end());
-    auto last = std::unique(ranks.begin(), ranks.end());
-    ranks.erase(last, ranks.end());
-
-    // Note: loop bounds are written as `i + 3 < size()` rather than
-    // `i < size() - 3`. size() is unsigned, so with fewer than 4 distinct
-    // ranks (any preflop hand) the subtraction wraps and the loop reads
-    // far past the end of the vector.
-    std::vector<int> neededCards;
-
-    // Open-ended straight draw: four consecutive ranks, completed by the
-    // rank immediately below or immediately above the run.
-    for (size_t i = 0; i + 3 < ranks.size(); ++i)
-    {
-        if (ranks[i + 1] == ranks[i] + 1 &&
-            ranks[i + 2] == ranks[i] + 2 &&
-            ranks[i + 3] == ranks[i] + 3)
-        {
-            if (ranks[i] - 1 >= 2)
-            { // 2 is the lowest card
-                neededCards.push_back(ranks[i] - 1);
-            }
-            if (ranks[i + 3] + 1 <= 14)
-            { // 14 (Ace) is the highest
-                neededCards.push_back(ranks[i + 3] + 1);
-            }
-        }
-    }
-
-    // Inside (gutshot) straight draw: four ranks spanning exactly five, so
-    // the one missing rank inside that window completes the straight.
-    for (size_t i = 0; i + 3 < ranks.size(); ++i)
-    {
-        if (ranks[i + 3] == ranks[i] + 4)
-        {
-            for (int want = ranks[i] + 1; want < ranks[i] + 4; ++want)
-            {
-                if (std::find(ranks.begin(), ranks.end(), want) == ranks.end())
-                {
-                    neededCards.push_back(want);
-                }
-            }
-        }
-    }
-
-    // Remove duplicates from needed cards
-    std::sort(neededCards.begin(), neededCards.end());
-    auto lastUnique = std::unique(neededCards.begin(), neededCards.end());
-    neededCards.erase(lastUnique, neededCards.end());
-
-    // Calculate odds
-    if (neededCards.empty())
-    {
-        return 0.0;
-    }
-
-    int totalCards = static_cast<int>(playerHand.size() + communityCards.size());
-    int deckSize = 52 - totalCards;
-
-    // Each rank has 4 cards (one per suit)
-    int totalOuts = static_cast<int>(neededCards.size()) * 4;
-
-    // Subtract cards we already know
-    for (const Card &c : playerHand)
-    {
-        if (std::find(neededCards.begin(), neededCards.end(), static_cast<int>(c.rank)) != neededCards.end())
-        {
-            totalOuts--;
-    }
-    }
-    for (const Card &c : communityCards)
-    {
-        if (std::find(neededCards.begin(), neededCards.end(), static_cast<int>(c.rank)) != neededCards.end())
-        {
-            totalOuts--;
-        }
-    }
-
-    return static_cast<double>(totalOuts) / deckSize;
 }
 
 std::vector<Card> MonteCarloSimulator::getRemainingDeck() const

@@ -46,12 +46,6 @@ public:
     // are possible.
     double getEquity() const;
     double getEquityStdDev() const;
-    std::pair<double, double> getEquityConfidenceInterval(double confidence = 0.95) const;
-    int getSampleSize() const { return numSimulations; }
-
-    // Drawing hand probability methods
-    double getFlushDrawOdds() const;
-    double getStraightDrawOdds() const;
 
 private:
     std::vector<Card> playerHand;
