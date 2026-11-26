@@ -1,11 +1,9 @@
 """Black-box tests for tools/paired.py (run: python tools/test_paired.py [path/to/tool])."""
 import json
-import math
 import os
 import re
 import subprocess
 import sys
-import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOL = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "paired.py")

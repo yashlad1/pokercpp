@@ -6,6 +6,7 @@ Run from the repo root:  PYTHONPATH=chipzen python chipzen/test_wire.py
 import itertools, os, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from testutil import run
 os.environ["POKERCPP_SIMS"] = "2000"
 
 from chipzen import GameState
@@ -142,21 +143,5 @@ def test_sims_numeric_still_works():
     assert r.stdout.strip() == "2000", r.stdout
 
 
-def run():
-    failed = 0
-    for name, fn in sorted(globals().items()):
-        if name.startswith("test_") and callable(fn):
-            try:
-                fn()
-                print("PASS", name)
-            except BaseException as e:  # noqa: BLE001
-                failed += 1
-                print("FAIL", name, "-", type(e).__name__, e)
-    if failed:
-        print(failed, "failed")
-        sys.exit(1)
-    print("all passed")
-
-
 if __name__ == "__main__":
-    run()
+    run(globals())

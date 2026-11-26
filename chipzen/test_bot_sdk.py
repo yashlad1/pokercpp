@@ -20,7 +20,7 @@ import os, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("POKERCPP_SIMS", "5000")
 
-from chipzen import Action, GameState
+from chipzen import GameState
 from chipzen.models import Card
 import bot as botmod
 

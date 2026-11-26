@@ -4,6 +4,7 @@ Run from the repo root:  PYTHONPATH=chipzen python chipzen/test_opponent.py
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from testutil import run
 
 from opponent import Opponent
 
@@ -78,21 +79,5 @@ def test_zero_raise_hands_still_count_as_seen():
     assert close(o.range_floor(1), 1 / 24), o.range_floor(1)
 
 
-def run():
-    failed = 0
-    for name, fn in sorted(globals().items()):
-        if name.startswith("test_") and callable(fn):
-            try:
-                fn()
-                print("PASS", name)
-            except BaseException as e:  # noqa: BLE001
-                failed += 1
-                print("FAIL", name, "-", type(e).__name__, e)
-    if failed:
-        print(failed, "failed")
-        sys.exit(1)
-    print("all passed")
-
-
 if __name__ == "__main__":
-    run()
+    run(globals())

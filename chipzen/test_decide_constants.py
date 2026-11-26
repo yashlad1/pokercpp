@@ -4,6 +4,7 @@ Run from the repo root:  PYTHONPATH=chipzen python chipzen/test_decide_constants
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from testutil import run
 
 import pokercpp_engine
 
@@ -133,21 +134,5 @@ def test_short_stack_boundary_no_shove_at_10_5bb():
     assert not (d["action"] == "raise" and d["amount"] == 1050), d
 
 
-def run():
-    failed = 0
-    for name, fn in sorted(globals().items()):
-        if name.startswith("test_") and callable(fn):
-            try:
-                fn()
-                print("PASS", name)
-            except BaseException as e:  # noqa: BLE001
-                failed += 1
-                print("FAIL", name, "-", type(e).__name__, e)
-    if failed:
-        print(failed, "failed")
-        sys.exit(1)
-    print("all passed")
-
-
 if __name__ == "__main__":
-    run()
+    run(globals())

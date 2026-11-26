@@ -22,11 +22,11 @@ TEST_PROPS = tests/test_decide_properties
 TEST_EXHAUSTIVE = tests/test_eval_exhaustive
 
 # Test targets
-test_monte_carlo: tests/test_monte_carlo.cpp $(ENGINE_SRC)
+test_monte_carlo: tests/test_monte_carlo.cpp tests/test_util.h $(ENGINE_SRC)
 	$(CXX) $(CXXFLAGS) tests/test_monte_carlo.cpp $(ENGINE_SRC) -o $(TEST_MC)
 	./$(TEST_MC)
 
-test_hand_evaluator: tests/test_hand_evaluator.cpp model/advanced_hand_evaluator.cpp model/card.cpp
+test_hand_evaluator: tests/test_hand_evaluator.cpp tests/test_util.h model/advanced_hand_evaluator.cpp model/card.cpp
 	$(CXX) $(CXXFLAGS) tests/test_hand_evaluator.cpp model/advanced_hand_evaluator.cpp model/card.cpp -o $(TEST_HAND)
 	./$(TEST_HAND)
 

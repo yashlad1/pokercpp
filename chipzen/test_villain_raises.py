@@ -4,6 +4,7 @@ Run from the repo root:  PYTHONPATH=chipzen python chipzen/test_villain_raises.p
 """
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from testutil import run
 os.environ["POKERCPP_SIMS"] = "2000"
 
 from chipzen import GameState
@@ -62,21 +63,5 @@ def test_villain_mixed_history():
 
 
 
-def run():
-    failed = 0
-    for name, fn in sorted(globals().items()):
-        if name.startswith("test_") and callable(fn):
-            try:
-                fn()
-                print("PASS", name)
-            except BaseException as e:  # noqa: BLE001
-                failed += 1
-                print("FAIL", name, "-", type(e).__name__, e)
-    if failed:
-        print(failed, "failed")
-        sys.exit(1)
-    print("all passed")
-
-
 if __name__ == "__main__":
-    run()
+    run(globals())
