@@ -1,5 +1,7 @@
 # B1 catalogue sources (origin/main a2e70b4)
 
+expect lists only deterministic killers; flaky killers are noted, not expected
+
 - M1 / parity: MEASURED. review table (2026-11-25-review-pr91-pr92.md) P0-P4 F
 - M1 / sdk: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
 - M1 / v4: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
@@ -24,6 +26,7 @@
 - D1 / sdk: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
 - D1 / solver: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
 - D2 / solver: MEASURED. review table (2026-11-25-review-pr91-pr92.md) (245e3a9, d0c8bdf)
+- D2 / solver: solver kills D2 nondeterministically (14/15): unseeded CLI solver near the 0.75 pin. Not expected; noted only.
 - D2 / preflop_realization: MEASURED. review table (2026-11-25-review-pr91-pr92.md) (d0c8bdf)
 - D3 / decide_properties: MEASURED. A2 (159 checks)
 - D4 / decide_properties: MEASURED. A2 (2 checks)
