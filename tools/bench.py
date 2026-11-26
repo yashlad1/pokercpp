@@ -388,6 +388,34 @@ def _preflop_pct():
 PREFLOP_PCT = _preflop_pct()
 
 
+def _pushfold_table():
+    """{stack in bb: 169 push percentages}, columns in PREFLOP_PCT key order, from tools/pushfold_table.h."""
+    txt = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "pushfold_table.h")).read()
+    return {float(s): [int(x) for x in row.split(",")] for row, s in re.findall(r"\{([\d,]+)\},\s*//\s*([\d.]+) bb", txt)}
+
+
+PUSHFOLD = _pushfold_table()
+PUSHFOLD_COL = {k: i for i, k in enumerate(PREFLOP_PCT)}
+
+
+class PushFold(Reference):
+    """Reference, except as the small blind facing only the big blind at 20 bb or less effective it plays
+    the solved heads-up push/fold table: all-in with the table's frequency for its hand class, else fold."""
+
+    name = "pushfold"
+
+    def _preflop(self, v: View):
+        eff = min(v.stack + v.bb - v.to_call, v.opp_stack + v.bb)  # chips at hand start
+        if v.villain_raises == 0 and v.to_call > 0 and eff <= 20 * v.bb:
+            r = sorted((RANK_ORDER[c[0]] + 2 for c in v.hole), reverse=True)
+            col = PUSHFOLD_COL[(r[0], r[1], v.hole[0][1] == v.hole[1][1] and r[0] != r[1])]
+            f = PUSHFOLD[max([s for s in PUSHFOLD if s * v.bb <= eff] or [1.0])][col]
+            if zlib.crc32(f"{v.hole}{v.hand}".encode()) / 2**32 < f / 100:
+                return "raise", v.max_raise
+            return "fold", 0
+        return super()._preflop(v)
+
+
 class LooseBluffer(Bluffer):
     """Bluffer postflop. Preflop modelled on a live opponent: first in as the small blind
     it raises to 3 bb with the top 58% of hands, limps the next 27% and folds the rest;
@@ -679,7 +707,7 @@ OPPONENTS = {"reference": Reference, "station": CallingStation, "nit": Nit,
              "loosebluff0": lambda: LooseBluffer(0.0, "loosebluff0"),
              "loosebluff25": lambda: LooseBluffer(0.25, "loosebluff25"),
              "loosebluff50": lambda: LooseBluffer(0.5, "loosebluff50"),
-             "threebet": ThreeBet, "sizer": Sizer}
+             "threebet": ThreeBet, "sizer": Sizer, "pushfold": PushFold}
 
 try:
     import pokercpp_engine_base
