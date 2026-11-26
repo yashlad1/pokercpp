@@ -8,10 +8,10 @@ One section per play session. Later sessions go below as new sections. Scripts a
 
 | match | opponent | our build | result | hands | note |
 |---|---|---|---|---|---|
-| 1 | qwentom-leap | commit 3e7421d, main at 0.75; preflop realization inferred as 0.75 from the log, see below | won | 40 | not part of the 0.85 sample |
-| 2 | PoetAndCoder | 0.85 bot, commit 0eff667 | won | 7 | |
-| 3 | PoetAndCoder | 0.85 bot, commit 0eff667 | won | 21 | |
-| 4 | Deep_Thought-v12 | 0.85 bot, commit 0eff667 | lost | 41 | busted on hand 41 |
+| 1 | opp-A | commit 3e7421d, main at 0.75; preflop realization inferred as 0.75 from the log, see below | won | 40 | not part of the 0.85 sample |
+| 2 | opp-B | 0.85 bot, commit 0eff667 | won | 7 | |
+| 3 | opp-B | 0.85 bot, commit 0eff667 | won | 21 | |
+| 4 | opp-C | 0.85 bot, commit 0eff667 | lost | 41 | busted on hand 41 |
 
 The 0.85 sample is matches 2 to 4: 69 hands, 2 wins and 1 loss.
 
@@ -23,7 +23,7 @@ The 0.85 sample is matches 2 to 4: 69 hands, 2 wins and 1 loss.
 
 ### Opponent profiles (the 47fcb67 counts, n shown)
 
-| situation | qwentom-leap (n) | PoetAndCoder, 2 matches pooled (n) | Deep_Thought-v12 (n) |
+| situation | opp-A (n) | opp-B, 2 matches pooled (n) | opp-C (n) |
 |---|---|---|---|
 | first_in (opponent is SB) | n=20: limp 20 | n=13: limp 9, raise 4 | n=20: fold 7 (35%), raise 13 (65%) |
 | vs_open (our open) | n=8: call 8 | n=6: call 4, raise 2 | n=13: fold 6, call 7 |
@@ -33,9 +33,9 @@ The 0.85 sample is matches 2 to 4: 69 hands, 2 wins and 1 loss.
 | vs_bet turn | n=16: fold 5, call 11 | n=5: fold 3, call 1, raise 1 | n=1: call 1 |
 | vs_bet river | n=10: fold 2, call 7, raise 1 | n=5: fold 1, call 3, raise 1 | n=2: fold 1, call 1 |
 
-All samples are small. Deep_Thought-v12 bets often 1 to 1.5 times the pot on the flop (750 into 750, 1,125 into 750).
+All samples are small. opp-C bets often 1 to 1.5 times the pot on the flop (750 into 750, 1,125 into 750).
 
-### The Deep_Thought loss (match 4)
+### The opp-C loss (match 4)
 
 - **Hand 41 (-7,729, match over).** We held 7c2d on 2c 7d Th 4s. Preflop call (range 1.00, equity 0.339). Flop: two pair, range 0.76, equity 0.859, raised to 1,050 after their bet. Turn 4s: they raised to 3,750, we credited a range of 0.32 (equity 0.917) and shoved. They held 7s4h, which turned two pair (sevens and fours) that beat ours. 74o is not in a top-32% list, so the 0.917 was computed against a range that excluded the hand they held.
 - **Hand 6 (-5,800).** We held Kh7h on Ks Qs 4s 6c 5c, a pair of kings with a weak kicker. We called flop (range 0.13, equity 0.530) and turn bets (range 0.12, equity 0.606) and bet the river (range 0.12, equity 0.714, raise to 3,300). They held KcTh (same pair, better kicker) and called.
@@ -51,10 +51,10 @@ Every hand in all logs where the showdown shows the opponent's cards (n = 59 won
 
 | group | lost, inside (chips) | lost, outside (chips) | split, inside | won, inside (chips) | won, outside (chips) |
 |---|---|---|---|---|---|
-| qwentom-leap (n=19) | 4 (-2,071) | 2 (-3,744) | 2 | 9 (+13,802) | 2 (+800) |
+| opp-A (n=19) | 4 (-2,071) | 2 (-3,744) | 2 | 9 (+13,802) | 2 (+800) |
 | Poet match 2 (n=4) | 1 (-100) | 0 | 0 | 0 | 3 (+10,020) |
 | Poet match 3 (n=6) | 2 (-2,362) | 1 (-1,224) | 0 | 1 (+7,904) | 2 (+4,412) |
-| Deep_Thought (n=5) | 0 | 2 (-13,529) | 1 | 0 | 2 (+1,830) |
+| opp-C (n=5) | 0 | 2 (-13,529) | 1 | 0 | 2 (+1,830) |
 | 0.85 pooled (n=15) | 3 (-2,462) | 3 (-14,753) | 1 | 1 (+7,904) | 7 (+16,262) |
 | all logs (n=59) | 13 (-17,142) | 10 (-24,963) | 4 | 20 (+53,794) | 12 (+23,475) |
 
@@ -74,10 +74,10 @@ Selection bias: only hands that reach showdown count.
 | log set | fold | limp | raise | SB hands |
 |---|---|---|---|---|
 | 24 Nov, 8 logs | 1 (0%) | 112 (47%) | 126 (53%) | 239 |
-| 26 Nov qwentom-leap | 0 | 12 (60%) | 8 (40%) | 20 |
+| 26 Nov opp-A | 0 | 12 (60%) | 8 (40%) | 20 |
 | 26 Nov Poet, match 2 | 0 | 3 (75%) | 1 (25%) | 4 |
 | 26 Nov Poet, match 3 | 0 | 6 (55%) | 5 (45%) | 11 |
-| 26 Nov Deep_Thought | 0 | 8 (38%) | 13 (62%) | 21 |
+| 26 Nov opp-C | 0 | 8 (38%) | 13 (62%) | 21 |
 | all | 1 (0%) | 141 (48%) | 153 (52%) | 295 |
 
 The bot almost never folds the small blind: 1 fold in 295 hands.
@@ -96,9 +96,9 @@ One log file, three matches, all commit 0eff667 (the log version line still says
 
 | match | opponent | our build | result | hands | decisions |
 |---|---|---|---|---|---|
-| 5 | alizabethbot3s | 0.85 bot, commit 0eff667 | lost | 10 | 29 |
-| 6 | PluriBot | 0.85 bot, commit 0eff667 | won | 29 | 52 |
-| 7 | BOTV8 | 0.85 bot, commit 0eff667 | lost | 42 | 91 |
+| 5 | opp-D | 0.85 bot, commit 0eff667 | lost | 10 | 29 |
+| 6 | opp-E | 0.85 bot, commit 0eff667 | won | 29 | 52 |
+| 7 | opp-F | 0.85 bot, commit 0eff667 | lost | 42 | 91 |
 
 The 0.85 sample is now matches 2 to 7. **Day total at 0.85: 6 matches, 3 won and 3 lost, 150 hands; too small to compare against 0.75.**
 
@@ -109,7 +109,7 @@ The 0.85 sample is now matches 2 to 7. **Day total at 0.85: 6 matches, 3 won and
 
 ### Opponent profiles (n shown)
 
-| situation | alizabethbot3s | PluriBot | BOTV8 |
+| situation | opp-D | opp-E | opp-F |
 |---|---|---|---|
 | first_in (opponent is SB) | n=5: limp 1, raise 4 | n=14: fold 4, raise 10 | n=21: fold 5, limp 3, raise 13 |
 | vs_open | n=3: call 3 | n=7: fold 4, call 2, raise 1 | n=9: fold 6, call 2, raise 1 |
@@ -129,9 +129,9 @@ All samples are small.
 
 | match | c-bet n | fold | call | raise | fold facing any flop bet | SB hands | SB fold / limp / raise |
 |---|---|---|---|---|---|---|---|
-| 5 alizabethbot3s | 2 | 2 (100%) | 0 | 0 | 3 of 7 (43%) | 5 | 0 / 2 (40%) / 3 (60%) |
-| 6 PluriBot | 4 | 2 (50%) | 1 (25%) | 1 (25%) | 3 of 6 (50%) | 15 | 0 / 8 (53%) / 7 (47%) |
-| 7 BOTV8 | 5 | 4 (80%) | 1 (20%) | 0 | 7 of 9 (78%) | 21 | 0 / 12 (57%) / 9 (43%) |
+| 5 opp-D | 2 | 2 (100%) | 0 | 0 | 3 of 7 (43%) | 5 | 0 / 2 (40%) / 3 (60%) |
+| 6 opp-E | 4 | 2 (50%) | 1 (25%) | 1 (25%) | 3 of 6 (50%) | 15 | 0 / 8 (53%) / 7 (47%) |
+| 7 opp-F | 5 | 4 (80%) | 1 (20%) | 0 | 7 of 9 (78%) | 21 | 0 / 12 (57%) / 9 (43%) |
 
 Across all logs the bot folded the small blind 1 time in 336 hands.
 
