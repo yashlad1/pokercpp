@@ -129,3 +129,6 @@ jobs:
 
       - name: Test that the bench counts coerced hero answers
         run: PYTHONPATH=chipzen python tools/test_bench_coerced.py
+
+      - name: Test the threebet and sizer bench opponents
+        run: PYTHONPATH=chipzen python tools/test_bench_opponents.py
