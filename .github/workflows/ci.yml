@@ -16,9 +16,6 @@ jobs:
       - name: Show compiler version
         run: clang++ --version
 
-      - name: Build the game
-        run: make CXX=clang++
-
       - name: Run the test suite
         run: make test CXX=clang++
 

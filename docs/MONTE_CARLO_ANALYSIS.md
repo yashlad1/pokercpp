@@ -255,5 +255,5 @@ betting actions are observed. That is a feature, not a tuning change.
 ### Heads-up only
 
 `dealRandomOpponentAndBoard` deals exactly one opponent. This matches the
-game, which is one human against one bot, but the equity figures do not
+heads-up bot, but the equity figures do not
 generalise to multiway pots.
