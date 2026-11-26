@@ -163,6 +163,6 @@ Rule 4 then reads: pass means no `GATE FAIL` line, no drop worse than -5 on both
 
 ## Checklist (#126)
 - [x] Decision rule and exact commands committed before any run (this file)
-- [ ] `results/<date>-<slug>.md` for the gate results: written after the runs, after Phase C's C3 finishes
+- [x] `results/<date>-<slug>.md` for the gate results: written after the runs, after Phase C's C3 finishes
 - [ ] Run rows logged in `results/eval-log.xlsx`: after the runs
 - [ ] Vault status line: left to the lead
