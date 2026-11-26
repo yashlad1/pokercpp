@@ -340,8 +340,10 @@ class ThreeBet(Reference):
 
 
 class Sizer(Reference):
-    """Reference, except when checked to postflop it bets 1/3 pot with two pair or better,
-    1.5x pot with no pair, and checks one pair."""
+    """Reference, except when checked to postflop it classifies hole plus board by rank counts
+    only: it bets 1/3 pot with two pair or better (trips included) and 1.5x pot with no pair,
+    and checks one pair. A made straight or flush with no paired rank counts as no pair and gets
+    the 1.5x bluff size. A paired board alone counts as one pair and checks."""
 
     name = "sizer"
 
