@@ -38,7 +38,7 @@ jobs:
       - name: Run the tests under AddressSanitizer and UBSan
         run: make test-asan CXX=clang++
         env:
-          ASAN_OPTIONS: detect_leaks=0
+          ASAN_OPTIONS: detect_leaks=1
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
 
   bot:
