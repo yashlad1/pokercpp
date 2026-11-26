@@ -7,6 +7,7 @@
 #include "../model/poker_math.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -67,6 +68,8 @@ inline double villainRangeFraction(int villainRaises, int toCall, int pot) {
 }
 
 constexpr double kPreflopRealization = 0.85;
+// Per opponent call of a bet or raise, the assumed range is multiplied by this. 1.0 = off.
+constexpr double kCallNarrow = 1.0;
 
 // ponytail: depends only on the street, not on position, stack depth or
 // whether the hand is the kind that flops well. Those are the next terms if
@@ -188,11 +191,14 @@ inline Decision decideFull(const std::vector<Card> &hole,
                           int stack, int bb, int sims, int villainRaises = 0,
                           double realizationScale = 1.0, bool bluffEnabled = true,
                           double rangeFloor = 0.0, unsigned long long seed = 0,
-                          double preflopRealization = kPreflopRealization) {
+                          double preflopRealization = kPreflopRealization,
+                          int villainCalls = 0, double callNarrow = kCallNarrow) {
     // The SDK passes to_call uncapped; we can only call our stack.
     if (toCall > stack && stack > 0) { pot -= toCall - stack; toCall = stack; }
     Decision d;
-    d.range = std::max(villainRangeFraction(villainRaises, toCall, pot), rangeFloor);
+    double base = villainRangeFraction(villainRaises, toCall, pot);
+    if (villainCalls > 0 && callNarrow != 1.0) base = std::max(0.05, base * std::pow(callNarrow, villainCalls));
+    d.range = std::max(base, rangeFloor);
 
     MonteCarloSimulator sim(hole, board, sims);
     sim.setVillainRange(d.range);

@@ -16,8 +16,8 @@
  {
   "id": "M2",
   "file": "chipzen/bot.py",
-  "find": "(\"raise\", \"bet\", \"all_in\")",
-  "replace": "(\"raise\", \"bet\")",
+  "find": "if entry.get(\"action\") in (\"raise\", \"bet\", \"all_in\")",
+  "replace": "if entry.get(\"action\") in (\"raise\", \"bet\")",
   "what": "villain raises count only raise/bet",
   "expect": [
    "parity",
@@ -28,8 +28,8 @@
  {
   "id": "M3",
   "file": "chipzen/bot.py",
-  "find": "    return n\n",
-  "replace": "    return min(n, 1)\n",
+  "find": "\"all_in\"):\n            n += 1\n    return n\n",
+  "replace": "\"all_in\"):\n            n += 1\n    return min(n, 1)\n",
   "what": "villain raises capped at 1",
   "expect": [
    "parity",
@@ -276,6 +276,50 @@
   "what": "bench coerced counter adds 0",
   "expect": [
    "bench_coerced"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "CN1",
+  "file": "chipzen/bot.py",
+  "find": "elif action == \"call\" and bet and entry.get(\"seat\") != state.your_seat:",
+  "replace": "elif action == \"call\" and entry.get(\"seat\") != state.your_seat:",
+  "what": "a limp counts as a villain call",
+  "expect": [
+   "call_narrow"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "CN2",
+  "file": "chipzen/bot.py",
+  "find": "elif action == \"call\" and bet and entry.get(\"seat\") != state.your_seat:",
+  "replace": "elif action == \"call\" and bet:",
+  "what": "our own calls count as villain calls",
+  "expect": [
+   "call_narrow"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "CN3",
+  "file": "chipzen/decide.h",
+  "find": "base = std::max(0.05, base * std::pow(callNarrow, villainCalls));",
+  "replace": "base = base * std::pow(callNarrow, villainCalls);",
+  "what": "no 0.05 minimum on the narrowed range",
+  "expect": [
+   "call_narrow"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "CN4",
+  "file": "chipzen/decide.h",
+  "find": "std::pow(callNarrow, villainCalls)",
+  "replace": "callNarrow",
+  "what": "narrowing ignores the call count (one factor however many calls)",
+  "expect": [
+   "call_narrow"
   ],
   "why_survives": ""
  }

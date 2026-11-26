@@ -37,6 +37,7 @@ import re
 import statistics
 import subprocess
 import sys
+import types
 import zlib
 from collections import Counter
 
@@ -134,6 +135,8 @@ class PokerCpp:
         self.realization_scale = realization_scale
         self.bluff_enabled = bluff_enabled
         self.seeder = Seeder(name)
+        from bot import _villain_calls  # the one counter, shared with the live bot
+        self._villain_calls = _villain_calls
 
     def act(self, v: View):
         floor = 0.0
@@ -147,6 +150,8 @@ class PokerCpp:
             realization_scale=self.realization_scale,
             bluff_enabled=self.bluff_enabled, range_floor=floor,
             seed=self.seeder.next(v.hand),
+            villain_calls=self._villain_calls(types.SimpleNamespace(
+                action_history=v.live_history or v.history, your_seat=v.seat)),
             **({} if self.preflop_realization is None
                else {"preflop_realization": self.preflop_realization}),
         )
