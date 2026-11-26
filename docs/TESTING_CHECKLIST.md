@@ -57,7 +57,7 @@ Build the engine first: `PY=$PY tools/build_engine.sh`
 ## 5. Tournament format
 - [ ] `tools/match.py` freezeouts with rising blinds, candidate against main
   - [ ] live blind schedule (needs #89; the schedule in match.py is a placeholder)
-  - [ ] paired McNemar test on match wins (needs #61)
+  - [ ] paired McNemar test on match wins (`match.py --dump`, then `--compare A B`; #61)
 
 ## 6. Pre-registration and records
 - [ ] Decision rule and exact commands committed before any run
