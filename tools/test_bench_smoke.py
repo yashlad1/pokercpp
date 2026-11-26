@@ -37,8 +37,12 @@ def illegal(log):
         lo, hi, legal, act, amt = m.groups()
         if act not in legal.split(","):
             bad.append(line)
-        elif act == "raise" and not int(lo) <= int(amt) <= int(hi):
-            bad.append(line)
+        elif act == "raise":
+            lo, hi, amt = int(lo), int(hi), int(amt)
+            # Short stack: min_raise > max_raise leaves max_raise as the only legal raise.
+            ok = amt == hi if lo > hi else lo <= amt <= hi
+            if not ok:
+                bad.append(line)
     return n, bad
 
 
