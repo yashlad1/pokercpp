@@ -52,7 +52,9 @@ def check(rc, log, dump):
     assert n > 0, "no decision lines seen: the legality check would pass vacuously"
     assert not bad, "%d illegal action(s), first: %s" % (len(bad), bad[0])
     assert "ENGINE FAILED" not in log, "adapter fell back to check/fold"
-    assert len(json.load(open(dump))["results"]) == 100, "expected 100 duplicate pairs"
+    d = json.load(open(dump))
+    assert len(d["results"]) == 100, "expected 100 duplicate pairs"
+    assert d["meta"].get("coerced") == 0, "bench coerced %r hero answer(s)" % d["meta"].get("coerced")
     return n
 
 
