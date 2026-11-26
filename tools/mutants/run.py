@@ -18,10 +18,9 @@ mutant is STALE. Exit 2 if the repo state changed during the run.
 Known limits (not fixed):
 - A compile error in a `make` test counts as a kill (only the exit code is read).
 - A timeout kills only the direct child, not its descendants.
-- The before/after check compares `git status --short` (untracked files
-  included), so another process creating files mid-run gives a false exit 2.
-  For `git worktree list`, worktrees added by others are tolerated and noted;
-  a vanished one, or a leftover mutant worktree, is fatal.
+- The before/after check is fatal only if a tracked file changed or one of
+  this run's own worktrees is left over. Untracked files and other worktrees
+  appearing or vanishing mid-run (other processes) are printed as notes.
 """
 import argparse, json, os, re, shutil, subprocess, sys, tempfile, time
 
@@ -178,12 +177,17 @@ def main():
     print(f"matrix written to {out}")
 
     after = snapshot()
-    gone = set(before[1].splitlines()) - set(after[1].splitlines())
-    if after[0] != before[0] or gone or "mutants-wt-" in after[1]:
-        print("FATAL: git status / worktree list changed during the run", file=sys.stderr)
+    import difflib
+    ours = "mutants-wt-" in after[1]
+    tracked = lambda t: [l for l in t.splitlines() if not l.startswith("??")]
+    if tracked(after[0]) != tracked(before[0]) or ours:
+        print("FATAL: tracked files or our worktrees changed during the run", file=sys.stderr)
         sys.exit(2)
-    if after[1] != before[1]:
-        print("note: another process added worktrees during the run (tolerated)")
+    for name, i in (("status", 0), ("worktree list", 1)):
+        d = [l for l in difflib.unified_diff(before[i].splitlines(), after[i].splitlines(), lineterm="", n=0)
+             if l[0] in "+-" and l[:3] not in ("+++", "---")]
+        if d:
+            print(f"note: {name} changed by another process during the run (tolerated):", *d, sep="\n  ")
     sys.exit(1 if fails else 0)
 
 
