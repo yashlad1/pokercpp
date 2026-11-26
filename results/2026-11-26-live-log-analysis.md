@@ -84,9 +84,65 @@ The bot almost never folds the small blind: 1 fold in 295 hands.
 
 ### Limits
 
-- Three matches and 69 hands at 0.85: this cannot measure 0.85 against 0.75. It shows 0.85 runs cleanly on the live server (no illegal actions, no errors).
+- Six matches and 150 hands at 0.85 (69 in session 1, 81 in session 2): this cannot measure 0.85 against 0.75. It shows 0.85 runs cleanly on the live server (no illegal actions, no errors).
 - The opponent counts and showdown tables have small n; the c-bet counterfactual uses n = 8.
 - The coverage `range=` is 2 decimals, so hands near the cut are uncertain.
+
+## Session 2 (11:25 to 11:34 ET), three more 0.85 matches
+
+One log file, three matches, all commit 0eff667 (the log version line still says v4.0.1).
+
+### Summary
+
+| match | opponent | our build | result | hands | decisions |
+|---|---|---|---|---|---|
+| 5 | alizabethbot3s | 0.85 bot, commit 0eff667 | lost | 10 | 29 |
+| 6 | PluriBot | 0.85 bot, commit 0eff667 | won | 29 | 52 |
+| 7 | BOTV8 | 0.85 bot, commit 0eff667 | lost | 42 | 91 |
+
+The 0.85 sample is now matches 2 to 7: 6 matches, 150 hands, 3 wins and 3 losses.
+
+### Wire facts
+
+- 0 illegal actions and 0 error lines in all three matches.
+- Preflop realized/equity on decisions facing a bet: 0.85 in 84 of 85 decisions (9, 34, 41 per match). The one exception is match 5 hand 5: we faced an all-in bigger than our stack (to_call 18,507, stack 1,293), where realization is 1.0 because no further betting is possible. The same 1.0 case appears in the 24 Nov logs.
+
+### Opponent profiles (n shown)
+
+| situation | alizabethbot3s | PluriBot | BOTV8 |
+|---|---|---|---|
+| first_in (opponent is SB) | n=5: limp 1, raise 4 | n=14: fold 4, raise 10 | n=21: fold 5, limp 3, raise 13 |
+| vs_open | n=3: call 3 | n=7: fold 4, call 2, raise 1 | n=9: fold 6, call 2, raise 1 |
+| cbet | n=2: bet 2 | n=5: check 1, bet 4 | n=7: check 2, bet 5 |
+| checked_to | n=4: bet 4 | n=5: check 1, bet 4 | n=10: check 3, bet 7 |
+| vs_bet flop | n=4: fold 3, call 1 | n=4: fold 2, raise 2 | n=4: fold 1, call 3 |
+
+All samples are small.
+
+### The two busts
+
+- **Match 5, hand 1 (-8,007, match over on hand 10).** JdJc, 3 streets of calls and a river shove. We credited range 0.25; they held 7c8h on 6c 8c 5d 5c 8d (a full house), percentile 65%, outside.
+- **Match 7, hand 42 (-5,248).** Qd4h on Th 8c 3d Qc; we raised the turn, they reraised, we called with range 0.18. They held 3cQs (two pair), percentile 55%, outside.
+
+### Our response to the opponent's flop c-bet, and small blind first action
+
+| match | c-bet n | fold | call | raise | fold facing any flop bet | SB hands | SB fold / limp / raise |
+|---|---|---|---|---|---|---|---|
+| 5 alizabethbot3s | 2 | 2 (100%) | 0 | 0 | 3 of 7 (43%) | 5 | 0 / 2 (40%) / 3 (60%) |
+| 6 PluriBot | 4 | 2 (50%) | 1 (25%) | 1 (25%) | 3 of 6 (50%) | 15 | 0 / 8 (53%) / 7 (47%) |
+| 7 BOTV8 | 5 | 4 (80%) | 1 (20%) | 0 | 7 of 9 (78%) | 21 | 0 / 12 (57%) / 9 (43%) |
+
+Across all logs the bot folded the small blind 1 time in 336 hands.
+
+### Range coverage at showdown, updated
+
+| group | lost, inside (chips) | lost, outside (chips) | split, inside | won, inside (chips) | won, outside (chips) |
+|---|---|---|---|---|---|
+| session 2 (n=9) | 3 (-3,846) | 2 (-13,255) | 0 | 2 (+6,860) | 2 (+6,595) |
+| 0.85 pooled, matches 2 to 7 (n=23) | 6 (-6,308) | 5 (-28,008) | 1 | 3 (+14,764) | 8 (+22,857) |
+| all logs (n=67) | 16 (-20,988) | 12 (-38,218) | 4 | 22 (+60,654) | 13 (+30,070) |
+
+The same four caveats as in session 1 apply (partly by construction; the range misses about 40% of shown hands, 12 of 28 lost and 13 of 35 won across all logs; the chip gap is confounded; only showdown hands count). In the 0.85 matches 5 of 11 lost showdowns were outside the range and carry 28,008 of the 34,316 chips lost at showdown.
 
 ## How to reproduce
 
