@@ -91,6 +91,9 @@ jobs:
       - name: Test the preflop realization
         run: python chipzen/test_preflop_realization.py
 
+      - name: Test that suit relabelling keeps the decision
+        run: python chipzen/test_suit_relabel.py
+
       - name: Test the paired comparison
         run: python tools/test_paired.py
 
