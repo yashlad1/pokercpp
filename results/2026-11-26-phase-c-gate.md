@@ -30,6 +30,16 @@ Date: 2026-11-26. Phase C, steps C3 (bench and match gate) and C4 (image gate). 
 - **Rule 3 (benefit, reported, not a gate): DOES NOT REPLICATE.** Aggro 15 bb is `better` on 740001 (+40.0, [+23.3, +56.8]) but `inconclusive` on 750001 (+9.2, [-7.2, +25.5]). The reference 15 bb part holds: the point estimates are -0.2 and +0.4, not below 0 on both.
 - **Rule 4 (outcome):** the harm gates pass, so the candidate is not parked on harm. Rule 3 did not replicate, so per the record the reviewers recommend parking and the owner decides (stop S-C). Live stays 0.75 until the owner says otherwise.
 
+## Cost against passive callers (next to the aggro result)
+- station and loosepassive are in effect one opponent here: loosepassive differs only by folding to over-pot bets, which this bot never makes against them. They count as 3 distinct rows (15, 25, 100 bb), not 6.
+- The cost is small and consistent: -1.3, -1.4 and -1.4 bb/100 on 750001 (`worse`), and -0.4, -0.5 and -0.5 on 740001 (`inconclusive`), at every depth. It is not a gate fail (rule 1 needs `worse` on both sets).
+- Mechanism, a guess and not tested: more small-blind completes and small-price calls against an opponent who never raises.
+
+## S-C: the owner's options
+1. **Park.** This is the pre-stated outcome, since rule 3 did not replicate.
+2. **Confirm.** If the owner wants to act on the post-hoc pattern below, write a new pre-registered confirmatory gate on fresh seeds 830001 and 840001, with a broader benefit target (for example aggro at 15 and 100 bb plus a loose bluffer).
+- Never ship on the post-hoc rows.
+
 ## All 90 paired lines
 Verbatim `A - B` lines from `tools/paired.py`, candidate minus baseline, bb/100, unadjusted 95% intervals.
 
@@ -83,8 +93,9 @@ Verbatim `A - B` lines from `tools/paired.py`, candidate minus baseline, bb/100,
 
 Notes (facts only):
 - 90 rows with unadjusted 95% intervals were read. Rows other than the rule 3 targets are not evidence for adoption on their own.
+- **Looks:** 90 looks, of which 78 are distinct (bluff0 equals reference, loosepassive equals station).
 - **Identical lines.** bluff0's lines equal reference's, and loosepassive's equal station's, at every stack and both seeds (12 of 12 line pairs each). bluff25 and bluff50 do not match reference everywhere (bluff25 equals it only at 25 and 100 bb on 740001; bluff50 nowhere). So the number of distinct opponents is smaller than 15.
-- **Rows `better` on both sets:** random at 15, 25 and 100 bb; aggro at 100 bb; loosebluff0, loosebluff25 and loosebluff50 at 15 and 25 bb. Rows `better` on one set only: aggro 15 and 25 bb, loosebluff0 and loosebluff25 at 100 bb (740001 only); reference 25 bb and bluff0 25 bb (750001 only).
+- **Rows `better` on both sets (post hoc, unadjusted, not the registered rule):** random at 15, 25 and 100 bb; aggro at 100 bb; loosebluff0, loosebluff25 and loosebluff50 at 15 and 25 bb. Aggro at 100 bb is +378.5 and +154.9 with half-widths of about 90. Any pooled aggro 15 bb figure is descriptive only, never the rule. Rows `better` on one set only: aggro 15 and 25 bb, loosebluff0 and loosebluff25 at 100 bb (740001 only); reference 25 bb and bluff0 25 bb (750001 only).
 
 ## The 8 match lines
 - `match-base-reference-740001.txt: vs reference    396/400 = 99.0% [97.5%, 99.6%]   pairs lost both 0 / split 4 / won both 196   avg 89.7 hands/match`
