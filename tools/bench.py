@@ -668,7 +668,7 @@ if __name__ == "__main__":
     args = ap.parse_args()
     if args.wire and args.hero == "engine":
         print("note: --wire is ignored for --hero engine (recorded as bench)", file=sys.stderr)
-    args.wire = args.wire or "live" if args.hero == "bot" else "bench"
+    args.wire = (args.wire or "live") if args.hero == "bot" else "bench"
     if args.dump and (args.ab or args.vs == "all"):
         ap.error("--dump needs a single opponent: use --vs NAME without --ab")
     knobs = dict(realization_scale=args.realization_scale,
