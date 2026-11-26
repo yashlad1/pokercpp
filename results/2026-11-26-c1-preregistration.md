@@ -4,14 +4,16 @@ Date: 2026-11-26. Phase C, step C1 (checklist section 6). This record is committ
 
 ## Candidate
 - **Change:** `kPreflopRealization` 0.75 to 0.85 in `chipzen/decide.h`. Nothing else in the C2 diff except the pins that held 0.75 (test_solver "discount must still apply", test_preflop_realization's default, any constant in test_decide_constants), updated by the tester.
-- **Baseline:** the main commit the C2 branch forks from, in its own worktree. Both builds use the same `chipzen/bot.py`, `tools/bench.py` and `tools/match.py`.
-- **Order:** this record merges after #121 (`match.py --wire`). The match commands below need it.
+- **Baseline:** the main commit the C2 branch forks from, in its own worktree: **38956e4** (main with #121 and #127 merged). C2 forks from current main. Merging this record adds only a results file and timing rows, so a fork taken after it is code-identical; the gate-results file names the exact SHA used. Both builds use the same `chipzen/bot.py`, `tools/bench.py` and `tools/match.py`.
+- **Deslop branch:** `refactor/deslop-ai-code` (byte-identical on 83 behavior pins) may merge before the ship decision. If the owner ships 0.85 after that, the one-line change is rebased onto the new main, and the 83 pins plus the image gate are re-run on the rebased candidate before merge.
+- **Engine build:** both engines are built with `tools/build_engine.sh`'s default, no `--metal`. That is the CPU path the shipped image runs. Step 2 checks that `meta.impl` reads `cpu` in the first dump of each build.
+- **Order:** #121 (`match.py --wire`) is on main; the match commands need it.
 - **Live bot today:** 0.75. A pass does not ship anything; the owner decides (checklist section 8).
 
 ## Seeds and looks
 - **Gate seeds:** 740001 and 750001. Bench pair k uses seed0 + k, so 740001 to 742000 and 750001 to 752000. Match pair m uses seed0 + m, so 740001 to 740200 and 750001 to 750200.
 - **Fresh:** neither set was used for any run on main or in the notes.
-- **Not fresh, so not used:** 700001 and 710001 (the #81 and #82 looks, and the 12-opponent check; they informed the choice of 0.85). 720001 and 730001 gated the bluff detector on 24 Nov.
+- **Not fresh, so not used:** 700001 and 710001 (the #81 and #82 looks, and the 12-opponent check; #81 is `results/2026-11-25-preflop-realization-15bb.md`, #82 is `results/2026-11-25-preflop-realization-25-100bb.md`, on main since #127 merged; they informed the choice of 0.85). 720001 and 730001 gated the bluff detector on 24 Nov.
 - **Looks counted:** two variants were tried before this gate, 0.85 and 0.95 (#81, #82). Only 0.85 is gated here. The intervals below are unadjusted 95% intervals; the count is reported, not corrected for.
 
 ## Runs
@@ -27,15 +29,16 @@ Every comparison is candidate minus baseline on the same deals. The commands bel
 2. **Match gate (harm).** Win rate is wins over 400 matches, from the `vs X k/n` line. Drop is candidate win rate minus baseline win rate, in points. The gate fails if the drop is worse than -5 points on both seed sets, against reference or against september. `match.py --compare` (McNemar) is also reported but does not gate.
 3. **Benefit check (reported, not a gate).** At 15 bb against aggro, the paired gain's 95% interval is entirely above 0 on both seed sets, and the paired point estimate against reference at 15 bb is not below 0 on both. If it does not replicate, the reviewers recommend parking and the owner decides.
 4. **Outcome.** A failed gate parks the candidate with its numbers, and live stays at 0.75 (stop S-C). A pass hands the candidate to C3 and C4. Shipping is the owner's call.
-5. **No peeking; crashes.** No result number is read until all 188 dumps exist. A crash means the whole set is rerun from step 2. A `paired.py` "no metadata" warning counts as a failed pairing and also means a rerun.
+5. **No peeking; crashes.** No result number is read until all 188 dumps exist. Step 3's `bench.py` output and step 4's `match.py` output go to log files under `$OUT`, with no `tee`; the person running sees only `IDENTICAL` or `different` and exit codes until then. A crash means the whole set is rerun from step 2. A `paired.py` "no metadata" warning counts as a failed pairing and also means a rerun. Step 5 fails closed: no verdict is read unless all 90 paired files hold exactly one `A - B:` line and all 8 match logs exactly one `vs ` line.
 
 ## What the rules can and cannot see
-- **Half-widths (95%, paired, 0.85 minus 0.75, 2,000 pairs, engine hero, 2,000 sims, from #81 and #82).** At 15 bb: about ±16 to ±17 against aggro, about ±2 against reference. At 25 bb: about ±27 to ±28 against aggro, ±2 to ±2.5 against reference. At 100 bb: about ±87 to ±92 against aggro, ±2 to ±4 against reference. The 100 bb aggro rows can only fail on a very large loss.
+- **Half-widths (95%, paired, 0.85 minus 0.75, 2,000 pairs, engine hero, 2,000 sims, from #81 and #82; see the September limits below).** At 15 bb: about ±16 to ±17 against aggro, about ±2 against reference. At 25 bb: about ±27 to ±28 against aggro, ±2 to ±2.5 against reference. At 100 bb: about ±87 to ±92 against aggro, ±2 to ±4 against reference. The 100 bb aggro rows can only fail on a very large loss.
 - **Chip gate false-fail rate (no real effect anywhere, normal approximation):** about 2.5% per row per set, so about 0.06% per row on both sets and about 3% over 45 rows.
 - **Match gate false-fail rate for a build with no real change:** about 1% per opponent. At 400 matches and a 50% win rate, a win-rate difference has a standard deviation of about 3.5 points, so a drop over 5 points happens about 8% per set and about 0.6% on both. This assumes independent sets.
+- **September limits.** (a) The September module cannot be seeded, so september rows are paired on the hero side only. Their intervals will be wider than the #81 half-widths quoted. (b) The identity check cannot fire on september rows, because the two runs differ whatever the candidate does; the other 14 opponents, aggro first, carry it. (c) The match gate's 3.5-point standard deviation is already the unpaired figure, so its false-fail estimate still holds against september.
 
 ## Commands
-Set these once. The same `$PY` (pybind11, pokerkit and openpyxl installed) is used for every command.
+Each step is a script run with `bash`, so `exit` stops the run. Set these once. The same `$PY` (pybind11, pokerkit and openpyxl installed) is used for every command.
 
 ```
 PY=<python with pybind11 and pokerkit>
@@ -48,6 +51,7 @@ OPPS="reference station nit maniac aggro switcher loosepassive random bluff0 blu
 **Step 0, preconditions.**
 ```
 for WT in $BASE_WT $CAND_WT; do grep -c -- '--wire' $WT/tools/match.py; done    # both must be 1 or more (#121 merged)
+git -C $BASE_WT rev-parse HEAD                                                  # record: the baseline SHA
 git -C $CAND_WT diff --stat $(git -C $BASE_WT rev-parse HEAD)..HEAD              # decide.h and the pinned tests only
 grep -n 'kPreflopRealization =' $BASE_WT/chipzen/decide.h $CAND_WT/chipzen/decide.h   # 0.75 and 0.85
 ```
@@ -64,33 +68,44 @@ EXT=$($PY -c 'import sysconfig;print(sysconfig.get_config_var("EXT_SUFFIX"))')
 cp $OUT/pokercpp_engine_base$EXT $BASE_WT/chipzen/ && cp $OUT/pokercpp_engine_base$EXT $CAND_WT/chipzen/
 ```
 
-**Step 2, rebuild each engine right before the runs, then check provenance.**
+**Step 2, rebuild each engine right before the runs, then check provenance.** The default build, no `--metal`.
 ```
+modpath() { PYTHONPATH=$1/chipzen $PY -c "import $2;print($2.__file__)"; }     # the file Python imports, as bench.py does
 for WT in $BASE_WT $CAND_WT; do (cd $WT && PY=$PY tools/build_engine.sh) || exit 1; done
-shasum -a 256 $BASE_WT/chipzen/pokercpp_engine.*.so $CAND_WT/chipzen/pokercpp_engine.*.so            # record both; must differ
-shasum -a 256 $BASE_WT/chipzen/pokercpp_engine_base.*.so $CAND_WT/chipzen/pokercpp_engine_base.*.so  # record both; must match
-for WT in $BASE_WT $CAND_WT; do (cd $WT && $PY tools/bench.py --hero bot --wire live --sims 100 --vs september --hands 2 --seed0 1) || exit 1; done   # september must import, or the loop stops
-```
-Stop if the two engine hashes are equal, the two base hashes differ, or the september check fails.
-
-**Step 3, bench runs, with the identity check inside the loop.** Each row runs the baseline, then the candidate, then compares the two `results` lists and prints only `IDENTICAL` or `different`, never a number. The loop starts with the 15 bb aggro pair, so a bad setup stops early. Any failing command, or an `IDENTICAL` row, stops everything and goes to the lead.
-```
-set -e
-for SEED in 740001 750001; do
- for st in 15 25 100; do
-  for o in aggro reference station nit maniac switcher loosepassive random bluff0 bluff25 bluff50 loosebluff0 loosebluff25 loosebluff50 september; do
-   for pair in "base:$BASE_WT" "cand:$CAND_WT"; do
-    L=${pair%%:*}; WT=${pair#*:}
-    (cd $WT && $PY tools/bench.py --hero bot --wire live --sims 5000 --vs $o --stack $st --hands 4000 --seed0 $SEED --dump $OUT/$L-$o-$st-$SEED.json)
-   done
-   r=$($PY -c "import json,sys; a,b=(json.load(open(p))['results'] for p in sys.argv[1:]); print('IDENTICAL' if a==b else 'different')" $OUT/cand-$o-$st-$SEED.json $OUT/base-$o-$st-$SEED.json)
-   echo "$o $st $SEED $r"; [ "$r" = different ]
-  done
- done
+for M in pokercpp_engine pokercpp_engine_base; do for WT in $BASE_WT $CAND_WT; do
+  echo "$M $WT $(modpath $WT $M)"; shasum -a 256 "$(modpath $WT $M)" || exit 1
+done; done                                    # record all four; engine hashes must differ, base hashes must match
+for L in base cand; do                        # september must import; the dump shows the build is CPU
+  WT=$BASE_WT; [ $L = cand ] && WT=$CAND_WT
+  (cd $WT && $PY tools/bench.py --hero bot --wire live --sims 100 --vs september --hands 2 --seed0 1 --dump $OUT/check-$L.json) > $OUT/check-$L.log 2>&1 || exit 1
+  $PY -c "import json,sys; sys.exit(json.load(open(sys.argv[1]))['meta']['impl'] != 'cpu')" $OUT/check-$L.json || { echo "$L is not cpu"; exit 1; }
 done
 ```
+Stop if the two engine hashes are equal, the two base hashes differ, a printed module path is outside its own worktree, the september check fails, or `meta.impl` is not `cpu`.
 
-**Step 4, match runs** (`--hand-cap 1000` is the default and is written out; the schedule is the default "live Chipzen steps every 20 hands").
+**Step 3, bench runs, with the identity check inside each row.** A row runs the baseline, then the candidate, then compares the two `results` lists and prints only `IDENTICAL` or `different`, never a number. The `bench.py` output goes to `$OUT/bench-*.log`. Any failing command, or an `IDENTICAL` row, stops everything and goes to the lead. The first row (aggro, 15 bb, seed 740001) runs alone, so a bad setup stops early. The other 89 rows run under `xargs -P` with at most 10 jobs. Every pair is seeded from seed0 + k, so job order does not change the dumps (the september rows are unseeded either way, see the limits). Wall time of the parallel grid is not a timing figure: its start and end are saved in `$OUT/step3-start.txt` and `step3-end.txt`, and the load is logged separately as its own Timing row.
+```
+cat > $OUT/row.sh <<'EOF'
+#!/bin/bash
+set -e; trap 'exit 255' ERR          # any failure, or an IDENTICAL row, makes xargs stop launching new rows
+o=$1; st=$2; SEED=$3
+for pair in "base:$BASE_WT" "cand:$CAND_WT"; do
+  L=${pair%%:*}; WT=${pair#*:}
+  (cd $WT && $PY tools/bench.py --hero bot --wire live --sims 5000 --vs $o --stack $st --hands 4000 --seed0 $SEED \
+     --dump $OUT/$L-$o-$st-$SEED.json) > $OUT/bench-$L-$o-$st-$SEED.log 2>&1
+done
+r=$($PY -c "import json,sys; a,b=(json.load(open(p))['results'] for p in sys.argv[1:]); print('IDENTICAL' if a==b else 'different')" $OUT/cand-$o-$st-$SEED.json $OUT/base-$o-$st-$SEED.json)
+echo "$o $st $SEED $r"; [ "$r" = different ]
+EOF
+chmod +x $OUT/row.sh; export PY BASE_WT CAND_WT OUT
+date -u > $OUT/step3-start.txt
+$OUT/row.sh aggro 15 740001 || exit 1
+for SEED in 740001 750001; do for st in 15 25 100; do for o in $OPPS; do echo $o $st $SEED; done; done; done \
+  | grep -vx 'aggro 15 740001' | xargs -P 10 -L 1 $OUT/row.sh || exit 1
+date -u > $OUT/step3-end.txt
+```
+
+**Step 4, match runs** (`--hand-cap 1000` is the default and is written out; the schedule is the default "live Chipzen steps every 20 hands"). Output goes to the `.txt` logs, with no `tee`; only the exit code is seen.
 ```
 set -e
 for SEED in 740001 750001; do
@@ -98,18 +113,24 @@ for SEED in 740001 750001; do
   L=${pair%%:*}; WT=${pair#*:}
   for o in reference september; do
    (cd $WT && $PY tools/match.py --matches 200 --vs $o --hero bot --wire live --sims 5000 --hand-cap 1000 --seed0 $SEED \
-      --dump $OUT/match-$L-$o-$SEED.jsonl) | tee $OUT/match-$L-$o-$SEED.txt
+      --dump $OUT/match-$L-$o-$SEED.jsonl) > $OUT/match-$L-$o-$SEED.txt 2>&1
   done
  done
 done
 ```
 
-**Step 5, analysis, only after every dump exists.**
+**Step 5, analysis, only after every dump exists. It fails closed.** `paired.py` reports "cannot pair" to stderr through `sys.exit`, so its output is captured with `2>&1`, and nothing is read until the files are checked.
 ```
+[ $(ls $OUT/base-*.json $OUT/cand-*.json | wc -l) = 180 ] && [ $(ls $OUT/match-*.jsonl | wc -l) = 8 ] || { echo "dumps missing"; exit 1; }
 for SEED in 740001 750001; do for st in 15 25 100; do for o in $OPPS; do
-  $PY $CAND_WT/tools/paired.py $OUT/cand-$o-$st-$SEED.json $OUT/base-$o-$st-$SEED.json > $OUT/paired-$o-$st-$SEED.txt
+  $PY $CAND_WT/tools/paired.py $OUT/cand-$o-$st-$SEED.json $OUT/base-$o-$st-$SEED.json > $OUT/paired-$o-$st-$SEED.txt 2>&1 || true
 done; done; done
-grep -l 'no metadata' $OUT/paired-*.txt                     # must print nothing, else rerun
+[ $(ls $OUT/paired-*.txt | wc -l) = 90 ] || { echo "paired files missing"; exit 1; }
+for f in $OUT/paired-*.txt; do [ $(grep -c '^A - B:' $f) = 1 ] || { echo "cannot pair: $f"; exit 1; }; done   # exactly one A - B line each
+[ $(ls $OUT/match-*.txt | wc -l) = 8 ] || { echo "match logs missing"; exit 1; }
+for f in $OUT/match-*.txt; do [ $(grep -c '^vs ' $f) = 1 ] || { echo "no result line: $f"; exit 1; }; done    # exactly one vs line each
+grep -l 'no metadata' $OUT/paired-*.txt && { echo "no metadata, rerun"; exit 1; }                             # must print nothing
+# only now are verdicts read
 for st in 15 25 100; do for o in $OPPS; do
   grep -q 'worse$' $OUT/paired-$o-$st-740001.txt && grep -q 'worse$' $OUT/paired-$o-$st-750001.txt && echo "GATE FAIL $o $st"
 done; done                                                  # rule 1: any line printed fails the gate
@@ -123,7 +144,7 @@ $PY $CAND_WT/tools/match.py --compare $OUT/match-cand-reference-740001.jsonl $OU
 Rule 3 reads `$OUT/paired-aggro-15-*.txt` and `$OUT/paired-reference-15-*.txt` (their `A - B` lines).
 
 ## Timing at `--sims 5000`
-Earlier timing was at 2,000 sims. Measured 26 Nov on the baseline engine (main 3751f70, 0.75), `--hero bot --wire live`, with another job running on the machine. The 1-minute load average was 4.1 to 5.3 throughout, above 2, so **every figure below is an upper bound**; each also includes about 0.4 s of process start-up, which the scaling multiplies.
+Earlier timing was at 2,000 sims. Measured 26 Nov, `--hero bot --wire live`; the bench rows on the baseline engine (main 3751f70, 0.75). The match rows name no commit: `match --wire` exists only from #121, so 3751f70 cannot have run them, and the build they used was not recorded. All measured with another job running on the machine. The 1-minute load average was 4.1 to 5.3 throughout, above 2, so **every figure below is an upper bound**; each also includes about 0.4 s of process start-up, which the scaling multiplies.
 
 | Measurement | Wall time | Load (1 min) |
 |---|---|---|
