@@ -1,0 +1,49 @@
+# B1 catalogue sources (origin/main a2e70b4)
+
+expect lists only deterministic killers; flaky killers are noted, not expected
+
+- M1 / parity: MEASURED. review table (2026-11-25-review-pr91-pr92.md) P0-P4 F
+- M1 / sdk: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
+- M1 / v4: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
+- M1 / replay: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
+- M2 / parity: MEASURED. review table (2026-11-25-review-pr91-pr92.md) P0-P3 F (not re-measured on today's parity)
+- M2 / villain_raises: PREDICTED. test_villain_raises.py:38-39 all_in must count 1; :55 own all_in seen from seat 0 == 3; :61 mixed == 3
+- M3 / parity: MEASURED. A3 (aggro 230 action mismatches, random 75)
+- M3 / villain_raises: PREDICTED. test_villain_raises.py:55 == 3 and :61 == 3
+- M4 / parity: MEASURED. review table (2026-11-25-review-pr91-pr92.md) P0-P4 F
+- M4 / sdk: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
+- M4 / v4: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
+- M4b / opponent: PREDICTED. test_opponent.py:57-58 (five hands, k=1 expects 4/8) and :64, :70
+- M5 / sdk: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
+- M5 / v4: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
+- M6 / v4: MEASURED. review table (2026-11-25-review-pr91-pr92.md) (T10)
+- M6 / replay: MEASURED. review table (2026-11-25-review-pr91-pr92.md) (#87 hand 11)
+- M6 / wire: PREDICTED. test_wire.py:87-88 bounds (400,300) with raise offered must give exactly 300
+- M7 / parity: MEASURED. review table (2026-11-25-review-pr91-pr92.md) P0-P3 F (not re-measured on today's parity)
+- M7 / wire: PREDICTED. test_wire.py:82-83 reply 'call' with valid ['all_in'] must stay in valid
+- M8 / sdk: MEASURED. review table (2026-11-25-review-pr91-pr92.md) (one check); user: sdk only while bench offers all_in
+- M8 / parity: MEASURED in B2 (#115): live-wire parity fails (aggro 3, random 3 pair mismatches)
+- D1 / sdk: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
+- D1 / solver: MEASURED. review table (2026-11-25-review-pr91-pr92.md)
+- D2 / solver: MEASURED. review table (2026-11-25-review-pr91-pr92.md) (245e3a9, d0c8bdf)
+- D2 / solver: solver kills D2 nondeterministically (14/15): unseeded CLI solver near the 0.75 pin. Not expected; noted only.
+- D2 / preflop_realization: MEASURED. review table (2026-11-25-review-pr91-pr92.md) (d0c8bdf)
+- D3 / decide_properties: MEASURED. A2 (159 checks)
+- D4 / decide_properties: MEASURED. A2 (2 checks)
+- D5 / decide_properties: MEASURED. A2 (29 checks)
+- D6 / decide_properties: MEASURED. A2 (146 checks)
+- E1 / eval_exhaustive: MEASURED. A1 (9,197 disagreements)
+- E2 / eval_exhaustive: PREDICTED. one-edit variant of the reviewer's measured swap; SF hands would count as flushes, so the SF and flush totals must mismatch
+- E3: known survivor, expect []. M-1 open in #104 (the test compares categories only)
+- T1 / match: MEASURED. A4 (h=21)
+- T2 / match: MEASURED. A4 (h=1)
+- T3 / match: MEASURED. A4 (h=20)
+- T4 / match: MEASURED. A4 (h=1 TypeError)
+- T5: known survivor, expect []. equals the real code at the default FIRST_BB 100; see #111
+
+## Out of scope
+- Metal bias mutants: +0.03 equity and +0.002 equity in the Metal path (A5, PR #96). They need Metal builds.
+
+## Notes
+- parity for M2/M7 is from the review table's P0/P3 columns, not re-measured on today's tools/test_parity.py.
+- E2 is the one-edit form (SF code 8 lowered to 5), because the runner takes a single find/replace.
