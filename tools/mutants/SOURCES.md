@@ -47,6 +47,7 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - CN2 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
 - CN3 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
 - CN4 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
+- I1 / import_logs: MEASURED. full run.py (the running-process check is off, so the refuse-while-running and whole-call-refusal tests fail); no other test kills it
 
 ## Out of scope
 - Metal bias mutants: +0.03 equity and +0.002 equity in the Metal path (A5, PR #96). They need Metal builds.
