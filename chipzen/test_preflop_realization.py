@@ -35,16 +35,16 @@ SHORT = dict(hole=["Th", "Td"], board=[], pot=150, to_call=200,
              min_raise=400, max_raise=1500, stack=1500, bb=100)
 
 
-def test_default_is_075():
+def test_default_is_085():
     for spot in (PREFLOP, FLOP):
-        assert decide(spot) == decide(spot, preflop_realization=0.75), spot
+        assert decide(spot) == decide(spot, preflop_realization=0.85), spot
 
 
 def test_preflop_ratio():
     a = decide(PREFLOP, preflop_realization=0.95)
     assert abs(a["realized"] / a["equity"] - 0.95) < 1e-9, a
     d = decide(PREFLOP)
-    assert abs(d["realized"] / d["equity"] - 0.75) < 1e-9, d
+    assert abs(d["realized"] / d["equity"] - 0.85) < 1e-9, d
 
 
 def test_flop_ignores_it():
@@ -62,7 +62,7 @@ def test_short_stack_fold_flips():
 
 
 if __name__ == "__main__":
-    test_default_is_075()
+    test_default_is_085()
     test_preflop_ratio()
     test_flop_ignores_it()
     test_short_stack_fold_flips()

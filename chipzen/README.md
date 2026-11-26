@@ -64,7 +64,7 @@ multiplied by a street factor.
 
 | Street | Factor |
 |---|---|
-| Preflop | 0.75 |
+| Preflop | 0.85 |
 | Flop | 0.82 |
 | Turn | 0.90 |
 | River | 1.00 |

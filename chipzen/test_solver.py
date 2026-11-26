@@ -10,7 +10,7 @@ Every check below is tagged:
   [invariant]  a rule that must hold whatever the constants are: legality,
                determinism, monotonicity, the stack cap.
   [pin]        pins fitted behaviour. It passes because of current constants
-               (range steps, 0.75/0.82/0.90 realization, 0.50 open, 0.55 shove,
+               (range steps, 0.85/0.82/0.90 realization, 0.50 open, 0.55 shove,
                0.62/0.30 bet edges). When a constant changes, a pin may need
                new numbers. That is expected, not a regression.
 """
@@ -155,7 +155,9 @@ if r.startswith("raise"):
 # Equity is discounted on the way to a call because a later street can cost
 # us the pot. A call that ends the betting has no later street to lose it on:
 # the cards just run out, so raw equity is the right number against the price.
-# 66 has ~52% against the range but only ~39% once discounted; the price is 45%.
+# 66 has ~52% against the range but only ~44% once discounted (0.85). The price
+# is 45% in the all-in pin and 47.5% in the other two, so the discounted number
+# would fold in all three.
 
 ENDS = dict(board=[], bb=100, villain_raises=1, sims=5000)
 
@@ -166,13 +168,13 @@ assert r == "call", f"all-in call with equity over the price should call, got {r
 
 # [pin]
 # The opponent is all-in and we cover: raising is closed, so the call ends it.
-r = ask(["6s", "6d"], pot=900, to_call=700, min_raise=0, max_raise=0, stack=1900, **ENDS)
+r = ask(["6s", "6d"], pot=840, to_call=760, min_raise=0, max_raise=0, stack=1900, **ENDS)
 assert r == "call", f"call vs an all-in with equity over the price should call, got {r!r}"
 
 # [pin]
 # Control: same price, but raising is open and chips are behind. The betting
 # goes on, the discount still applies, and the same hand folds.
-r = ask(["6s", "6d"], pot=900, to_call=700, min_raise=1400, max_raise=1900, stack=1900, **ENDS)
+r = ask(["6s", "6d"], pot=840, to_call=760, min_raise=1400, max_raise=1900, stack=1900, **ENDS)
 assert r == "fold", f"discount must still apply while betting continues, got {r!r}"
 
 # --- opening from the small blind ------------------------------------------
