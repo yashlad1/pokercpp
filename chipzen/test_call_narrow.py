@@ -163,7 +163,16 @@ def logged_decisions():
     return out
 
 
+def no_log(name):
+    if os.path.isdir(os.path.dirname(LOG)):
+        return False
+    print("SKIP", name, "- results/live-logs not present (e.g. inside the Docker image)")
+    return True
+
+
 def test_live_every_logged_decision_counts():
+    if no_log("test_live_every_logged_decision_counts"):
+        return
     ds = logged_decisions()
     assert len(ds) > 150, len(ds)
     last = {}
@@ -175,6 +184,8 @@ def test_live_every_logged_decision_counts():
 
 
 def test_live_hand_65_river_counts_the_callers():
+    if no_log("test_live_hand_65_river_counts_the_callers"):
+        return
     seen = {p: vc(h, your_seat=s) for hn, p, s, h in logged_decisions() if hn == 65}
     assert set(seen) == {"preflop", "flop", "turn", "river"}, seen
     assert seen["preflop"] == 0, seen
