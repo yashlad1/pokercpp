@@ -15,7 +15,8 @@ TOOLS = pathlib.Path(__file__).resolve().parent
 
 STUB = """#!/bin/bash
 d="$(dirname "$0")"
-n=$(wc -l < "$d/calls" 2>/dev/null || echo 0)
+touch "$d/calls"
+n=$(wc -l < "$d/calls")
 echo "$*" >> "$d/calls"
 echo "2026-01-02 03:04:05,678 INFO stub start"
 echo "2026-01-02 03:04:06,000 INFO match_start"
