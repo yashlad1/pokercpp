@@ -333,5 +333,16 @@
    "import_logs"
   ],
   "why_survives": ""
+ },
+ {
+  "id": "I2",
+  "file": "tools/import_logs.py",
+  "find": "        stamp = m.group().replace(\" \", \"_\").replace(\":\", \"\") if m else time.strftime(",
+  "replace": "        stamp = text[:19].replace(\" \", \"_\").replace(\":\", \"\") if m else time.strftime(",
+  "what": "stamp is the first 19 characters of the log again",
+  "expect": [
+   "import_logs"
+  ],
+  "why_survives": ""
  }
 ]
