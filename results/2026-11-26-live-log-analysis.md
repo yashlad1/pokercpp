@@ -232,6 +232,80 @@ In the 0.85 matches 8 of 29 lost showdowns were outside and carry 43,681 of the 
 
 Across all logs the bot folded the small blind 1 time in 410 hands.
 
+## Session 4 (21:50 ET, commit 472d572, 0.85 from main)
+
+Three matches in one log file, all stamped v4.0.1 472d572, the current main. The play is the 0.85 preflop realization (see wire facts).
+
+### Summary
+
+| match | opponent | result | hands | decisions |
+|---|---|---|---|---|
+| 12 | opp-T | lost (busted on hand 44) | 44 | 143 |
+| 13 | opp-U | won (opponent busted on hand 68) | 68 | 139 |
+| 14 | opp-H | ended early: the opponent timed out; result not in the log | 11 | 13 |
+
+Match 14 has no result line. At the last hand the stacks were 10,850 (us) to 9,150, but the match did not finish, so it is not counted as a win. It is the same opponent as match 9, which also ended on timeouts.
+
+**Day total at 0.85: 13 matches (sessions 1 to 4), 6 won, 5 lost, 2 unresolved, 418 hands (295 before session 4, 123 in it); too small to compare against 0.75.**
+
+### Wire facts
+
+- **Engine health: 0 `ENGINE FAILED` lines, 0 tracebacks, 0 fallback lines.** Every decision was answered by the engine.
+- 0 illegal actions in all three matches. The only error-like lines are 7 `is_timeout in hand 3` flags in match 14; all 17 `"is_timeout": true` entries in the file are seat 1, the opponent. Our seat has none.
+- Preflop realized/equity on decisions facing a bet: 0.85 in 79 of 80 decisions (28, 45, 6 per match; match 13 has the one at 1.00). That one is match 13 hand 54: the opponent raised all-in (999), the call ends the betting, so realization is 1.0 by design, and we folded K5o at equity 0.371 against 0.400 required.
+
+### Opponent profiles (n shown)
+
+| situation | opp-T | opp-U | opp-H |
+|---|---|---|---|
+| first_in (opponent is SB) | n=22: limp 18, raise 4 | n=34: fold 22, limp 4, raise 7, shove 1 | n=5: fold 5 |
+| vs_open | n=8: call 8 | n=8: fold 3, call 5 | n=3: fold 3 |
+| cbet | n=1: bet 1 | n=5: check 3, bet 2 | n=0 |
+| checked_to | n=18: check 15, bet 3 | n=7: check 5, bet 2 | n=0 |
+| vs_bet flop | n=19: fold 7, call 11, raise 1 | n=15: fold 8, call 7 | n=1: fold 1 |
+| vs_bet turn | n=13: fold 3, call 8, raise 2 | n=6: fold 3, call 3 | n=0 |
+| vs_bet river | n=10: fold 2, call 6, raise 2 | n=12: fold 5, call 7 | n=0 |
+
+All samples are small. opp-T limps 18 of 22 as small blind and calls every open; opp-U folds 22 of 34 as small blind.
+
+### The biggest losses
+
+- **Match 12 hand 35 (-7,747).** We held Ks5s on 2d Kh 7c 9c 7h (two pair, kings and sevens); they held 7dJc, trips. Flop and turn raises at range 1.00 (equity 0.839, 0.823). They raised the river to 3,006; we shoved 10,235 at range 0.45, equity 0.799, required 0.299. 7dJc is percentile 50%, outside the 0.45 range.
+- **Match 12 hand 43 (-3,607).** Ad7h on Jh 4h 5s 4c As (two pair, aces and fours); they held 4d8s, trips (percentile 84%). Turn call at range 0.39, equity 0.448, required 0.309; river call of 2,295 at range 0.13, equity 0.697, required 0.318. Outside the credited range.
+- **Match 12 hand 25 (-2,153).** 3d6c on 9s 7h Ts 6d 9h; they held Ks8s, a straight (percentile 19% against a range of 0.18, a borderline miss at 2 decimals).
+- **Match 12 hand 44 (-1,106, match over).** We held KhTs in the big blind, raised all-in preflop at 906 behind and lost to 6d9d (range 1.00).
+- Match 13's largest loss was hand 62 (-1,614, 3c2s against 2c2d on 7d 4h 5s 7h Qd).
+
+### Range coverage at showdown, updated
+
+| group | lost, inside (chips) | lost, outside (chips) | split | won, inside (chips) | won, outside (chips) |
+|---|---|---|---|---|---|
+| session 4 (n=39) | 15 (-9,055) | 5 (-15,515) | 2 | 15 (+19,829) | 2 (+2,000) |
+| 0.85 pooled, matches 2 to 14 (n=98) | 36 (-25,857) | 13 (-59,196) | 6 | 29 (+51,591) | 14 (+28,175) |
+| all logs (n=142) | 46 (-40,537) | 20 (-69,406) | 9 | 48 (+97,481) | 19 (+35,388) |
+
+The same four caveats as in session 3 apply (partly by construction; the range misses about 27% of shown hands, 20 of 66 lost and 19 of 67 won across all logs; the chip gap is confounded; only showdown hands count). In session 4, 5 of 20 lost showdowns were outside the range but carry 15,515 of the 24,570 chips lost at showdown (hands 35, 43 and 25 above carry 13,507). As before, the credited range is narrowest in the biggest pots, so this is partly by construction and points at the board-aware range work (#27, #37), not at the call threshold.
+
+### Our response to the opponent's flop c-bet, and small blind first action
+
+| match | c-bet n | fold | call | raise | fold facing any flop bet | SB hands | SB fold / limp / raise |
+|---|---|---|---|---|---|---|---|
+| 12 opp-T | 1 | 1 (100%) | 0 | 0 | 4 of 5 (80%) | 22 | 0 / 14 (64%) / 8 (36%) |
+| 13 opp-U | 2 | 1 (50%) | 1 (50%) | 0 | 2 of 6 (33%) | 34 | 0 / 26 (76%) / 8 (24%) |
+| 14 opp-H | 0 | 0 | 0 | 0 | none faced | 6 | 0 / 3 (50%) / 3 (50%) |
+
+Across all logs the bot folded the small blind 1 time in 472 hands.
+
+## Chipzen table, about 22:40 ET
+
+A 6-player table, not a heads-up match, so it is outside the day totals above.
+
+- Our uploaded bot finished **1st of 6** ("Won the table") over 82 hands and won the most hands (43).
+- Places 2 to 6: opp-P, opp-Q, opp-A, opp-R and opp-S.
+- Source: the platform's competition page. A hosted bot leaves no local log, so there is no hand-level analysis.
+- Build: 704b5e1 upload (0.85 preflop realization).
+- It was a 6-handed table, while the bot was designed heads-up.
+
 ## How to reproduce
 
 Run from the repo root (python3 3.10 or newer; no other packages):
