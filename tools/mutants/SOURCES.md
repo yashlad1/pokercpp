@@ -49,6 +49,12 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - CN4 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
 - I1 / import_logs: MEASURED. full run.py (the running-process check is off, so the refuse-while-running and whole-call-refusal tests fail); no other test kills it
 - I2 / import_logs: MEASURED. full run.py (the stamp is the first 19 characters again, so the warning-first-line and absolute-path tests fail); no other test kills it
+- ST1 / opponent_stats: PREDICTED. every hand-built case reads the wrong seat as the opponent; also villain_raises, since bot.py counts through parse_actions
+- ST1 / villain_raises: PREDICTED. test_villain_raises.py counts the opponent's raises from seat 0 and seat 1
+- ST2 / opponent_stats: PREDICTED. the bench round-end-path tests and the oracle lose every fold-after-our-last-bet (vs_bet)
+- ST3 / opponent_stats: PREDICTED. the shove cases of first_in, vs_open and the live-log oracle expect shove, not raise
+- ST4 / opponent_stats: PREDICTED. a blind read as a raise makes the opponent's blind the first action
+- ST4 / villain_raises: PREDICTED. the opponent's blind post would count as a raise in test_villain_raises.py
 
 ## Out of scope
 - Metal bias mutants: +0.03 equity and +0.002 equity in the Metal path (A5, PR #96). They need Metal builds.

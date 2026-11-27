@@ -23,12 +23,15 @@ from chipzen import Action, Bot, GameState
 from chipzen.client import run_bot
 
 import pokercpp_engine
-from opponent import Opponent
+from opponent import Opponent, OpponentStats, parse_actions
 
 logger = logging.getLogger("pokercpp")
 
 VERSION = "4.1.0"
 STATE_LOG_LIMIT = 50
+# Count what the opponent does and log it. Nothing reads the counts; False observes and logs nothing.
+STATS_ENABLED = True
+STATS_EVERY = 10
 
 # 5000 trials: 95% interval near +/-1.4%, ~12 ms of a 2000 ms ranked budget.
 try:
@@ -61,23 +64,18 @@ def _hist(state: GameState) -> str:
 
 def _villain_raises(state: GameState) -> int:
     # Posting a blind is not a choice, so the synthetic blind entries are skipped.
-    n = 0
-    for entry in state.action_history or ():
-        if entry.get("seat") == state.your_seat:
-            continue
-        if entry.get("action") in ("raise", "bet", "all_in"):
-            n += 1
-    return n
+    # Every opponent raise, bet or all_in counts, however small an all_in (unlike OpponentStats).
+    return sum(1 for opp, a, _, _ in parse_actions(state.action_history, state.your_seat)
+               if opp and a in ("raise", "all_in"))
 
 
 def _villain_calls(state: GameState) -> int:
     # An opponent call that matches an earlier bet or raise this hand; a limp, blinds and checks do not count.
     n, bet = 0, False
-    for entry in state.action_history or ():
-        action = entry.get("action")
-        if action in ("raise", "bet", "all_in"):
+    for opp, action, _, _ in parse_actions(state.action_history, state.your_seat):
+        if action in ("raise", "all_in"):
             bet = True
-        elif action == "call" and bet and entry.get("seat") != state.your_seat:
+        elif action == "call" and bet and opp:
             n += 1
     return n
 
@@ -108,10 +106,47 @@ class PokerCppBot(Bot):
     def __init__(self):
         super().__init__()
         self.opponent = Opponent()
+        self._reset_stats({})
         self._reset_blinds({})
         self._turns = 0
         self._state_logs = 0
         self._round_seen, self._round_seq = False, 0
+
+    def _reset_stats(self, match_info):
+        self.stats = OpponentStats()
+        self._seat = None
+        for s in (match_info or {}).get("seats") or []:
+            if isinstance(s, dict) and s.get("is_self"):
+                self._seat = s.get("seat")
+        cfg = (match_info or {}).get("game_config") or {}
+        stack = cfg.get("starting_stack")
+        self._stacks = [stack, stack] if isinstance(stack, int) else None  # hand-start stacks by seat, None if unknown
+
+    def _observe(self, res):
+        """Feed the finished hand to the stats and log them every STATS_EVERY hands."""
+        hist = res.get("action_history") or []
+        seat = getattr(self, "my_seat", None)
+        seat = self._seat if seat is None else seat
+        stacks = self._stacks
+        eff = bb = None
+        if stacks and all(isinstance(x, (int, float)) for x in stacks):
+            eff = min(stacks)
+        for e in hist:
+            if isinstance(e, dict) and e.get("action") == "post_big_blind":
+                bb = e.get("amount")
+        depth = eff / bb if eff is not None and isinstance(bb, (int, float)) and bb > 0 else None
+        if seat is None:
+            self.stats.hands += 1
+            self.stats.errors += 1  # our seat is unknown: cannot classify
+        else:
+            self.stats.observe_hand(hist, seat, eff, depth)
+        nxt = res.get("stacks")
+        self._stacks = list(nxt) if isinstance(nxt, (list, tuple)) and len(nxt) == 2 else None
+        if self.stats.hands % STATS_EVERY == 0:
+            self._log_stats()
+
+    def _log_stats(self):
+        logger.info("STATS %s", self.stats.summary())
 
     def _reset_blinds(self, match_info):
         cfg = (match_info or {}).get("game_config") or {}
@@ -123,6 +158,7 @@ class PokerCppBot(Bot):
 
     def on_match_start(self, match_info):
         self.opponent = Opponent()
+        self._reset_stats(match_info)
         self._reset_blinds(match_info)
         self._state_logs = 0
         self._round_seen, self._round_seq = False, 0
@@ -140,6 +176,12 @@ class PokerCppBot(Bot):
     def on_round_start(self, message):
         self._round_seen = True
         self._round_seq += 1
+        try:
+            st = ((message or {}).get("state") or {}).get("stacks")
+            if isinstance(st, (list, tuple)) and len(st) == 2:
+                self._stacks = list(st)
+        except Exception:
+            pass
         self._fixed_bb = None
         super().on_round_start(message)
 
@@ -168,6 +210,18 @@ class PokerCppBot(Bot):
         except Exception:
             logger.exception("round_result log failed")
         self._turns = 0
+        if STATS_ENABLED:
+            try:
+                self._observe(res)
+            except Exception:
+                logger.exception("stats failed")
+
+    def on_match_end(self, results):
+        if STATS_ENABLED:
+            try:
+                self._log_stats()
+            except Exception:
+                logger.exception("stats log failed")
 
     def _bb(self, state: GameState) -> int:
         # Precedence: the bb fixed for this hand, the history's post_big_blind, a value backed out of pot and
@@ -221,6 +275,7 @@ class PokerCppBot(Bot):
 
     def decide(self, state: GameState) -> Action:
         self._log_state(state)
+        self._seat = state.your_seat if state.your_seat is not None else self._seat
         valid = list(state.valid_actions or ())
         try:
             bb = self._bb(state)

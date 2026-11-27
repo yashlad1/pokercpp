@@ -379,5 +379,51 @@
    "logging"
   ],
   "why_survives": ""
+ },
+ {
+  "id": "ST1",
+  "file": "chipzen/opponent.py",
+  "find": "out.append((e.get(\"seat\") != our_seat,",
+  "replace": "out.append((e.get(\"seat\") == our_seat,",
+  "what": "seat perspective flipped in parse_actions (our actions read as the opponent's)",
+  "expect": [
+   "opponent_stats",
+   "villain_raises"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "ST2",
+  "file": "chipzen/bot.py",
+  "find": "hist = res.get(\"action_history\") or []\n        seat = getattr",
+  "replace": "hist = (res.get(\"action_history\") or [])[:-1]\n        seat = getattr",
+  "what": "round-end history loses its last entry (the fold after our last bet)",
+  "expect": [
+   "opponent_stats"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "ST3",
+  "file": "chipzen/opponent.py",
+  "find": "out = \"shove\" if sh else \"raise\"",
+  "replace": "out = \"raise\"",
+  "what": "a shove counted as a raise",
+  "expect": [
+   "opponent_stats"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "ST4",
+  "file": "chipzen/opponent.py",
+  "find": "        if isinstance(a, str) and (a.startswith(\"post_\") or a == \"ante\"):\n            continue\n        out.append((e.get(\"seat\") != our_seat, \"raise\" if a == \"bet\" else a,",
+  "replace": "        if a == \"ante\":\n            continue\n        out.append((e.get(\"seat\") != our_seat, \"raise\" if a in (\"bet\", \"post_small_blind\", \"post_big_blind\") else a,",
+  "what": "a blind post counted as an action (a raise)",
+  "expect": [
+   "opponent_stats",
+   "villain_raises"
+  ],
+  "why_survives": ""
  }
 ]
