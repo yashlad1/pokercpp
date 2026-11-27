@@ -56,3 +56,4 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 ## Notes
 - parity for M2/M7 is from the review table's P0/P3 columns, not re-measured on today's tools/test_parity.py.
 - E2 is the one-edit form (SF code 8 lowered to 5), because the runner takes a single find/replace.
+- PM1 / play_match: MEASURED. full run.py (each SDK run plays all the matches again, so the one-match-per-run and stop-on-failure tests fail); no other test kills it

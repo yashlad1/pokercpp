@@ -97,6 +97,9 @@ jobs:
       - name: Test the paired comparison
         run: python tools/test_paired.py
 
+      - name: Test play_match.sh
+        run: python3 tools/test_play_match.py
+
       - name: Test the opponent
         run: PYTHONPATH=chipzen python chipzen/test_opponent.py
 
