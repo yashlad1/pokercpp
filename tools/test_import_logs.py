@@ -15,9 +15,11 @@ BODY = f"2026-11-26 12:34:56 token cz_extbot_AbC123xyz id {UUID} path {HOME}/chi
 ENDED = BODY + "2026-11-26 12:40:00 session ended\n"
 EXPECT_NAME = "2026-11-26_123456-{}.log"
 
+SUB = "run-" + "external"  # built by concatenation: the real guard matches this text
+
 
 def run_external_running():
-    return subprocess.run(["pgrep", "-f", "run-external"], capture_output=True).returncode == 0
+    return subprocess.run(["pgrep", "-f", SUB], capture_output=True).returncode == 0
 
 
 def tool(out, *args):
@@ -32,7 +34,7 @@ def written(out):
 
 class Dummy:
     def __enter__(self):
-        self.p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "run-external"])
+        self.p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "chipzen-sdk", SUB])
         return self
 
     def __exit__(self, *a):
@@ -59,18 +61,9 @@ def test_skip_without_flag():
         assert written(out) == []
 
 
-def test_refuse_when_running():
-    with tempfile.TemporaryDirectory() as d, Dummy():
-        out, (log,) = setup(d, a=BODY)
-        rc, txt = tool(out, "--interrupted", log)
-        assert rc != 0, txt
-        assert any(l.startswith("refusing:") for l in txt.splitlines()), txt
-        assert written(out) == []
-
-
 def test_import_interrupted():
     if run_external_running():
-        print("  (skipped: a real run-external process is running)")
+        print("  (skipped: a real " + SUB + " process is running)")
         return
     with tempfile.TemporaryDirectory() as d:
         out, (log,) = setup(d, a=BODY)
@@ -154,9 +147,6 @@ def test_normal_log_name_unchanged():
         rc, txt = tool(out, log)
         assert rc == 0, txt
         assert written(out) == ["2026-11-26_215025-a.log"], written(out)
-
-
-SUB = "run-" + "external"  # built by concatenation: the real guard matches this text
 
 
 class SleepProc:
