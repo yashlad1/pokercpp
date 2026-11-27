@@ -14,6 +14,7 @@ set -u
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SDK="${CHIPZEN_SDK:-$HOME/chipzen-run/.venv/bin/chipzen-sdk}"
 MATCHES="${1:-1}"
+[[ $MATCHES =~ ^[1-9][0-9]*$ ]] || { echo "matches must be a positive integer" >&2; exit 1; }
 LOGDIR="${CHIPZEN_LOG_DIR:-$HOME/chipzen-run/logs}"
 CONF="$REPO/.chipzen"
 
@@ -22,16 +23,17 @@ git -C "$REPO" check-ignore -q "$CONF/chipzen.toml" || { echo "refusing to run: 
 command -v "$SDK" >/dev/null 2>&1 || { echo "chipzen-sdk not found at $SDK: set CHIPZEN_SDK"; exit 1; }
 
 mkdir -p "$LOGDIR"
-POKERCPP_COMMIT="$(git -C "$REPO" rev-parse --short HEAD)"
-git -C "$REPO" diff --quiet HEAD -- chipzen/ || POKERCPP_COMMIT="$POKERCPP_COMMIT-dirty"
-export POKERCPP_COMMIT
 # Run from the conf dir: the SDK finds ./chipzen.toml there, and from the repo root 'import chipzen' would find
 # the repo's chipzen/ folder instead of the SDK.
 cd "$CONF" || exit 1
-trap 'exit 130' INT
+log=
+trap 'python3 "$REPO/tools/import_logs.py" --interrupted "$log"; exit 130' INT
 CAF=""
 command -v caffeinate >/dev/null 2>&1 && CAF="caffeinate -i"
 for ((i = 1; i <= MATCHES; i++)); do
+  POKERCPP_COMMIT="$(git -C "$REPO" rev-parse --short HEAD)"
+  git -C "$REPO" diff --quiet HEAD -- chipzen/ || POKERCPP_COMMIT="$POKERCPP_COMMIT-dirty"
+  export POKERCPP_COMMIT
   log="$LOGDIR/live-$(date +%Y%m%d-%H%M%S)-$i.log"
   echo "log: $log"
   PYTHONPATH="$REPO/chipzen" $CAF "$SDK" run-external "$REPO/chipzen/bot.py" \
