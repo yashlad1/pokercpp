@@ -59,7 +59,20 @@ static py::dict decide(const std::vector<std::string> &hole,
     return out;
 }
 
+#ifndef POKERCPP_GIT_SHA
+#define POKERCPP_GIT_SHA "unknown"
+#endif
+
+static py::dict build_info() {
+    py::dict d;
+    d["git_sha"] = std::string(POKERCPP_GIT_SHA);
+    d["preflop_realization"] = chipzen::kPreflopRealization;
+    d["call_narrow"] = chipzen::kCallNarrow;
+    return d;
+}
+
 PYBIND11_MODULE(pokercpp_engine, m) {
+    m.def("build_info", &build_info, "git_sha, preflop_realization and call_narrow this engine was built with.");
     m.doc() = "Monte Carlo poker decision engine (C++)";
     m.def("decide", &decide,
           py::arg("hole"), py::arg("board"), py::arg("pot"), py::arg("to_call"),
