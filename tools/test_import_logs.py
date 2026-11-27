@@ -156,6 +156,56 @@ def test_normal_log_name_unchanged():
         assert written(out) == ["2026-11-26_215025-a.log"], written(out)
 
 
+SUB = "run-" + "external"  # built by concatenation: the real guard matches this text
+
+
+class SleepProc:
+    """A short-lived dummy whose command line holds the given words."""
+
+    def __init__(self, *words):
+        self.words = words
+
+    def __enter__(self):
+        self.p = subprocess.Popen(["sh", "-c", "sleep 60; true", *self.words])
+        time.sleep(0.3)
+        return self
+
+    def __exit__(self, *a):
+        self.p.kill()
+        self.p.wait()
+
+
+def test_bare_subcommand_text_does_not_block():
+    with tempfile.TemporaryDirectory() as d, SleepProc(SUB):
+        out, (log,) = setup(d, a=BODY)
+        rc, txt = tool(out, "--interrupted", log)
+        assert rc == 0, txt
+        assert written(out) == [EXPECT_NAME.format("a")], written(out)
+
+
+def test_sdk_command_line_blocks():
+    with tempfile.TemporaryDirectory() as d, SleepProc("/x/bin/chipzen-sdk", SUB, "bot.py"):
+        out, (log,) = setup(d, a=BODY)
+        rc, txt = tool(out, "--interrupted", log)
+        assert rc != 0, txt
+        assert any(l.startswith("refusing:") for l in txt.splitlines()), txt
+        assert written(out) == []
+
+
+def test_pgrep_error_fails_closed():
+    with tempfile.TemporaryDirectory() as d:
+        bindir = pathlib.Path(d) / "bin"
+        bindir.mkdir()
+        (bindir / "pgrep").write_text("#!/bin/sh\nexit 2\n")
+        (bindir / "pgrep").chmod(0o755)
+        out, (log,) = setup(d, a=BODY)
+        r = subprocess.run([sys.executable, str(TOOL), "--out", str(out), "--interrupted", log],
+                           capture_output=True, text=True,
+                           env=dict(os.environ, PATH=f"{bindir}:{os.environ['PATH']}"))
+        assert r.returncode != 0, r.stdout + r.stderr
+        assert written(out) == []
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
