@@ -2,6 +2,9 @@
 
 Builds a throwaway git repo in a temp dir with a dummy config and a stub SDK;
 the real .chipzen/ is never touched. Run: python3 tools/test_play_match.py
+
+Not tested: Ctrl-C (SIGINT) importing the current log with --interrupted and
+exiting 130; hard to trigger reliably from a test.
 """
 import os
 import pathlib
@@ -18,6 +21,11 @@ d="$(dirname "$0")"
 touch "$d/calls"
 n=$(wc -l < "$d/calls")
 echo "$*" >> "$d/calls"
+echo "$POKERCPP_COMMIT $(git -C "$FIXTURE_REPO" rev-parse --short HEAD)" >> "$d/stamps"
+if [ "$((n))" = 0 ] && [ -n "$COMMIT_IN_CALL1" ]; then
+  echo x >> "$FIXTURE_REPO/tools/import_logs.py"
+  git -C "$FIXTURE_REPO" -c user.name=t -c user.email=t@t commit -qam bump
+fi
 echo "2026-01-02 03:04:05,678 INFO stub start"
 echo "2026-01-02 03:04:06,000 INFO match_start"
 echo "2026-01-02 03:04:07,000 INFO session ended"
@@ -26,7 +34,10 @@ exit "${code:-0}"
 """
 
 
-def run(codes, args):
+LAST_STAMPS = []
+
+
+def run(codes, args, commit_in_call1=False):
     with tempfile.TemporaryDirectory() as t:
         t = pathlib.Path(t)
         repo = t / "repo"
@@ -48,11 +59,15 @@ def run(codes, args):
         sdk.chmod(0o755)
         (sdk.parent / "codes").write_text("".join(f"{c}\n" for c in codes))
         logs = t / "logs"
-        env = dict(os.environ, CHIPZEN_SDK=str(sdk), CHIPZEN_LOG_DIR=str(logs))
+        env = dict(os.environ, CHIPZEN_SDK=str(sdk), CHIPZEN_LOG_DIR=str(logs), FIXTURE_REPO=str(repo))
+        if commit_in_call1:
+            env["COMMIT_IN_CALL1"] = "1"
         p = subprocess.run(["bash", str(repo / "tools" / "play_match.sh"), *args],
                            env=env, capture_output=True, text=True, timeout=120)
         calls = (sdk.parent / "calls").read_text().splitlines() if (sdk.parent / "calls").exists() else []
         logfiles = sorted(x.name for x in logs.glob("*")) if logs.exists() else []
+        st = sdk.parent / "stamps"
+        LAST_STAMPS[:] = [l.split() for l in st.read_text().splitlines()] if st.exists() else []
         imported = list((repo / "results" / "live-logs").glob("*.log"))
         return p, calls, logfiles, imported
 
@@ -83,6 +98,22 @@ def test_names_unique_and_formatted():
     _, _, logs, _ = run([], ["3"])
     assert len(set(logs)) == len(logs) == 3, logs
     assert all(re.fullmatch(r"live-\d{8}-\d{6}-\d+\.log", n) for n in logs), logs
+
+
+def test_stamp_per_match():
+    p, calls, _, _ = run([], ["2"], commit_in_call1=True)
+    assert p.returncode == 0, p.stderr
+    assert len(LAST_STAMPS) == 2, LAST_STAMPS
+    (s1, h1), (s2, h2) = LAST_STAMPS
+    assert s1 == h1 and s2 == h2, LAST_STAMPS
+    assert s1 != s2, LAST_STAMPS
+
+
+def test_rejects_bad_count():
+    for bad in ("0", "abc"):
+        p, calls, logs, _ = run([], [bad])
+        assert p.returncode == 1, (bad, p.returncode)
+        assert not calls and not logs, (bad, calls, logs)
 
 
 if __name__ == "__main__":
