@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Black-box tests for tools/import_logs.py (--interrupted, --out)."""
+import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
+import time
 
 TOOL = pathlib.Path(__file__).resolve().parent / "import_logs.py"
 HOME = str(pathlib.Path.home())
@@ -104,6 +107,53 @@ def test_mix_refused_whole_call():
         assert rc != 0, txt
         assert "refusing:" in txt, txt
         assert written(out) == []
+
+STAMP_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{6}-a\.log$")
+TS_LINES = "2026-11-26 21:50:25 hello\n2026-11-26 21:55:00 session ended\n"
+
+
+def inside_out(out):
+    return [p for p in pathlib.Path(out).iterdir() if p.is_file()] and \
+        [p for p in pathlib.Path(out).rglob("*")] == list(pathlib.Path(out).iterdir())
+
+
+def test_warning_first_line():
+    with tempfile.TemporaryDirectory() as d:
+        out, (log,) = setup(d, a="Warning: something /some/path\n" + TS_LINES)
+        rc, txt = tool(out, log)
+        assert rc == 0, txt
+        assert written(out) == ["2026-11-26_215025-a.log"], written(out)
+        assert inside_out(out)
+
+
+def test_path_in_first_line():
+    with tempfile.TemporaryDirectory() as d:
+        out, (log,) = setup(d, a="/tmp/x/y: No such file\n" + TS_LINES)
+        rc, txt = tool(out, log)
+        assert rc == 0, txt
+        names = written(out)
+        assert len(names) == 1 and STAMP_RE.match(names[0]), names
+        assert inside_out(out)
+
+
+def test_no_timestamp_uses_mtime():
+    with tempfile.TemporaryDirectory() as d:
+        out, (log,) = setup(d, a="no stamp here\nsession ended\n")
+        t = 1700000000
+        os.utime(log, (t, t))
+        rc, txt = tool(out, log)
+        assert rc == 0, txt
+        want = time.strftime("%Y-%m-%d_%H%M%S", time.localtime(t)) + "-a.log"
+        assert written(out) == [want], (written(out), want)
+        assert inside_out(out)
+
+
+def test_normal_log_name_unchanged():
+    with tempfile.TemporaryDirectory() as d:
+        out, (log,) = setup(d, a=TS_LINES)
+        rc, txt = tool(out, log)
+        assert rc == 0, txt
+        assert written(out) == ["2026-11-26_215025-a.log"], written(out)
 
 
 if __name__ == "__main__":

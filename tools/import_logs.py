@@ -17,6 +17,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import time
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 OUT = REPO / "results" / "live-logs"
@@ -26,6 +27,7 @@ SCRUB = [
     (re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"), "[uuid]"),
     (re.compile(re.escape(HOME)), "~"),
 ]
+STAMP = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}", re.M)
 
 
 def main(paths, out=OUT, interrupted=False):
@@ -42,7 +44,9 @@ def main(paths, out=OUT, interrupted=False):
             continue
         for rx, sub in SCRUB:
             text = rx.sub(sub, text)
-        stamp = text[:19].replace(" ", "_").replace(":", "")
+        m = STAMP.search(text)
+        stamp = m.group().replace(" ", "_").replace(":", "") if m else time.strftime(
+            "%Y-%m-%d_%H%M%S", time.localtime(p.stat().st_mtime))
         dest = out / f"{stamp}-{p.stem}.log"
         if dest.exists() and dest.read_text() == text:
             print(f"already imported: {dest.name}")
