@@ -112,6 +112,9 @@ jobs:
       - name: Test the call narrowing
         run: PYTHONPATH=chipzen python chipzen/test_call_narrow.py
 
+      - name: Test the opponent stats
+        run: PYTHONPATH=chipzen python chipzen/test_opponent_stats.py
+
       - name: Test the wire legality
         run: PYTHONPATH=chipzen python chipzen/test_wire.py
 
