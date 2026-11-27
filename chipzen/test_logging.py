@@ -111,8 +111,54 @@ def s3_board():
     fl = [m for m in msgs(n) if "hole=" in m and "legal=" in m]
     report("spec3 flop board=5c9d4d", len(fl) >= 1 and all("hole=JcJd board=5c9d4d legal=" in m for m in fl), fl)
 
+import types, subprocess
+import pokercpp_engine as _eng
+
+def b1_build_info_shape():
+    bi = _eng.build_info()
+    report("build_info has exactly three keys", set(bi) == {"git_sha", "preflop_realization", "call_narrow"}, bi)
+    report("build_info types", isinstance(bi["git_sha"], str) and isinstance(bi["preflop_realization"], float)
+           and isinstance(bi["call_narrow"], float), bi)
+    report("build_info defaults 0.85 and 1.0", bi["preflop_realization"] == 0.85 and bi["call_narrow"] == 1.0, bi)
+
+def b2_git_sha_matches_head():
+    root = os.path.dirname(HERE)
+    try:
+        head = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=root,
+                                       stderr=subprocess.DEVNULL, text=True).strip()
+    except Exception:
+        print("SKIP build_info git_sha vs HEAD (not a git checkout)")
+        return
+    sha = _eng.build_info()["git_sha"]
+    report("build_info git_sha is HEAD (or HEAD-dirty)", sha in (head, head + "-dirty"), (sha, head))
+
+def b3_match_start_line():
+    bi = _eng.build_info()
+    n = len(records); bot.PokerCppBot().on_match_start({})
+    want = "pokercpp v4.1.0 commit=abc1234 engine=%s preflop=%s call_narrow=%s" % (
+        bi["git_sha"], bi["preflop_realization"], bi["call_narrow"])
+    report("build line is exact", want in msgs(n), msgs(n))
+    report("build line shows preflop=0.85 call_narrow=1.0", any(" preflop=0.85 call_narrow=1.0" in m for m in msgs(n)), msgs(n))
+    report("bot.VERSION is 4.1.0", bot.VERSION == "4.1.0", bot.VERSION)
+
+def b4_stale_engine():
+    stale = types.SimpleNamespace()  # no build_info
+    old_bot, old_mod = bot.pokercpp_engine, sys.modules["pokercpp_engine"]
+    bot.pokercpp_engine = sys.modules["pokercpp_engine"] = stale
+    try:
+        n = len(records); bot.PokerCppBot().on_match_start({})
+        got = msgs(n)
+    finally:
+        bot.pokercpp_engine, sys.modules["pokercpp_engine"] = old_bot, old_mod
+    want = "pokercpp v4.1.0 commit=abc1234 engine=missing"
+    report("stale engine logs engine=missing", want in got, got)
+    report("stale engine omits preflop and call_narrow", not any("call_narrow=" in m or "preflop=" in m for m in got), got)
+
+
 for name, f in [("s1", s1_version_line), ("s1d", s1_default_unknown), ("s2", s2_round_json),
-                ("s2l", s2_round_result_line), ("s2n", s2_none), ("s3", s3_board)]:
+                ("s2l", s2_round_result_line), ("s2n", s2_none), ("s3", s3_board),
+                ("b1", b1_build_info_shape), ("b2", b2_git_sha_matches_head),
+                ("b3", b3_match_start_line), ("b4", b4_stale_engine)]:
     safe(name, f)
 
 if fails:
