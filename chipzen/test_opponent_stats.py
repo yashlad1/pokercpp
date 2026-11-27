@@ -423,7 +423,10 @@ def test_villain_raises_and_calls_agree_with_hand_counts_on_same_histories():
                H(0, "check", 0, "turn")]
     cases = [(h1, 0, 1, 1), (h1, 1, 2, 1), (P0, 0, 0, 0),
              (P0 + [H(0, "call", 50), H(1, "check")], 0, 0, 0),
-             (P0 + [H(0, "call", 50), H(1, "raise", 300), H(0, "call", 200)], 1, 1, 1)]
+             # seat 1 is us: opponent seat 0 limps (50, not a counted call) then calls our raise (200): 0 raises, 1 call
+             (P0 + [H(0, "call", 50), H(1, "raise", 300), H(0, "call", 200)], 1, 0, 1),
+             # seat 0 is us: opponent seat 1 raises (1 raise) and never calls
+             (P0 + [H(0, "call", 50), H(1, "raise", 300), H(0, "call", 200)], 0, 1, 0)]
     for hist, seat, raises, calls in cases:
         assert botmod._villain_raises(state(hist, seat)) == raises, (hist, seat)
         assert botmod._villain_calls(state(hist, seat)) == calls, (hist, seat)
