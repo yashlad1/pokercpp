@@ -87,7 +87,8 @@ def main(paths):
                   f"{sum(h['winnings'] for h in x):+d} chips")
 
     print("\nBiggest 5 losing hands")
-    for h in sorted(hands, key=lambda h: h["winnings"])[:5]:
+    worst = sorted(hands, key=lambda h: h["winnings"])
+    for h in [h for h in worst if h["winnings"] <= worst[min(4, n - 1)]["winnings"]]:  # top 5 plus ties with the 5th
         d = h["decisions"][-1] if h["decisions"] else {}
         print(f"  {h['winnings']:+d}  {h['action']}  seat {'SB' if h['client_pos'] else 'BB'}  ours {' '.join(h['hole'])}  "
               f"Slumbot {' '.join(h['bot_hole'] or []) or '-'}  board {' '.join(h['board']) or '-'}  "
