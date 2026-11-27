@@ -333,5 +333,28 @@
    "import_logs"
   ],
   "why_survives": ""
+ },
+ {
+  "id": "BI1",
+  "file": "chipzen/bot.py",
+  "find": "line = \"%s engine=%s preflop=%s call_narrow=%s\" % (\n            line, bi[\"git_sha\"], bi[\"preflop_realization\"]",
+  "replace": "line = \"%s%s preflop=%s call_narrow=%s\" % (\n            line, \"\", bi[\"preflop_realization\"]",
+  "what": "match-start line drops the engine= field",
+  "expect": [
+   "logging",
+   "v4"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "BI2",
+  "file": "chipzen/pokercpp_engine.cpp",
+  "find": "d[\"git_sha\"] = std::string(POKERCPP_GIT_SHA);",
+  "replace": "d[\"git_sha\"] = std::string(\"unknown\");",
+  "what": "build_info git_sha forced to unknown",
+  "expect": [
+   "logging"
+  ],
+  "why_survives": ""
  }
 ]
