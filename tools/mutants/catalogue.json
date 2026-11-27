@@ -425,5 +425,16 @@
    "villain_raises"
   ],
   "why_survives": ""
+ },
+ {
+  "id": "ST5",
+  "file": "chipzen/bot.py",
+  "find": "if isinstance(s, dict) and s.get(\"is_self\"):",
+  "replace": "if isinstance(s, dict) and not s.get(\"is_self\"):",
+  "what": "our seat read from the wrong match_start seat (is_self test inverted)",
+  "expect": [
+   "opponent_stats"
+  ],
+  "why_survives": ""
  }
 ]
