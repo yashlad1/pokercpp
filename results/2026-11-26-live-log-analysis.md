@@ -165,7 +165,7 @@ Match 9 has no result line. At the last hand the stacks were 10,550 (us) to 9,45
 ### Wire facts
 
 - 0 illegal actions and no error lines from our bot in all four matches.
-- Match 9: the log's 18 `"is_timeout": true` entries are all seat 1, the opponent: automatic checks in `action_history`. Our seat has none.
+- Match 9: 8 distinct timed-out actions, all by seat 1, the opponent, all automatic checks: hand 1 (preflop, flop, turn, river) and hand 7 (preflop, flop, turn, river). Our seat has none. (The log holds 18 `"is_timeout": true` strings, but STATE lines repeat the history, so 18 is a raw count.) The round_result histories carry no timeout flag, so whether opp-H's preflop folds were timeouts cannot be told from the log.
 - Preflop realized/equity on decisions facing a bet: 0.85 in 111 of 114 (34, 4, 72, 4 per match). The 3 at 1.00 are all in match 8, hands 10, 31 and 33: the opponent shoved 11,030 to 11,339 into our 8,500 to 8,900 stack and we folded. An all-in bigger than our stack ends the betting, so realization is 1.0 by design (as in session 2 match 5 and the 24 Nov logs).
 - Those three folds did not change the result. Equity was 0.329, 0.324 and 0.387 against 0.494, 0.492 and 0.491 required, so they fold at 0.85 as well. They cost 100, 150 and 150 chips (the blind, and a small-blind limp each), 400 in all, against a 10,000 start. Hand 44 alone cost 7,149.
 
