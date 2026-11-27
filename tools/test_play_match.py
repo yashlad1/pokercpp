@@ -148,7 +148,8 @@ def test_trap_empty_log_skips_import():
         env = dict(os.environ, CHIPZEN_SDK=str(sdk), CHIPZEN_LOG_DIR=str(t / "logs"), HANG=str(hang),
                    PATH=f"{fake}:{os.environ['PATH']}")
         p = subprocess.Popen(["bash", str(repo / "tools" / "play_match.sh"), "1"], env=env,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
+                             preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
         for _ in range(100):
             if hang.exists():
                 break

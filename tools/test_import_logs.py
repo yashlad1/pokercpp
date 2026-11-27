@@ -19,7 +19,7 @@ SUB = "run-" + "external"  # built by concatenation: the real guard matches this
 
 
 def run_external_running():
-    return subprocess.run(["pgrep", "-f", SUB], capture_output=True).returncode == 0
+    return subprocess.run(["pgrep", "-f", "chipzen-sdk " + SUB], capture_output=True).returncode == 0
 
 
 def tool(out, *args):
@@ -166,6 +166,9 @@ class SleepProc:
 
 
 def test_bare_subcommand_text_does_not_block():
+    if run_external_running():
+        print("  (skipped: a real " + SUB + " process is running)")
+        return
     with tempfile.TemporaryDirectory() as d, SleepProc(SUB):
         out, (log,) = setup(d, a=BODY)
         rc, txt = tool(out, "--interrupted", log)
