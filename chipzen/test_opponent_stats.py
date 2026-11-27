@@ -515,6 +515,41 @@ def test_stats_disabled_flag_logs_nothing():
         botmod.STATS_ENABLED = old
 
 
+def _live_start(b, seats):
+    mi = {"game_config": {"small_blind": 50, "big_blind": 100, "ante": 0, "starting_stack": 10000}}
+    if seats is not None:
+        mi["seats"] = seats
+    b.on_match_start(mi)
+
+
+# seat 0 (the opponent) posts the small blind and folds; we are seat 1 (big blind). Hand-derived:
+# first_in@deep (100 bb at the start) fold = 1, nothing else.
+_FOLD_HAND = [H(0, "post_small_blind", SB), H(1, "post_big_blind", BB), H(0, "fold")]
+
+
+def test_live_seat_path_from_is_self_without_my_seat_or_decide():
+    import bot as botmod
+    b = botmod.PokerCppBot()
+    _live_start(b, [{"seat": 0, "is_self": False}, {"seat": 1, "is_self": True}])
+    with capture() as cap:
+        b.on_round_result(_result(1, _FOLD_HAND))        # my_seat never set, no decide call
+        b.on_match_end({})
+    hands, errors, keys = _last_stats(cap.lines)
+    assert (hands, errors) == (1, 0), cap.lines
+    assert keys == {"first_in@deep": [1, 0, 0, 0, 0]}, cap.lines
+
+
+def test_live_seat_unknown_counts_an_error_and_no_stats():
+    import bot as botmod
+    b = botmod.PokerCppBot()
+    _live_start(b, None)
+    with capture() as cap:
+        b.on_round_result(_result(1, _FOLD_HAND))
+        b.on_match_end({})
+    hands, errors, keys = _last_stats(cap.lines)
+    assert errors == 1 and keys == {}, cap.lines
+
+
 # ---------- 3 and 4. the round-end path and the no-play-change spy, in bench ----------
 
 def _bench():
