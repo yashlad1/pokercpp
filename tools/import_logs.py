@@ -10,7 +10,7 @@ UUID (bot, match, round and request ids) and the home-directory path.
 
 --out DIR writes to DIR instead of results/live-logs/. --interrupted also imports
 a log with no "session ended" line (a killed session), but only when no
-run-external process is running; otherwise it refuses and writes nothing.
+chipzen-sdk run-external process is running; otherwise it refuses and writes nothing.
 """
 import argparse
 import pathlib
@@ -34,7 +34,8 @@ def main(paths, out=OUT, interrupted=False):
     if not paths:
         base = pathlib.Path.home() / "chipzen-run"
         paths = sorted(base.glob("*.log")) + sorted((base / "logs").glob("*.log"))
-    # Ceiling: an SDK started from a path not named chipzen-sdk (via CHIPZEN_SDK) is not detected.
+    # Ceiling: an SDK started from a path not named chipzen-sdk is not detected: via CHIPZEN_SDK, or via
+    # the venv's second console script, chipzen, which runs the same entry point (the likelier case).
     if interrupted and subprocess.run(["pgrep", "-f", "chipzen-sdk run-external"], capture_output=True).returncode != 1:
         sys.exit("refusing: a run-external process is running, its log may still be growing")
     out.mkdir(parents=True, exist_ok=True)
