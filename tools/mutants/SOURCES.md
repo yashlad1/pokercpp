@@ -49,13 +49,13 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - CN4 / call_narrow: MEASURED. this run (#84, run.py --only CN1..CN5)
 - I1 / import_logs: MEASURED. full run.py (the running-process check is off, so the refuse-while-running and whole-call-refusal tests fail); no other test kills it
 - I2 / import_logs: MEASURED. full run.py (the stamp is the first 19 characters again, so the warning-first-line and absolute-path tests fail); no other test kills it
-- ST1 / opponent_stats: MEASURED (S/i158 mut.log full kill set: call_narrow, opponent_stats, parity, sdk, v4, villain_raises). every hand-built case reads the wrong seat as the opponent; also villain_raises, since bot.py counts through parse_actions
-- ST1 / villain_raises: MEASURED (S/i158 mut.log full kill set: call_narrow, opponent_stats, parity, sdk, v4, villain_raises). test_villain_raises.py counts the opponent's raises from seat 0 and seat 1
-- ST2 / opponent_stats: MEASURED (S/i158 mut.log full kill set: opponent_stats). the bench round-end-path tests and the oracle lose every fold-after-our-last-bet (vs_bet)
-- ST3 / opponent_stats: MEASURED (S/i158 mut.log full kill set: opponent_stats). the shove cases of first_in, vs_open and the live-log oracle expect shove, not raise
-- ST4 / opponent_stats: MEASURED (S/i158 mut.log full kill set: call_narrow, opponent_stats, parity, villain_raises). a blind read as a raise makes the opponent's blind the first action
-- ST4 / villain_raises: MEASURED (S/i158 mut.log full kill set: call_narrow, opponent_stats, parity, villain_raises). the opponent's blind post would count as a raise in test_villain_raises.py
-- ST5 / opponent_stats: PREDICTED. test_live_seat_path_from_is_self_without_my_seat_or_decide: with the is_self test inverted the live seat is the other one, so the counts flip
+- ST1 / opponent_stats: MEASURED (mutant run on 88d10f5, 27 Nov, full kill set: call_narrow, opponent_stats, parity, sdk, v4, villain_raises). every hand-built case reads the wrong seat as the opponent; also villain_raises, since bot.py counts through parse_actions
+- ST1 / villain_raises: MEASURED (mutant run on 88d10f5, 27 Nov, full kill set: call_narrow, opponent_stats, parity, sdk, v4, villain_raises). test_villain_raises.py counts the opponent's raises from seat 0 and seat 1
+- ST2 / opponent_stats: MEASURED (mutant run on 88d10f5, 27 Nov, full kill set: opponent_stats). the bench round-end-path tests and the oracle lose every fold-after-our-last-bet (vs_bet)
+- ST3 / opponent_stats: MEASURED (mutant run on 88d10f5, 27 Nov, full kill set: opponent_stats). the shove cases of first_in, vs_open and the live-log oracle expect shove, not raise
+- ST4 / opponent_stats: MEASURED (mutant run on 88d10f5, 27 Nov, full kill set: call_narrow, opponent_stats, parity, villain_raises). a blind read as a raise makes the opponent's blind the first action
+- ST4 / villain_raises: MEASURED (mutant run on 88d10f5, 27 Nov, full kill set: call_narrow, opponent_stats, parity, villain_raises). the opponent's blind post would count as a raise in test_villain_raises.py
+- ST5 / opponent_stats: MEASURED (mutant run on 88d10f5, 27 Nov, full kill set: opponent_stats). test_live_seat_path_from_is_self_without_my_seat_or_decide: with the is_self test inverted the live seat is the other one, so the counts flip
 
 ## Out of scope
 - Metal bias mutants: +0.03 equity and +0.002 equity in the Metal path (A5, PR #96). They need Metal builds.
