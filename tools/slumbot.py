@@ -16,6 +16,9 @@ A failed request is retried at most twice (1 s, 2 s backoff), then the run stops
 cleanly and keeps the hands already played. A server-rejected action stops the
 run too (it is counted and reported, never retried).
 
+Also runs in GitHub Actions (.github/workflows/slumbot.yml: twice a day plus on demand,
+logs kept as artifacts only).
+
 Usage:
     PYTHONPATH=chipzen python tools/slumbot.py --hands 500 --hero engine --log out.jsonl
 """

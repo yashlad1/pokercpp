@@ -68,3 +68,4 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - BI2 / logging: MEASURED (as predicted). only b2 compares build_info git_sha with git HEAD; T7, s1 and b3 take the expectation from build_info, so v4 should not kill it
 - PM1 / play_match: MEASURED. full run.py (each SDK run plays all the matches again, so the one-match-per-run and stop-on-failure tests fail); no other test kills it
 - D2 / logging: MEASURED on #179 (b1 asserts build_info preflop_realization == 0.85)
+- SR1 / slumbot_report: PREDICTED. test_calibration_buckets: the 0.7-0.8 bucket holds one split (0 chips) and must show 0 wins

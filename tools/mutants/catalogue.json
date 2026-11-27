@@ -436,5 +436,16 @@
    "opponent_stats"
   ],
   "why_survives": ""
+ },
+ {
+  "id": "SR1",
+  "file": "tools/slumbot_report.py",
+  "find": "{sum(h['winnings'] > 0 for h in x)} wins",
+  "replace": "{sum(h['winnings'] >= 0 for h in x)} wins",
+  "what": "a split counted as a win in the showdown calibration",
+  "expect": [
+   "slumbot_report"
+  ],
+  "why_survives": ""
  }
 ]
