@@ -23,6 +23,11 @@ fi
 SRC="chipzen/pokercpp_engine.cpp montecarlo/MonteCarloSimulator.cpp model/advanced_hand_evaluator.cpp model/card.cpp"
 EXTRA=
 [ -n "$METAL" ] && { EXTRA="-DUSE_METAL -fobjc-arc"; SRC="$SRC montecarlo/metal/MetalEquity.mm"; EXTRA="$EXTRA -framework Metal -framework Foundation"; }
+SHA=$(git rev-parse --short HEAD 2>/dev/null || true)
+if [ -n "$SHA" ]; then
+  git diff --quiet HEAD -- chipzen/ montecarlo/ model/ || SHA="$SHA-dirty"
+  EXTRA="$EXTRA -DPOKERCPP_GIT_SHA=\"$SHA\""
+fi
 EXT=$("$PY" -c 'import sysconfig;print(sysconfig.get_config_var("EXT_SUFFIX"))')
 clang++ $FLAGS -shared -fPIC -undefined dynamic_lookup $("$PY" -m pybind11 --includes) $EXTRA $SRC -o "chipzen/pokercpp_engine$EXT"
 echo "built chipzen/pokercpp_engine$EXT ($MODE)"

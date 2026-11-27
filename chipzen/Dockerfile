@@ -16,9 +16,12 @@ COPY model/ ./model/
 COPY montecarlo/ ./montecarlo/
 COPY chipzen/decide.h chipzen/pokercpp_engine.cpp ./chipzen/
 
+ARG GIT_SHA=unknown
+
 # libstdc++ is linked statically: the runtime stage installs no compiler, so
 # the shared one is not there to find.
 RUN g++ -std=c++17 -O2 -shared -fPIC \
+        -DPOKERCPP_GIT_SHA=\"$GIT_SHA\" \
         -static-libstdc++ -static-libgcc \
         $(python -m pybind11 --includes) \
         chipzen/pokercpp_engine.cpp \

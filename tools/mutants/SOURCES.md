@@ -56,4 +56,8 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 ## Notes
 - parity for M2/M7 is from the review table's P0/P3 columns, not re-measured on today's tools/test_parity.py.
 - E2 is the one-edit form (SF code 8 lowered to 5), because the runner takes a single find/replace.
+- BI1 / logging: MEASURED (as predicted). test_logging b3 and s1 compare the full line with engine=; b4 omits it
+- BI1 / v4: MEASURED (as predicted). test_v4 T7 builds the full line from bot.VERSION and build_info
+- BI2 / logging: MEASURED (as predicted). only b2 compares build_info git_sha with git HEAD; T7, s1 and b3 take the expectation from build_info, so v4 should not kill it
 - PM1 / play_match: MEASURED. full run.py (each SDK run plays all the matches again, so the one-match-per-run and stop-on-failure tests fail); no other test kills it
+- D2 / logging: MEASURED on #179 (b1 asserts build_info preflop_realization == 0.85)

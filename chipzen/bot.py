@@ -27,7 +27,7 @@ from opponent import Opponent
 
 logger = logging.getLogger("pokercpp")
 
-VERSION = "4.0.1"
+VERSION = "4.1.0"
 STATE_LOG_LIMIT = 50
 
 # 5000 trials: 95% interval near +/-1.4%, ~12 ms of a 2000 ms ranked budget.
@@ -35,6 +35,18 @@ try:
     SIMS = int(os.environ.get("POKERCPP_SIMS", "5000"))
 except ValueError:
     SIMS = 5000
+
+
+def _log_build() -> None:
+    """One match-start line: version, image commit and the engine's own build stamp."""
+    line = "pokercpp v%s commit=%s" % (VERSION, os.environ.get("POKERCPP_COMMIT", "unknown"))
+    try:
+        bi = pokercpp_engine.build_info()
+        line = "%s engine=%s preflop=%s call_narrow=%s" % (
+            line, bi["git_sha"], bi["preflop_realization"], bi["call_narrow"])
+    except Exception:  # stale .so without build_info
+        line += " engine=missing"
+    logger.info(line)
 
 
 def _hist(state: GameState) -> str:
@@ -115,7 +127,7 @@ class PokerCppBot(Bot):
         self._state_logs = 0
         self._round_seen, self._round_seq = False, 0
         try:
-            logger.info("pokercpp v%s commit=%s", VERSION, os.environ.get("POKERCPP_COMMIT", "unknown"))
+            _log_build()
             seats = (match_info or {}).get("seats") or []
             logger.info(
                 "match_start seats=%s",
@@ -315,7 +327,7 @@ async def _amain() -> None:
         level=os.environ.get("POKERCPP_LOG_LEVEL", "INFO").upper(),
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
-    logger.info("pokercpp v%s commit=%s", VERSION, os.environ.get("POKERCPP_COMMIT", "unknown"))
+    _log_build()
     ws_url = os.environ.get("CHIPZEN_WS_URL") or os.environ.get("CHIPZEN_URL", "")
     if not ws_url:
         logger.error("CHIPZEN_WS_URL is required")
