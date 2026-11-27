@@ -238,15 +238,15 @@ Three matches in one log file, all stamped v4.0.1 472d572, the current main. The
 
 ### Summary
 
-| match | opponent | result | hands | decisions |
+| match | opponent | result | hands (won-lost-split) | decisions |
 |---|---|---|---|---|
-| 12 | opp-T | lost (busted on hand 44) | 44 | 143 |
-| 13 | opp-U | won (opponent busted on hand 68) | 68 | 139 |
-| 14 | opp-H | ended early: the opponent timed out; result not in the log | 11 | 13 |
+| 12 | opp-T | lost (busted on hand 44) | 44 (19-24-1) | 143 |
+| 13 | opp-U | won (opponent busted on hand 68) | 68 (49-18-1) | 139 |
+| 14 | opp-H | ended early: the opponent timed out; result not in the log | 11 (11-0-0) | 13 |
 
 Match 14 has no result line. At the last hand the stacks were 10,850 (us) to 9,150, but the match did not finish, so it is not counted as a win. It is the same opponent as match 9, which also ended on timeouts.
 
-**Day total at 0.85: 13 matches (sessions 1 to 4), 6 won, 5 lost, 2 unresolved, 418 hands (295 before session 4, 123 in it); too small to compare against 0.75.**
+**Day total at 0.85 after session 4: 13 matches (sessions 1 to 4), 6 won, 5 lost, 2 unresolved, 418 hands (295 before session 4, 123 in it); too small to compare against 0.75.**
 
 ### Wire facts
 
@@ -295,6 +295,68 @@ The same four caveats as in session 3 apply (partly by construction; the range m
 | 14 opp-H | 0 | 0 | 0 | 0 | none faced | 6 | 0 / 3 (50%) / 3 (50%) |
 
 Across all logs the bot folded the small blind 1 time in 472 hands.
+
+## Session 5 (22:25 ET, commit 472d572, 0.85 from main)
+
+Three matches in one log file, all stamped v4.0.1 472d572, ending with "session ended (3 matches played)". Hands are won-lost-split by the round winners list.
+
+### Summary
+
+| match | opponent | result | hands (won-lost-split) | decisions |
+|---|---|---|---|---|
+| 15 | opp-V | won (opponent busted on hand 61) | 61 (36-24-1) | 185 |
+| 16 | opp-W | lost (busted on hand 125) | 125 (61-63-1) | 326 |
+| 17 | opp-X | won (opponent busted on hand 3) | 3 (2-1-0) | 9 |
+
+**Day total at 0.85 after session 5: 16 matches (sessions 1 to 5), 8 won, 6 lost, 2 unresolved, 607 hands (418 before session 5, 189 in it); too small to compare against 0.75.**
+
+### Wire facts
+
+- **Engine health: 0 `ENGINE FAILED` lines, 0 tracebacks, 0 fallback lines.**
+- 0 illegal actions, 0 error-like lines, and no timeout entries in any of the three matches.
+- Preflop realized/equity on decisions facing a bet: 0.85 in all 151 of 151 (36, 112, 3 per match). No all-in-ends-betting case occurred.
+
+### Opponent profiles (n shown)
+
+| situation | opp-V | opp-W | opp-X |
+|---|---|---|---|
+| first_in (opponent is SB) | n=30: fold 4, limp 24, raise 2 | n=62: fold 12, limp 18, raise 32 | n=1: raise 1 |
+| vs_open | n=13: fold 4, call 7, raise 2 | n=29: fold 5, call 21, raise 3 | n=1: call 1 |
+| cbet | n=1: check 1 | n=17: check 17 | n=0 |
+| checked_to | n=34: check 31, bet 3 | n=53: check 40, bet 13 | n=0 |
+| vs_bet flop | n=22: fold 11, call 11 | n=25: fold 11, call 14 | n=1: fold 1 |
+| vs_bet turn | n=13: fold 2, call 11 | n=19: fold 10, call 9 | n=0 |
+| vs_bet river | n=13: call 12, raise 1 | n=16: fold 8, call 7, raise 1 | n=1: raise 1 |
+
+All samples are small. opp-V limps 24 of 30 as small blind and checks 31 of 34 when checked to; opp-W raises 32 of 62 first-in but checked all 17 times it was the last preflop aggressor and acted first on the flop.
+
+### The biggest losses
+
+- **Match 16 hand 125 (-9,535, match over).** We held 2sQd on 8h Jc 7s Qh (pair of queens); they held 7c3h (percentile 91%, inside the 1.00 range). Preflop call, flop raise to 1,056 at equity 0.298 (the below-0.30 bluff branch), turn all-in at equity 0.781. They called with a pair of sevens and the hand was lost on the river.
+- **Match 16 hand 23 (-8,385).** JdJh on Ah 5c 6d Ts 4d; they held 2dAd, a pair of aces. We raised three streets and the river (2,663, equity 0.737), they re-raised to 6,367 and we called 3,704 at range 0.69, equity 0.709, required 0.221. Inside the range (percentile 24%).
+- **Match 16 hand 111 (-6,264).** 9cKd on 4h 4s Qc 7s 8h, they held QhAh (two pair). We called a 3-bet, checked flop and turn, and raised the river to 3,564 at equity 0.282 (bluff branch). They called.
+- **Match 15 hand 55 (-4,551, our largest loss in a won match).** 9h9d on 4h 6c 2c 5h; they held KhKc (percentile 1%). Preflop call of their 3-bet at range 0.32, equity 0.609; flop raise 1,749 (range 0.45, equity 0.712); turn raise to 4,057 (equity 0.679) and a call.
+- Match 16 hands 64 (-4,315, KdTc flush lost to a higher flush, QcKs) and 102 (-4,182, 8hKh against Kc4c two pair).
+
+### Range coverage at showdown, updated
+
+| group | lost, inside (chips) | lost, outside (chips) | split | won, inside (chips) | won, outside (chips) |
+|---|---|---|---|---|---|
+| session 5 (n=66) | 32 (-56,525) | 1 (-3,229) | 2 | 24 (+34,404) | 7 (+20,936) |
+| 0.85 pooled, matches 2 to 17 (n=164) | 68 (-82,382) | 14 (-62,425) | 8 | 53 (+85,995) | 21 (+49,111) |
+| all logs (n=208) | 78 (-97,062) | 21 (-72,635) | 11 | 72 (+131,885) | 26 (+56,324) |
+
+The same four caveats as in session 3 apply (partly by construction; the range misses about 23% of shown hands across all logs, 21 of 99 lost and 26 of 98 won; the chip gap is confounded; only showdown hands count). In session 5 only 1 of 33 lost showdowns was outside the range (hand 72, 2c3s, -3,229), a much lower miss rate than in sessions 3 and 4. Its big losses are mostly inside the credited range (hands 125, 23, 111, 55, 64, 102): the opponent hands were credited, and the bot lost anyway, at equities of 0.28 to 0.78.
+
+### Our response to the opponent's flop c-bet, and small blind first action
+
+| match | c-bet n | fold | call | raise | fold facing any flop bet | SB hands | SB fold / limp / raise |
+|---|---|---|---|---|---|---|---|
+| 15 opp-V | 0 | 0 | 0 | 0 | none counted | 31 | 0 / 18 (58%) / 13 (42%) |
+| 16 opp-W | 0 | 0 | 0 | 0 | 7 of 15 (47%) | 63 | 0 / 33 (52%) / 30 (48%) |
+| 17 opp-X | 0 | 0 | 0 | 0 | 1 of 2 (50%) | 2 | 0 / 1 (50%) / 1 (50%) |
+
+Across all logs the bot folded the small blind 1 time in 568 hands.
 
 ## Chipzen table, about 22:40 ET
 
