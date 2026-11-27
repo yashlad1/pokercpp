@@ -164,7 +164,7 @@ def logged_decisions():
 
 
 def no_log(name):
-    if os.path.exists(LOG):
+    if os.path.isdir(os.path.dirname(LOG)):
         return False
     print("SKIP", name, "- results/live-logs not present (e.g. inside the Docker image)")
     return True
