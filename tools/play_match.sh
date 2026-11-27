@@ -27,7 +27,7 @@ mkdir -p "$LOGDIR"
 # the repo's chipzen/ folder instead of the SDK.
 cd "$CONF" || exit 1
 log=
-trap 'python3 "$REPO/tools/import_logs.py" --interrupted "$log"; exit 130' INT
+trap '[ -n "$log" ] && python3 "$REPO/tools/import_logs.py" --interrupted "$log"; exit 130' INT
 CAF=""
 command -v caffeinate >/dev/null 2>&1 && CAF="caffeinate -i"
 for ((i = 1; i <= MATCHES; i++)); do

@@ -34,7 +34,8 @@ def main(paths, out=OUT, interrupted=False):
     if not paths:
         base = pathlib.Path.home() / "chipzen-run"
         paths = sorted(base.glob("*.log")) + sorted((base / "logs").glob("*.log"))
-    if interrupted and subprocess.run(["pgrep", "-f", "run-external"], capture_output=True).returncode != 1:
+    # Ceiling: an SDK started from a path not named chipzen-sdk (via CHIPZEN_SDK) is not detected.
+    if interrupted and subprocess.run(["pgrep", "-f", "chipzen-sdk run-external"], capture_output=True).returncode != 1:
         sys.exit("refusing: a run-external process is running, its log may still be growing")
     out.mkdir(parents=True, exist_ok=True)
     for p in map(pathlib.Path, paths):
