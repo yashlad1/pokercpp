@@ -38,15 +38,15 @@ except ValueError:
 
 
 def _log_build() -> None:
-    """Match-start lines: the long-standing version+commit line, then the engine's build stamp."""
+    """One match-start line: version, image commit and the engine's own build stamp."""
     line = "pokercpp v%s commit=%s" % (VERSION, os.environ.get("POKERCPP_COMMIT", "unknown"))
-    logger.info(line)
     try:
         bi = pokercpp_engine.build_info()
-        logger.info("%s engine=%s preflop=%s call_narrow=%s",
-                    line, bi["git_sha"], bi["preflop_realization"], bi["call_narrow"])
+        line = "%s engine=%s preflop=%s call_narrow=%s" % (
+            line, bi["git_sha"], bi["preflop_realization"], bi["call_narrow"])
     except Exception:  # stale .so without build_info
-        logger.info("%s engine=missing", line)
+        line += " engine=missing"
+    logger.info(line)
 
 
 def _hist(state: GameState) -> str:
