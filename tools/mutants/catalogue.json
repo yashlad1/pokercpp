@@ -335,6 +335,17 @@
   "why_survives": ""
  },
  {
+  "id": "PM1",
+  "file": "tools/play_match.sh",
+  "find": "    --max-matches 1 --log-level INFO 2>&1 | tee \"$log\"",
+  "replace": "    --max-matches \"$MATCHES\" --log-level INFO 2>&1 | tee \"$log\"",
+  "what": "each SDK run plays all the matches again, not one",
+  "expect": [
+   "play_match"
+  ],
+  "why_survives": ""
+ },
+ {
   "id": "BI1",
   "file": "chipzen/bot.py",
   "find": "line = \"%s engine=%s preflop=%s call_narrow=%s\" % (\n            line, bi[\"git_sha\"], bi[\"preflop_realization\"]",
