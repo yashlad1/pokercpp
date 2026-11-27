@@ -128,7 +128,11 @@ def t7():
     p = subprocess.run([sys.executable, bot.__file__], env=env, capture_output=True,
                        text=True, timeout=60)
     out = p.stdout + p.stderr
-    report("T7", p.returncode == 2 and "pokercpp v4.0.1 commit=abc1234" in out,
+    import pokercpp_engine
+    bi = pokercpp_engine.build_info()
+    want = "pokercpp v%s commit=abc1234 engine=%s preflop=%s call_narrow=%s" % (
+        bot.VERSION, bi["git_sha"], bi["preflop_realization"], bi["call_narrow"])
+    report("T7", p.returncode == 2 and want in out,
            f"rc={p.returncode} out={out[-300:]!r}")
 
 def t8():

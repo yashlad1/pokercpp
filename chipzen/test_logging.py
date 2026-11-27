@@ -65,19 +65,27 @@ def round_json():
     assert len(ls) == 1, ls
     return json.loads(ls[0][len("ROUND "):])
 
+def build_line(commit):
+    import pokercpp_engine
+    bi = pokercpp_engine.build_info()
+    return "pokercpp v%s commit=%s engine=%s preflop=%s call_narrow=%s" % (
+        bot.VERSION, commit, bi["git_sha"], bi["preflop_realization"], bi["call_narrow"])
+
 def s1_version_line():
     b = bot.PokerCppBot(); n = len(records)
     b.on_match_start({})
-    want = "pokercpp v%s commit=abc1234" % bot.VERSION
+    want = build_line("abc1234")
     report("spec1 version+commit line", want in msgs(n), msgs(n))
+    report("spec1 exactly one pokercpp line", [m for m in msgs(n) if m.startswith("pokercpp v")] == [want], msgs(n))
     report("spec1 match_start line kept", any(m.startswith("match_start seats=") for m in msgs(n)), msgs(n))
 
 def s1_default_unknown():
     os.environ.pop("POKERCPP_COMMIT")
     try:
         n = len(records); bot.PokerCppBot().on_match_start({})
-        want = "pokercpp v%s commit=unknown" % bot.VERSION
+        want = build_line("unknown")
         report("spec1 commit defaults to unknown", want in msgs(n), msgs(n))
+        report("spec1d exactly one pokercpp line", [m for m in msgs(n) if m.startswith("pokercpp v")] == [want], msgs(n))
     finally:
         os.environ["POKERCPP_COMMIT"] = "abc1234"
 
