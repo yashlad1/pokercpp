@@ -70,3 +70,5 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - D2 / logging: MEASURED on #179 (b1 asserts build_info preflop_realization == 0.85)
 - SR1 / slumbot_report: PREDICTED. test_calibration_buckets: the 0.7-0.8 bucket holds one split (0 chips) and must show 0 wins
 - SE1 / slumbot_exit: PREDICTED. test_unreachable_server_exits_nonzero: every request fails, the session stops early, and the exit code must not be 0
+- G1 / import_logs: PREDICTED. test_bare_subcommand_text_does_not_block (the bare pattern matches the dummy process and refuses)
+- G2 / play_match: PREDICTED. test_trap_empty_log_skips_import (the trap imports with an empty log)

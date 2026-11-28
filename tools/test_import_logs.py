@@ -15,9 +15,11 @@ BODY = f"2026-11-26 12:34:56 token cz_extbot_AbC123xyz id {UUID} path {HOME}/chi
 ENDED = BODY + "2026-11-26 12:40:00 session ended\n"
 EXPECT_NAME = "2026-11-26_123456-{}.log"
 
+SUB = "run-" + "external"  # built by concatenation: the real guard matches this text
+
 
 def run_external_running():
-    return subprocess.run(["pgrep", "-f", "run-external"], capture_output=True).returncode == 0
+    return subprocess.run(["pgrep", "-f", "chipzen-sdk " + SUB], capture_output=True).returncode == 0
 
 
 def tool(out, *args):
@@ -32,7 +34,7 @@ def written(out):
 
 class Dummy:
     def __enter__(self):
-        self.p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "run-external"])
+        self.p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "chipzen-sdk", SUB])
         return self
 
     def __exit__(self, *a):
@@ -59,18 +61,9 @@ def test_skip_without_flag():
         assert written(out) == []
 
 
-def test_refuse_when_running():
-    with tempfile.TemporaryDirectory() as d, Dummy():
-        out, (log,) = setup(d, a=BODY)
-        rc, txt = tool(out, "--interrupted", log)
-        assert rc != 0, txt
-        assert any(l.startswith("refusing:") for l in txt.splitlines()), txt
-        assert written(out) == []
-
-
 def test_import_interrupted():
     if run_external_running():
-        print("  (skipped: a real run-external process is running)")
+        print("  (skipped: a real " + SUB + " process is running)")
         return
     with tempfile.TemporaryDirectory() as d:
         out, (log,) = setup(d, a=BODY)
@@ -154,6 +147,56 @@ def test_normal_log_name_unchanged():
         rc, txt = tool(out, log)
         assert rc == 0, txt
         assert written(out) == ["2026-11-26_215025-a.log"], written(out)
+
+
+class SleepProc:
+    """A short-lived dummy whose command line holds the given words."""
+
+    def __init__(self, *words):
+        self.words = words
+
+    def __enter__(self):
+        self.p = subprocess.Popen(["sh", "-c", "sleep 60; true", *self.words])
+        time.sleep(0.3)
+        return self
+
+    def __exit__(self, *a):
+        self.p.kill()
+        self.p.wait()
+
+
+def test_bare_subcommand_text_does_not_block():
+    if run_external_running():
+        print("  (skipped: a real " + SUB + " process is running)")
+        return
+    with tempfile.TemporaryDirectory() as d, SleepProc(SUB):
+        out, (log,) = setup(d, a=BODY)
+        rc, txt = tool(out, "--interrupted", log)
+        assert rc == 0, txt
+        assert written(out) == [EXPECT_NAME.format("a")], written(out)
+
+
+def test_sdk_command_line_blocks():
+    with tempfile.TemporaryDirectory() as d, SleepProc("/x/bin/chipzen-sdk", SUB, "bot.py"):
+        out, (log,) = setup(d, a=BODY)
+        rc, txt = tool(out, "--interrupted", log)
+        assert rc != 0, txt
+        assert any(l.startswith("refusing:") for l in txt.splitlines()), txt
+        assert written(out) == []
+
+
+def test_pgrep_error_fails_closed():
+    with tempfile.TemporaryDirectory() as d:
+        bindir = pathlib.Path(d) / "bin"
+        bindir.mkdir()
+        (bindir / "pgrep").write_text("#!/bin/sh\nexit 2\n")
+        (bindir / "pgrep").chmod(0o755)
+        out, (log,) = setup(d, a=BODY)
+        r = subprocess.run([sys.executable, str(TOOL), "--out", str(out), "--interrupted", log],
+                           capture_output=True, text=True,
+                           env=dict(os.environ, PATH=f"{bindir}:{os.environ['PATH']}"))
+        assert r.returncode != 0, r.stdout + r.stderr
+        assert written(out) == []
 
 
 if __name__ == "__main__":

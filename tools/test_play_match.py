@@ -116,6 +116,55 @@ def test_rejects_bad_count():
         assert not calls and not logs, (bad, calls, logs)
 
 
+def test_trap_empty_log_skips_import():
+    """Ctrl-C before the first match starts: $log is empty, so no import call; still exit 130."""
+    import signal
+    import time
+    with tempfile.TemporaryDirectory() as t:
+        t = pathlib.Path(t)
+        repo = t / "repo"
+        (repo / "tools").mkdir(parents=True)
+        (repo / "chipzen").mkdir()
+        (repo / ".chipzen").mkdir()
+        (repo / ".gitignore").write_text(".chipzen/\n")
+        (repo / ".chipzen" / "chipzen.toml").write_text("placeholder\n")
+        shutil.copy(TOOLS / "play_match.sh", repo / "tools" / "play_match.sh")
+        marker = t / "imports"
+        (repo / "tools" / "import_logs.py").write_text(
+            f"import sys\nopen({str(marker)!r}, 'a').write(' '.join(sys.argv[1:]) + '\\n')\n")
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        sdk = t / "sdk" / "stub"
+        sdk.parent.mkdir()
+        sdk.write_text("#!/bin/bash\nexit 0\n")
+        sdk.chmod(0o755)
+        # fake git: the first rev-parse (inside the loop, before $log is set) hangs; the rest is real git
+        fake = t / "bin"
+        fake.mkdir()
+        (fake / "git").write_text(
+            '#!/bin/bash\nif [ "$1" = -C ] && [ "$3" = rev-parse ]; then touch "$HANG"; sleep 30; fi\n'
+            f'exec {shutil.which("git")} "$@"\n')
+        (fake / "git").chmod(0o755)
+        hang = t / "hang"
+        env = dict(os.environ, CHIPZEN_SDK=str(sdk), CHIPZEN_LOG_DIR=str(t / "logs"), HANG=str(hang),
+                   PATH=f"{fake}:{os.environ['PATH']}")
+        p = subprocess.Popen(["bash", str(repo / "tools" / "play_match.sh"), "1"], env=env,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
+                             preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
+        for _ in range(100):
+            if hang.exists():
+                break
+            time.sleep(0.1)
+        assert hang.exists(), "script never reached the loop"
+        os.killpg(p.pid, signal.SIGINT)
+        try:
+            rc = p.wait(timeout=20)
+        finally:
+            if p.poll() is None:
+                p.kill()
+        assert rc == 130, rc
+        assert not marker.exists(), marker.read_text()
+
+
 if __name__ == "__main__":
     if not (shutil.which("git") and shutil.which("bash")):
         print("skip: git or bash missing")
