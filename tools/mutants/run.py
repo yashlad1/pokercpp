@@ -46,6 +46,8 @@ TESTS = {
     "paired": (["{py}", "tools/test_paired.py"], {}, 600),
     "bench_coerced": (["{py}", "tools/test_bench_coerced.py"], {"PYTHONPATH": "chipzen"}, 600),
     "opponent": (["{py}", "chipzen/test_opponent.py"], {"PYTHONPATH": "chipzen"}, 600),
+    "slumbot_exit": (["{py}", "tools/test_slumbot_exit.py"], {"PYTHONPATH": "chipzen"}, 300),
+    "slumbot_report": (["{py}", "tools/test_slumbot_report.py"], {}, 300),
     "opponent_stats": (["{py}", "chipzen/test_opponent_stats.py"], {"PYTHONPATH": "chipzen"}, 900),
     "decide_constants": (["{py}", "chipzen/test_decide_constants.py"], {"PYTHONPATH": "chipzen"}, 600),
     "villain_raises": (["{py}", "chipzen/test_villain_raises.py"], {"PYTHONPATH": "chipzen"}, 600),
