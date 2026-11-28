@@ -491,5 +491,16 @@
    "slumbot_luck"
   ],
   "why_survives": ""
+ },
+ {
+  "id": "LK2",
+  "file": "tools/slumbot_luck.py",
+  "find": "replay(\"/\".join(parts[:s]))[\"total\"]",
+  "replace": "replay(\"/\".join(parts[:s + 1]))[\"total\"]",
+  "what": "the street correction weights by the pot after the street's betting, not before the deal",
+  "expect": [
+   "slumbot_luck"
+  ],
+  "why_survives": ""
  }
 ]

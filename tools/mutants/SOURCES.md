@@ -72,4 +72,5 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - SE1 / slumbot_exit: PREDICTED. test_unreachable_server_exits_nonzero: every request fails, the session stops early, and the exit code must not be 0
 - G1 / import_logs: PREDICTED. test_bare_subcommand_text_does_not_block (the bare pattern matches the dummy process and refuses)
 - LK1 / slumbot_luck: PREDICTED. test_split_counts_half: the split hand needs the tie counted half (eq 23/44, adjusted +909.09, not -15454.5)
+- LK2 / slumbot_luck: PREDICTED. test_river_showdown_no_all_in_several_streets: the corrections weight by the pot at the deal (400, 1000, 2200), so the pot after the street's betting gives a different street_chips
 - G2 / play_match: PREDICTED. test_trap_empty_log_skips_import (the trap imports with an empty log)
