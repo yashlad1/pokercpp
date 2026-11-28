@@ -447,5 +447,16 @@
    "slumbot_report"
   ],
   "why_survives": ""
+ },
+ {
+  "id": "SE1",
+  "file": "tools/slumbot.py",
+  "find": "sys.exit(1 if stop or mismatch else 0)",
+  "replace": "sys.exit(0)",
+  "what": "a stopped or mismatched session exits 0 again",
+  "expect": [
+   "slumbot_exit"
+  ],
+  "why_survives": ""
  }
 ]

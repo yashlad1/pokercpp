@@ -148,6 +148,9 @@ jobs:
       - name: Test the pushfold bench opponent
         run: PYTHONPATH=chipzen python tools/test_bench_pushfold.py
 
+      - name: Test the Slumbot exit code
+        run: PYTHONPATH=chipzen python tools/test_slumbot_exit.py
+
       - name: Test the Slumbot report
         run: python tools/test_slumbot_report.py
 

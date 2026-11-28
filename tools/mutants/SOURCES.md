@@ -69,3 +69,4 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - PM1 / play_match: MEASURED. full run.py (each SDK run plays all the matches again, so the one-match-per-run and stop-on-failure tests fail); no other test kills it
 - D2 / logging: MEASURED on #179 (b1 asserts build_info preflop_realization == 0.85)
 - SR1 / slumbot_report: PREDICTED. test_calibration_buckets: the 0.7-0.8 bucket holds one split (0 chips) and must show 0 wins
+- SE1 / slumbot_exit: PREDICTED. test_unreachable_server_exits_nonzero: every request fails, the session stops early, and the exit code must not be 0

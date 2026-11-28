@@ -47,7 +47,14 @@ jobs:
 
       - name: Summary
         if: always()
-        run: head -n 12 out/report.txt >> "$GITHUB_STEP_SUMMARY" || true
+        run: |
+          {
+            echo '```'
+            grep -h '^hands played' out/run.txt || true
+            grep -h '^rejected actions' out/run.txt || true
+            head -n 12 out/report.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
 
       - uses: actions/upload-artifact@v4
         if: always()

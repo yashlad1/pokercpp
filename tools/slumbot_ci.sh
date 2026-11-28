@@ -19,5 +19,10 @@ print(info)
 sha = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
 sys.exit(f"engine sha {info['git_sha']} != checkout {sha}") if info["git_sha"] != sha else None
 P
+# the session's exit code decides the run; the report is written either way
+set +e
 "$PY" tools/slumbot.py --hero bot --hands "$HANDS" --sims "$SIMS" --seed "$SEED" --log "$OUT/slumbot.jsonl" | tee "$OUT/run.txt"
+rc=${PIPESTATUS[0]}
+set -e
 "$PY" tools/slumbot_report.py "$OUT/slumbot.jsonl" > "$OUT/report.txt"
+exit $rc
