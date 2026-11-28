@@ -1,6 +1,6 @@
 """Summarise tools/slumbot.py hand logs (JSONL, one hand per line).
 
-Usage: python report.py LOG.jsonl [LOG2.jsonl ...]
+Usage: python tools/slumbot_report.py LOG.jsonl [LOG2.jsonl ...]
 Python stdlib only. client_pos 0 = big blind, 1 = small blind. Decision "street"
 is the number of board cards (0 = preflop).
 """
@@ -31,7 +31,8 @@ def main(paths):
     hands = [json.loads(l) for p in paths for l in open(p) if l.strip()]
     n = len(hands)
     if not n:
-        sys.exit("no hands")
+        print("0 hands")
+        return
     w = [h["winnings"] for h in hands]
     print(f"hands {n}, chips {sum(w):+d}")
     m, lo, hi = ci(w)
@@ -86,7 +87,7 @@ def main(paths):
             print(f"  {name}: {len(x)} hands, {sum(h['winnings'] > 0 for h in x)} wins ({sum(h['winnings'] > 0 for h in x) / len(x):.0%}), "
                   f"{sum(h['winnings'] for h in x):+d} chips")
 
-    print("\nBiggest 5 losing hands")
+    print("\nBiggest losing hands (top 5 plus ties)")
     worst = sorted(hands, key=lambda h: h["winnings"])
     for h in [h for h in worst if h["winnings"] <= worst[min(4, n - 1)]["winnings"]]:  # top 5 plus ties with the 5th
         d = h["decisions"][-1] if h["decisions"] else {}

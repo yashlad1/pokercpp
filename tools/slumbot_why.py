@@ -36,10 +36,19 @@ def true_equity(hole, opp, board):
     return sum(_score(hole, opp, board + r) for r in runs) / len(runs)
 
 
-def judged(decisions):
-    if decisions and decisions[-1]["sent"] == "f":
-        return decisions[-1]
-    puts = [d for d in decisions if d["sent"][0] in "cb"]
+def required(d):
+    return d["to_call"] / (d["pot"] + d["to_call"]) if d["to_call"] > 0 else 0.5
+
+
+def judged(h):
+    """The final fold if it was wrong; else our last decision before it that put chips in (None: blinds only)."""
+    ds = h["decisions"]
+    if ds and ds[-1]["sent"] == "f":
+        f = ds[-1]
+        if "bot_hole" not in h or true_equity(h["hole"], h["bot_hole"], h["board"][:f["street"]]) >= required(f):
+            return f
+        ds = ds[:-1]
+    puts = [d for d in ds if d["sent"][0] in "cb"]
     return puts[-1] if puts else None
 
 
@@ -50,7 +59,7 @@ def explain(h, d):
     if d is None:
         return None, None, "blinds only", "Only blinds went in, no decision of ours put chips in."
     te = true_equity(h["hole"], h["bot_hole"], h["board"][:d["street"]])
-    req = d["to_call"] / (d["pot"] + d["to_call"]) if d["to_call"] > 0 else 0.5
+    req = required(d)
     facts = (f"{'/'.join(h['hole'])} vs his {'/'.join(h['bot_hole'])} on {d['street']} board cards: "
              f"{d['sent']} with true equity {te:.2f}, needed {req:.2f}")
     if d["sent"] == "f" and te >= req:
@@ -85,7 +94,7 @@ def analyse(path):
     for i, h in enumerate(hands, 1):
         if h["winnings"] > BIG:
             continue
-        d = judged(h["decisions"])
+        d = judged(h)
         te, req, cause, why = explain(h, d)
         row = {"hand": i, "chips": h["winnings"], "seat": "BB" if h["client_pos"] == 0 else "SB",
                "hole": h["hole"], "opp_hole": h.get("bot_hole"), "board": h["board"], "action": h["action"]}

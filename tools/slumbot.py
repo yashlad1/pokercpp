@@ -15,6 +15,10 @@ Pacing: strictly sequential, one request at a time, 0.2 s pause between hands.
 A failed request is retried at most twice (1 s, 2 s backoff), then the run stops
 cleanly and keeps the hands already played. A server-rejected action stops the
 run too (it is counted and reported, never retried).
+Exit code: 1 if the session stopped early or had any reconcile mismatch, else 0.
+
+Also runs in GitHub Actions (.github/workflows/slumbot.yml: twice a day plus on demand,
+logs kept as artifacts only).
 
 Usage:
     PYTHONPATH=chipzen python tools/slumbot.py --hands 500 --hero engine --log out.jsonl
@@ -281,6 +285,7 @@ def main():
         s = sorted(LAT)
         print(f"requests {len(s)}, latency mean {sum(s) / len(s):.3f}s median {s[len(s) // 2]:.3f}s p95 {s[int(len(s) * .95)]:.3f}s")
     print(f"wall time: {time.time() - t0:.0f}s")
+    sys.exit(1 if stop or mismatch else 0)
 
 
 if __name__ == "__main__":
