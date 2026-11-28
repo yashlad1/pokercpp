@@ -240,5 +240,136 @@ def test_two_runs_identical():
     assert out1 == out2 and js1 == js2
 
 
+# --- P1b: per-street luck correction ------------------------------------------------------------------
+# street_adjusted = winnings + sum over each board deal of P_at_deal * (eq_before - eq_after), where P is the
+# total of both players' contributions after the betting of the previous street. Slumbot bet sizes are
+# "raise to" street totals; each player puts in the same amount when a bet is called, so after
+# "b200c/b300c/b600c" each side has put in 1100 and the pot at the river deal is 2200.
+# The expected values below come from my own pokerkit brute force (brute_eq), not from the tool.
+AA, KK = ["As", "Ah"], ["Kc", "Kd"]
+FLOP3, TURN1 = ["2d", "7c", "9h"], "4c"
+PRE_EQ = 0.8176                      # AA vs KK preflop, as in H_PRE above
+
+
+def river_hand(river, t, win_sign=None):
+    """AA vs KK, flop 2d 7c 9h, turn 4c, given river. Flop bet 300 called, turn bet t (0 = checked through),
+    no river betting. Pot at the river deal = 400 + 600 + 2t = 1000 + 2t; each side has put in 500 + t."""
+    turn_act = f"b{t}c" if t else "kk"
+    a = KK + [river]
+    ours = StandardHighHand.from_game("".join(AA), "".join(FLOP3) + TURN1 + river)
+    theirs = StandardHighHand.from_game("".join(KK), "".join(FLOP3) + TURN1 + river)
+    score = 1 if ours > theirs else 0.5 if ours == theirs else 0
+    win = (2 * score - 1) * (500 + t)
+    return hand(f"b200c/b300c/{turn_act}/kk", win, AA, KK, FLOP3 + [TURN1, river]), score
+
+
+def unseen_rivers():
+    return [c for c in DECK if c not in AA + KK + FLOP3 + [TURN1]]
+
+
+def test_zero_mean_river_corrections_exact():
+    rivers = unseen_rivers()
+    assert len(rivers) == 44
+    eq_turn = brute_eq(AA, KK, FLOP3 + [TURN1])
+
+    def excess(t):          # sum over all 44 rivers of (street_adjusted - winnings); one log, one run
+        hs = [river_hand(r, t)[0] for r in rivers]
+        r = result(hs)
+        assert r["n_street_adjusted"] == 44
+        return r["street_chips"] - r["raw_chips"]
+
+    # Flop and turn corrections are identical in all 44 hands and do not depend on the turn bet t (they use the
+    # pot before it). Only the river term has P = 1000 + 2t, so S(t) = 44*K + P(t) * sum_r(eq_turn - score_r).
+    # The sum is 0 exactly, so S(1000) - S(0) = 2000 * 0 and the river terms cancel to within 1e-6 * P.
+    s0, s1 = excess(0), excess(1000)
+    assert abs(s1 - s0) < 1e-6 * 3000, (s0, s1)
+    # Non-vacuous: single rivers give exact, non-zero corrections 2t * (eq_turn - score) on top of the t=0 value.
+    for river in ("Kh", "3s"):
+        h0, sc = river_hand(river, 0)
+        h1, _ = river_hand(river, 1000)
+        r0, r1 = result([h0]), result([h1])
+        d = (r1["street_chips"] - r1["raw_chips"]) - (r0["street_chips"] - r0["raw_chips"])
+        assert abs(d - 2000 * (eq_turn - sc)) < 1e-6 * 3000, (river, d)
+        assert abs(2000 * (eq_turn - sc)) > 1            # a real correction, not 0
+
+
+def test_street_matches_p1_for_preflop_all_in():
+    r = result([H_PRE])
+    assert r["n_street_adjusted"] == 1 and r["raw_chips"] == -20000
+    # pot is 40,000 at every deal, so the corrections telescope to 40000 * (eq_pre - actual score 0).
+    assert abs(r["street_chips"] - PRE_ADJ) < 400, r["street_chips"]
+    assert abs(r["street_chips"] - r["adjusted_chips"]) < 400
+    assert abs(r["adjusted_chips"] - PRE_ADJ) < 400            # P1's figure is unchanged
+
+
+def test_river_showdown_no_all_in_several_streets():
+    # AA vs KK, board 2d 7c 9h 4c 3s, "b200c/b300c/b600c/b1000c": P = 400 (flop), 1000 (turn), 2200 (river).
+    # We win 200+300+600+1000 = 2100 (AA holds on this board).
+    h = hand("b200c/b300c/b600c/b1000c", 2100, AA, KK, FLOP3 + [TURN1, "3s"])
+    e_flop = brute_eq(AA, KK, FLOP3)
+    e_turn = brute_eq(AA, KK, FLOP3 + [TURN1])
+    e_river = brute_eq(AA, KK, FLOP3 + [TURN1, "3s"])
+    assert e_river == 1
+    exact = 1000 * (e_flop - e_turn) + 2200 * (e_turn - e_river)
+    flop_term = 400 * (PRE_EQ - e_flop)                        # preflop equity is Monte Carlo in the tool
+    r = result([h])
+    assert r["n_street_adjusted"] == 1 and r["raw_chips"] == 2100
+    want = 2100 + exact + flop_term
+    assert abs(r["street_chips"] - want) < 0.01 * 400 + 1e-6 * 2200, (r["street_chips"], want)
+    assert r["adjusted_chips"] == 2100 and r["n_adjusted"] == 0      # P1 untouched: no all-in
+
+
+def test_street_fold_preflop_is_winnings():
+    r = result([H_FOLD, H_ALLIN_FOLD])
+    assert r["raw_chips"] == -200 and r["street_chips"] == -200 and r["n_street_adjusted"] == 0
+    assert r["sd_street"] == r["sd_raw"]
+
+
+def test_street_unknown_bot_hole_is_winnings():
+    h = hand("b200c/b300c/b600c/b1000c", 2100, AA, [], FLOP3 + [TURN1, "3s"])
+    r = result([h, H_UNKNOWN])
+    assert r["n_street_adjusted"] == 0
+    assert r["street_chips"] == r["raw_chips"] == 2100 - 20000
+
+
+def test_street_sd_below_raw():
+    # 44 hands that differ only in the river card, river check-through: pot 1000 at the river deal, each hand
+    # wins/loses/ties 500. winnings + 1000 * (eq_turn - score) = 1000 * eq_turn - 500, the same for all 44
+    # (score = (winnings + 500) / 1000), so the street-adjusted spread is 0 while the raw spread is large.
+    hs = [river_hand(c, 0)[0] for c in unseen_rivers()]
+    r = result(hs)
+    assert r["sd_raw"] > 300, r["sd_raw"]
+    assert r["sd_street"] < 0.01 * r["sd_raw"], (r["sd_street"], r["sd_raw"])
+    assert r["sd_ratio_street"] < 0.01
+    assert math.isclose(r["sd_ratio_street"], r["sd_street"] / r["sd_raw"], abs_tol=1e-12)
+
+
+STREET_KEYS = ("street_chips", "street_bb100", "street_ci95", "sd_street", "sd_ratio_street", "n_street_adjusted")
+
+
+def test_street_fields_exist_total_and_per_log():
+    r = result([H_PRE, H_FLOP, H_FOLD], [H_TURN, H_RIVER])
+    rows = [r] + r["logs"]
+    assert len(r["logs"]) == 2
+    for row in rows:
+        for k in STREET_KEYS:
+            assert k in row, k
+        lo, hi = row["street_ci95"]
+        assert lo <= row["street_bb100"] <= hi
+        assert math.isclose(row["street_bb100"], row["street_chips"] / row["hands"], rel_tol=1e-9, abs_tol=1e-9)
+        assert math.isclose(row["sd_ratio_street"], row["sd_street"] / row["sd_raw"], rel_tol=1e-9)
+    assert r["n_street_adjusted"] == 4       # H_PRE, H_FLOP, H_TURN, H_RIVER have deals; H_FOLD none
+    assert r["logs"][1]["n_street_adjusted"] == 2
+
+
+def test_street_two_runs_identical():
+    logs = [[H_PRE, H_FLOP, H_FOLD, river_hand("Kh", 0)[0]]]
+    rc1, out1, js1 = run(*logs, out_json=True)
+    rc2, out2, js2 = run(*logs, out_json=True)
+    assert rc1 == rc2 == 0
+    assert "street_chips" in js1 and "street_ci95" in js1["logs"][0]      # not vacuously equal
+    assert out1 == out2 and js1 == js2
+
+
 if __name__ == "__main__":
     sys.exit(subprocess.call([sys.executable, "-m", "pytest", "-q", __file__]))
