@@ -480,5 +480,16 @@
    "slumbot_exit"
   ],
   "why_survives": ""
+ },
+ {
+  "id": "RL1",
+  "file": "tools/range_lab.py",
+  "find": "def update(w, action, s, raise_rate, fold_rate, alpha=0.05):",
+  "replace": "def update(w, action, s, raise_rate, fold_rate, alpha=0.0):",
+  "what": "the weight floor is removed (alpha forced to 0)",
+  "expect": [
+   "range_lab"
+  ],
+  "why_survives": ""
  }
 ]

@@ -156,3 +156,6 @@ jobs:
 
       - name: Test the live log importer
         run: python tools/test_import_logs.py
+
+      - name: Test the range lab
+        run: python -m pytest tools/test_range_lab.py -q
