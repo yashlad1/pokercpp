@@ -253,6 +253,80 @@ def test_unknown_cards_not_shown():
         assert b["cause"] == "unknown (cards not shown)" and b["chips"] == -2200
 
 
+def brute_equity(hole, opp, board):
+    """exact equity over every completion of the board; a tie counts half."""
+    dead = {*hole, *opp, *board}
+    deck = [r + s for r in "23456789TJQKA" for s in "cdhs" if r + s not in dead]
+    wins = ties = n = 0
+    for run in itertools.combinations(deck, 5 - len(board)):
+        full = "".join(board) + "".join(run)
+        mine = StandardHighHand.from_game("".join(hole), full)
+        his = StandardHighHand.from_game("".join(opp), full)
+        wins += mine > his
+        ties += mine == his
+        n += 1
+    return wins, ties, n
+
+
+def one_hand_loss(h):
+    with tempfile.TemporaryDirectory() as d:
+        out = pathlib.Path(d) / "out"
+        run(out, write_log(d, "one", [h]))
+        rows = load(out, "one.why.json")["big_losses"]
+        assert len(rows) == 1, rows
+        return rows[0]
+
+
+# 9. a correct fold is judged by the bet before it (amendment 1). Flop Kc 7d 2s: we hold
+#    7h 7c (set of sevens), he holds Kd Kh (set of kings). We call the flop at logged
+#    equity 0.5, then check the turn and fold the river (9c 3h came) to a 3000 bet.
+#    Flop true equity, 45 unseen cards, C(45,2) = 990 run-outs: we win only with the
+#    last 7 (7s) coming: 44 run-outs hold 7s, minus {7s, Ks} where he makes four kings
+#    (7777 loses to KKKK) = 43. Otherwise his set of kings stays ahead (a paired board
+#    gives full houses, kings over sevens still win). No ties. 43/990 = 0.04343.
+#    Flop: required = 1000 / (3000 + 1000) = 0.25, and 0.5 - 0.0434 >= 0.25, so the cause is
+#    overconfident vs his real hand. The river fold is correct: he has three kings, we
+#    three sevens, true equity 0 < 3000 / 9000.
+#    Old rule judges the fold (logged 0.1, true 0.0): marginal decision lost.
+FOLD_OK_BOARD = ["Kc", "7d", "2s", "9c", "3h"]
+FOLD_OK = hand(-4000, [dec(3, 3000, 1000, "c", 0.5), dec(4, 6000, 0, "k", 0.5),
+                       dec(5, 6000, 3000, "f", 0.1)],
+               ["7h", "7c"], ["Kd", "Kh"], FOLD_OK_BOARD)
+FOLD_OK_EQ = 43 / 990
+
+
+def test_correct_fold_judged_by_the_bet_before_it():
+    wins, ties, n = brute_equity(["7h", "7c"], ["Kd", "Kh"], FOLD_OK_BOARD[:3])
+    assert (wins, ties, n) == (43, 0, 990)  # brute force agrees with the hand count
+    assert brute_equity(["7h", "7c"], ["Kd", "Kh"], FOLD_OK_BOARD)[0] == 0  # river fold correct
+    b = one_hand_loss(FOLD_OK)
+    assert b["cause"] == "overconfident vs his real hand", b
+    assert (b["street"], b["sent"]) == (3, "c")
+    assert (b["to_call"], b["pot"], b["equity"], b["chips"]) == (1000, 3000, 0.5, -4000)
+    assert abs(b["true_equity"] - FOLD_OK_EQ) < 1e-9
+    assert abs(b["required"] - 0.25) < 1e-9
+
+
+# 10. ties count half. Turn board 9s 9d 9c 9h (quad nines on the board), we hold Kd Qd,
+#    he holds Ac 2c. Every river leaves four nines on the board, so the kicker decides: his
+#    ace beats our king unless the river is an ace (Ad As Ah, 3 cards), which both play: a
+#    tie. 44 unseen cards: 0 wins, 3 ties, 41 losses.
+#    true_equity = (0 + 0.5 * 3) / 44 = 0.034091; counting ties as losses would give 0.
+#    required = 1000 / (3000 + 1000) = 0.25 > 0.034, logged 0.2: marginal decision lost.
+TIE_BOARD = ["9s", "9d", "9c", "9h", "5s"]
+TIE = hand(-3000, [dec(4, 3000, 1000, "c", 0.2)], ["Kd", "Qd"], ["Ac", "2c"], TIE_BOARD)
+
+
+def test_ties_count_half():
+    wins, ties, n = brute_equity(["Kd", "Qd"], ["Ac", "2c"], TIE_BOARD[:4])
+    assert (wins, ties, n) == (0, 3, 44)
+    b = one_hand_loss(TIE)
+    assert abs(b["true_equity"] - (wins + 0.5 * ties) / 44) < 1e-9
+    assert abs(b["true_equity"] - 1.5 / 44) < 1e-9
+    assert abs(b["true_equity"] - wins / 44) > 0.03  # not ties-as-losses
+    assert (b["street"], b["sent"], b["cause"]) == (4, "c", "marginal decision lost")
+
+
 def test_deterministic():
     with tempfile.TemporaryDirectory() as d:
         logs = [write_log(d, "lost", LOSE_HANDS), write_log(d, "won", WIN_HANDS)]
