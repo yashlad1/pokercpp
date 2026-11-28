@@ -327,8 +327,8 @@
  {
   "id": "I1",
   "file": "tools/import_logs.py",
-  "find": "    if interrupted and subprocess.run([\"pgrep\", \"-f\", \"run-external\"], capture_output=True).returncode != 1:",
-  "replace": "    if interrupted and subprocess.run([\"pgrep\", \"-f\", \"run-external\"], capture_output=True).returncode != 1 and False:",
+  "find": "    if interrupted and subprocess.run([\"pgrep\", \"-f\", \"chipzen-sdk run-external\"], capture_output=True).returncode != 1:",
+  "replace": "    if interrupted and subprocess.run([\"pgrep\", \"-f\", \"chipzen-sdk run-external\"], capture_output=True).returncode != 1 and False:",
   "what": "import_logs thinks no run-external is running",
   "expect": [
    "import_logs"
@@ -366,6 +366,28 @@
   "expect": [
    "logging",
    "v4"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "G1",
+  "file": "tools/import_logs.py",
+  "find": "\"pgrep\", \"-f\", \"chipzen-sdk run-external\"]",
+  "replace": "\"pgrep\", \"-f\", \"run-external\"]",
+  "what": "the guard pattern is the bare subcommand text again",
+  "expect": [
+   "import_logs"
+  ],
+  "why_survives": ""
+ },
+ {
+  "id": "G2",
+  "file": "tools/play_match.sh",
+  "find": "trap '[ -n \"$log\" ] && python3",
+  "replace": "trap 'python3",
+  "what": "the INT trap imports even when the log is empty",
+  "expect": [
+   "play_match"
   ],
   "why_survives": ""
  },
