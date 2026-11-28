@@ -42,6 +42,7 @@ TESTS = {
     "preflop_realization": (["{py}", "chipzen/test_preflop_realization.py"], {}, 600),
     "suit_relabel": (["{py}", "chipzen/test_suit_relabel.py"], {}, 600),
     "import_logs": (["{py}", "tools/test_import_logs.py"], {}, 300),
+    "range_lab": (["{py}", "-m", "pytest", "tools/test_range_lab.py", "-q"], {}, 600),
     "play_match": (["{py}", "tools/test_play_match.py"], {}, 300),
     "paired": (["{py}", "tools/test_paired.py"], {}, 600),
     "bench_coerced": (["{py}", "tools/test_bench_coerced.py"], {"PYTHONPATH": "chipzen"}, 600),
