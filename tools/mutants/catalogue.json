@@ -480,5 +480,16 @@
    "slumbot_exit"
   ],
   "why_survives": ""
+ },
+ {
+  "id": "LK1",
+  "file": "tools/slumbot_luck.py",
+  "find": "else 0.5 if a == v else 0",
+  "replace": "else 0 if a == v else 0",
+  "what": "a tie counted as a loss in the equity",
+  "expect": [
+   "slumbot_luck"
+  ],
+  "why_survives": ""
  }
 ]

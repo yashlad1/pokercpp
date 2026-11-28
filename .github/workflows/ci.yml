@@ -154,5 +154,8 @@ jobs:
       - name: Test the Slumbot report
         run: python tools/test_slumbot_report.py
 
+      - name: Test the Slumbot luck adjustment
+        run: python tools/test_slumbot_luck.py
+
       - name: Test the live log importer
         run: python tools/test_import_logs.py
