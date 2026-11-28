@@ -338,7 +338,8 @@ def test_street_sd_below_raw():
     # (score = (winnings + 500) / 1000), so the street-adjusted spread is 0 while the raw spread is large.
     hs = [river_hand(c, 0)[0] for c in unseen_rivers()]
     r = result(hs)
-    assert r["sd_raw"] > 300, r["sd_raw"]
+    # raw: 42 rivers win +500, 2 (Kh, Ks) lose -500: mean 454.5, sample SD 210.7.
+    assert abs(r["sd_raw"] - 210.7) < 1, r["sd_raw"]
     assert r["sd_street"] < 0.01 * r["sd_raw"], (r["sd_street"], r["sd_raw"])
     assert r["sd_ratio_street"] < 0.01
     assert math.isclose(r["sd_ratio_street"], r["sd_street"] / r["sd_raw"], abs_tol=1e-12)
