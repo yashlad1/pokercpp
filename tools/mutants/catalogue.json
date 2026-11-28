@@ -458,5 +458,14 @@
    "opponent_stats"
   ],
   "why_survives": ""
+ },
+ {
+  "id": "WH1",
+  "file": "tools/slumbot_why.py",
+  "find": "else 0.5  # a split counts half",
+  "replace": "else 0.0  # a split counts half",
+  "what": "a split pot counted as a loss in true equity",
+  "expect": [],
+  "why_survives": "no hand-built test case has a tie (split) in its run-out, so a split counted 0 or 0.5 gives the same numbers"
  }
 ]

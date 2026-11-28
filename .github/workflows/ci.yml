@@ -150,3 +150,6 @@ jobs:
 
       - name: Test the live log importer
         run: python tools/test_import_logs.py
+
+      - name: Test the Slumbot why tool
+        run: python tools/test_slumbot_why.py

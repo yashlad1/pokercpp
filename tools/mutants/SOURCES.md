@@ -70,3 +70,4 @@ expect lists only deterministic killers; flaky killers are noted, not expected
 - D2 / logging: MEASURED on #179 (b1 asserts build_info preflop_realization == 0.85)
 - G1 / import_logs: PREDICTED. test_bare_subcommand_text_does_not_block (the bare pattern matches the dummy process and refuses)
 - G2 / play_match: PREDICTED. test_trap_empty_log_skips_import (the trap imports with an empty log)
+- WH1 / slumbot_why: MEASURED. survives (all 13 tests pass with a split counted 0): no hand-built case has a tie. Known survivor, expect: []
